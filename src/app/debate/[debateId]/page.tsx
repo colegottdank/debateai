@@ -77,17 +77,17 @@ export default function DebatePage() {
     const isFirstTurn = messages.filter(m => m.role === 'user').length === 0;
 
     try {
-      // Use Claude Code API for better debates
-      const response = await fetch('/api/debate-claude', {
+      // Use Anthropic API with WebSearch for better debates
+      const response = await fetch('/api/debate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           debateId,
-          opponent: debate?.opponent || debate?.character,
+          character: debate?.opponent || debate?.character,
           topic: debate?.topic,
           userArgument: textToSend,
           previousMessages: messages,
-          isFirstTurn
+          stream: true
         })
       });
 

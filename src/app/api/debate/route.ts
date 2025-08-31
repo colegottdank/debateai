@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
-// Switch to OpenRouter for free AI!
-import { generateDebateResponseStream, generateDebateResponse, Character } from '@/lib/openrouter-debate';
-import { currentUser } from '@clerk/nextjs/server';
-import { d1 } from '@/lib/d1';
+import Anthropic from '@anthropic-ai/sdk';
 import { getUserId } from '@/lib/auth-helper';
+import { d1 } from '@/lib/d1';
+import { OPPONENT_PROMPTS } from '@/lib/debate-prompts';
+import { OpponentType } from '@/lib/opponents';
+
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY!,
+});
 
 export async function POST(request: Request) {
   try {
@@ -13,13 +17,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { character, topic, userArgument, previousMessages, stream, debateId } = await request.json();
+    const { 
+      debateId, 
+      character,  // This will be the opponent type
+      topic, 
+      userArgument, 
+      previousMessages,
+      stream = true
+    } = await request.json();
 
     if (!character || !topic || !userArgument) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // Check message limit (skip in test mode)
+    // Check message limit
     const isTestMode = process.env.NEXT_PUBLIC_TEST_MODE === 'true';
     if (debateId && !isTestMode) {
       const messageLimit = await d1.checkDebateMessageLimit(debateId);
@@ -34,134 +45,143 @@ export async function POST(request: Request) {
       }
     }
 
-    // Check if user is premium for rate limiting
-    const user = userId ? await d1.getUser(userId) : null;
-    const isPremium = user?.subscription_status === 'active';
+    // Calculate turn number based on previous messages
+    const turnNumber = previousMessages 
+      ? Math.floor(previousMessages.filter((m: any) => m.role === 'user').length) + 1
+      : 1;
 
-    // If streaming is requested
-    if (stream) {
-      const debateStream = await generateDebateResponseStream(
-        character as Character,
-        topic,
-        userArgument,
-        previousMessages || [],
-        userId,
-        debateId,
-        isPremium
-      );
+    // Get the opponent-specific prompt from the prompts configuration
+    const opponentPrompt = OPPONENT_PROMPTS[character as OpponentType] || OPPONENT_PROMPTS.socratic;
+    
+    // Build the full system prompt
+    const systemPrompt = `${opponentPrompt}
 
-      const encoder = new TextEncoder();
-      let fullResponse = '';
+Topic: "${topic}"
+You are engaged in a debate with the user about this topic. Respond to their arguments directly and substantively.`;
 
-      const readable = new ReadableStream({
-        async start(controller) {
-          try {
-            for await (const chunk of debateStream) {
-              // OpenRouter uses different chunk format
-              if (chunk.choices?.[0]?.delta?.content) {
-                const text = chunk.choices[0].delta.content;
-                fullResponse += text;
-                
-                const data = JSON.stringify({ content: text, type: 'chunk' });
-                controller.enqueue(encoder.encode(`data: ${data}\n\n`));
-              }
-            }
-            
-            // Send final message with debate ID if new debate
-            let savedDebateId = debateId;
-            
-            // Save or update debate
-            const allMessages = [...(previousMessages || []), 
-              { role: 'user', content: userArgument }, 
-              { role: 'ai', content: fullResponse }
-            ];
-            
-            if (!debateId) {
-              // This is a new debate, save it and get the ID
-              const user = await currentUser();
-              const username = user?.firstName || user?.username || 'Anonymous';
-              
-              // Get the debate ID from the referrer URL if this is a new debate
-              const referrer = request.headers.get('referer');
-              let extractedDebateId: string | undefined;
-              if (referrer) {
-                const match = referrer.match(/\/debate\/([a-f0-9-]+)/);
-                if (match) {
-                  extractedDebateId = match[1];
-                }
-              }
-              
-              const saveResult = await d1.saveDebate({
-                userId,
-                character,
-                topic,
-                messages: allMessages,
-                debateId: extractedDebateId  // Use the ID from the URL
-              });
-              
-              if (saveResult.debateId) {
-                savedDebateId = saveResult.debateId;
-              }
-              
-              const userMessages = allMessages.filter((m: { role: string; content: string }) => m.role === 'user').length;
-              await d1.updateLeaderboard(userId, username, userMessages >= 3);
-            } else {
-              // Update existing debate with new messages
-              console.log('Updating existing debate:', debateId, 'with', allMessages.length, 'messages');
-              const saveResult = await d1.saveDebate({
-                userId,
-                character,
-                topic,
-                messages: allMessages,
-                debateId: debateId  // Update the existing debate
-              });
-              
-              if (!saveResult.success) {
-                console.error('Failed to update debate:', saveResult.error);
-              }
-            }
-            
-            const finalData = JSON.stringify({ 
-              content: fullResponse, 
-              type: 'complete',
-              debateId: savedDebateId 
-            });
-            controller.enqueue(encoder.encode(`data: ${finalData}\n\n`));
-            controller.close();
-          } catch (error) {
-            console.error('Streaming error:', error);
-            const errorData = JSON.stringify({ error: 'Streaming failed', type: 'error' });
-            controller.enqueue(encoder.encode(`data: ${errorData}\n\n`));
-            controller.close();
-          }
+    // Build conversation history for Claude
+    const messages: Anthropic.MessageParam[] = [];
+    
+    // Add previous messages if they exist
+    if (previousMessages && previousMessages.length > 0) {
+      for (const msg of previousMessages) {
+        if (msg.role === 'user') {
+          messages.push({ role: 'user', content: msg.content });
+        } else if (msg.role === 'ai') {
+          messages.push({ role: 'assistant', content: msg.content });
         }
+      }
+    }
+    
+    // Add the current user argument
+    messages.push({ role: 'user', content: userArgument });
+
+    if (!stream) {
+      // Non-streaming response
+      const response = await anthropic.messages.create({
+        model: 'claude-3-5-sonnet-latest',
+        max_tokens: 1000,
+        temperature: 0.7,
+        system: systemPrompt,
+        messages: messages
       });
 
-      return new Response(readable, {
-        headers: {
-          'Content-Type': 'text/event-stream',
-          'Cache-Control': 'no-cache',
-          'Connection': 'keep-alive',
-        },
+      // Extract the text content from the response
+      let finalContent = '';
+      for (const block of response.content) {
+        if (block.type === 'text') {
+          finalContent += block.text;
+        }
+      }
+
+      // Save the debate turn
+      if (debateId) {
+        await d1.saveDebateTurn(debateId, userArgument, finalContent);
+      }
+
+      return NextResponse.json({ 
+        content: finalContent,
+        debateId: debateId 
       });
     }
 
-    // Fallback to non-streaming response
-    const response = await generateDebateResponse(
-      character as Character,
-      topic,
-      userArgument,
-      previousMessages || [],
-      userId,
-      debateId,
-      isPremium
-    );
+    // Streaming response
+    const encoder = new TextEncoder();
+    const streamResponse = new ReadableStream({
+      async start(controller) {
+        try {
+          // Send initial message
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify({ type: 'start' })}\n\n`)
+          );
 
-    return NextResponse.json({ response });
+          const stream = await anthropic.messages.create({
+            model: 'claude-3-5-sonnet-latest',
+            max_tokens: 1000,
+            temperature: 0.7,
+            system: systemPrompt,
+            messages: messages,
+            stream: true
+          });
+
+          let accumulatedContent = '';
+
+          for await (const event of stream) {
+            if (event.type === 'content_block_delta') {
+              if (event.delta.type === 'text_delta') {
+                const chunk = event.delta.text;
+                accumulatedContent += chunk;
+                
+                // Send chunk to client
+                controller.enqueue(
+                  encoder.encode(`data: ${JSON.stringify({ 
+                    type: 'chunk', 
+                    content: chunk 
+                  })}\n\n`)
+                );
+              }
+            } else if (event.type === 'message_stop') {
+              // Save the complete debate turn
+              if (debateId && accumulatedContent) {
+                await d1.saveDebateTurn(debateId, userArgument, accumulatedContent);
+              }
+
+              // Send completion message
+              controller.enqueue(
+                encoder.encode(`data: ${JSON.stringify({ 
+                  type: 'complete', 
+                  content: accumulatedContent,
+                  debateId: debateId 
+                })}\n\n`)
+              );
+            }
+          }
+        } catch (error) {
+          console.error('Streaming error:', error);
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify({ 
+              type: 'error', 
+              error: 'Failed to generate response' 
+            })}\n\n`)
+          );
+        } finally {
+          controller.close();
+        }
+      }
+    });
+
+    return new NextResponse(streamResponse, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      },
+    });
+
   } catch (error) {
     console.error('Debate API error:', error);
     return NextResponse.json(
-      { error: 'Failed to generate response' },
+      { error: 'Failed to generate debate response' },
       { status: 500 }
     );
   }
