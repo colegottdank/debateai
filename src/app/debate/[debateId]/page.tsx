@@ -83,7 +83,8 @@ export default function DebatePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           debateId,
-          character: debate?.opponent || debate?.character,
+          character: debate?.opponent || debate?.character || 'custom',
+          opponentStyle: debate?.opponentStyle, // Pass custom style if available
           topic: debate?.topic,
           userArgument: textToSend,
           previousMessages: messages,

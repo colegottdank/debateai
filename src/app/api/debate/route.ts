@@ -19,7 +19,8 @@ export async function POST(request: Request) {
 
     const {
       debateId,
-      character, // This will be the opponent type
+      character, // This will be the opponent type or 'custom'
+      opponentStyle, // Custom opponent style description
       topic,
       userArgument,
       previousMessages,
@@ -57,15 +58,24 @@ export async function POST(request: Request) {
         ) + 1
       : 1;
 
-    // Get the opponent-specific prompt from the prompts configuration
-    const opponentPrompt =
-      OPPONENT_PROMPTS[character as OpponentType] || OPPONENT_PROMPTS.socratic;
+    // Build system prompt based on custom style or predefined opponent
+    let systemPrompt: string;
+    
+    if (character === 'custom' && opponentStyle) {
+      // Use custom opponent style
+      systemPrompt = `You are a debate opponent with the following style: ${opponentStyle}
 
-    // Build the full system prompt
-    const systemPrompt = `${opponentPrompt}
+Topic: "${topic}"
+
+Engage in this debate according to your described style. Respond to arguments directly and substantively. Keep responses under 100 words. Be challenging but respectful.`;
+    } else {
+      // Fall back to predefined opponents if available
+      const opponentPrompt = OPPONENT_PROMPTS[character as OpponentType] || OPPONENT_PROMPTS.socratic;
+      systemPrompt = `${opponentPrompt}
 
 Topic: "${topic}"
 You are engaged in a debate with the user about this topic. Respond to their arguments directly and substantively.`;
+    }
 
     // Build conversation history for Claude
     const messages: Anthropic.MessageParam[] = [];

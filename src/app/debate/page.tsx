@@ -1,23 +1,17 @@
 'use client';
 
 import { useState } from 'react';
-import { useUser } from '@/lib/useTestUser';
-import { SignedIn, UserButton } from '@clerk/nextjs';
-import { OpponentType } from '@/lib/opponents';
+import { useUser, SignedIn, UserButton } from '@clerk/nextjs';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { opponents } from '@/lib/opponents';
-import AvatarUpload from '@/components/AvatarUpload';
-import OpponentCard from '@/components/OpponentCard';
-import TopicSelector from '@/components/TopicSelector';
 import UpgradeModal from '@/components/UpgradeModal';
 
 export default function DebatePage() {
   const { user } = useUser();
   const router = useRouter();
-  const [selectedOpponent, setSelectedOpponent] = useState<OpponentType | null>(null);
-  const [selectedTopic, setSelectedTopic] = useState<string>('');
-  const [customTopic, setCustomTopic] = useState<string>('');
+  const [opponentStyle, setOpponentStyle] = useState('');
+  const [topic, setTopic] = useState('');
+  const [isStarting, setIsStarting] = useState(false);
   
   // Upgrade modal state
   const [upgradeModal, setUpgradeModal] = useState<{
@@ -33,29 +27,27 @@ export default function DebatePage() {
   });
 
   const startDebate = async () => {
-    const topic = customTopic || selectedTopic;
-    if (!selectedOpponent || !topic) {
-      alert('Please select an opponent and topic!');
+    if (!opponentStyle.trim() || !topic.trim()) {
       return;
     }
     
-    // Generate a unique debate ID
+    setIsStarting(true);
     const debateId = crypto.randomUUID();
     
     try {
-      // Create debate in database first
+      // Create debate in database
       const response = await fetch('/api/debate/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          character: selectedOpponent,
+          character: 'custom',
+          opponentStyle,
           topic,
           debateId
         })
       });
       
       if (response.ok) {
-        // Navigate directly without query params!
         router.push(`/debate/${debateId}`);
       } else {
         const error = await response.json();
@@ -71,6 +63,8 @@ export default function DebatePage() {
               limit: error.limit
             }
           });
+        } else if (response.status === 401) {
+          alert('Please sign in to start a debate');
         } else {
           alert('Failed to create debate. Please try again.');
         }
@@ -78,11 +72,13 @@ export default function DebatePage() {
     } catch (error) {
       console.error('Error creating debate:', error);
       alert('Failed to create debate. Please try again.');
+    } finally {
+      setIsStarting(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col">
       {/* Upgrade Modal */}
       <UpgradeModal
         isOpen={upgradeModal.isOpen}
@@ -92,87 +88,100 @@ export default function DebatePage() {
       />
       
       {/* Header */}
-      <header className="border-b border-gray-200 bg-white">
+      <header className="border-b border-slate-700">
         <div className="container mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
-            <Link href="/" className="text-2xl font-bold text-gray-900">
+            <Link href="/" className="text-xl font-medium text-slate-100">
               DebateAI
             </Link>
-            <div className="flex items-center gap-4">
-              <Link href="/history" className="text-gray-600 hover:text-gray-900 transition-colors">
-                My Debates
+            <nav className="flex items-center gap-4">
+              <Link href="/history" className="text-slate-400 hover:text-slate-100 transition-colors text-sm">
+                History
               </Link>
               <SignedIn>
-                <UserButton afterSignOutUrl="/" />
+                <UserButton />
               </SignedIn>
-            </div>
+            </nav>
           </div>
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-6xl mx-auto">
+      {/* Main Content */}
+      <main className="flex-1 flex items-center justify-center px-4 py-12">
+        <div className="max-w-3xl w-full">
           {/* Page Title */}
-          <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold text-gray-900 mb-2">Advanced Debate Setup</h1>
-            <p className="text-gray-600">Choose a specific opponent and topic</p>
+          <div className="text-center mb-12">
+            <h1 className="text-3xl font-bold text-slate-100 mb-2">Debate Setup</h1>
+            <p className="text-slate-400">Configure your debate opponent and topic</p>
           </div>
 
-          {/* User Avatar Section */}
-          <div className="mb-8">
-            <AvatarUpload />
-          </div>
+          {/* Configuration Form */}
+          <div className="space-y-6">
+            {/* Opponent Style */}
+            <div>
+              <label htmlFor="opponent" className="block text-sm font-medium text-slate-400 mb-2">
+                Opponent Style
+              </label>
+              <textarea
+                id="opponent"
+                value={opponentStyle}
+                onChange={(e) => setOpponentStyle(e.target.value)}
+                placeholder="Describe your opponent's debate style... (e.g., 'aggressive and confrontational', 'logical and evidence-based', 'philosophical and questioning')"
+                className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg focus:border-indigo-500 focus:outline-none resize-none h-24 text-slate-100 placeholder-slate-500 transition-colors"
+              />
+            </div>
 
-          {/* Opponent Selection */}
-          <div className="mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">1. Choose Your Opponent</h2>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {opponents.map((opponent) => (
-                <OpponentCard
-                  key={opponent.id}
-                  opponent={opponent}
-                  isSelected={selectedOpponent === opponent.id}
-                  onSelect={setSelectedOpponent}
-                />
-              ))}
+            {/* Topic */}
+            <div>
+              <label htmlFor="topic" className="block text-sm font-medium text-slate-400 mb-2">
+                Debate Topic
+              </label>
+              <textarea
+                id="topic"
+                value={topic}
+                onChange={(e) => setTopic(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                    startDebate();
+                  }
+                }}
+                placeholder="What do you want to debate about?"
+                className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg focus:border-indigo-500 focus:outline-none resize-none h-24 text-slate-100 placeholder-slate-500 transition-colors"
+              />
+            </div>
+
+            {/* Start Button */}
+            <div className="pt-4">
+              <button
+                onClick={startDebate}
+                disabled={!opponentStyle.trim() || !topic.trim() || isStarting}
+                className={`w-full py-3 px-6 font-medium rounded-lg transition-all ${
+                  opponentStyle.trim() && topic.trim() && !isStarting
+                    ? 'bg-indigo-500 text-white hover:bg-indigo-600'
+                    : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                }`}
+              >
+                {isStarting ? 'Starting...' : 'Start Debate'}
+              </button>
+              
+              <p className="text-center text-slate-500 text-xs mt-3">
+                Press ⌘+Enter to start
+              </p>
             </div>
           </div>
 
-          {/* Topic Selection */}
-          <div className="mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">2. Select Your Topic</h2>
-            <TopicSelector
-              selectedTopic={selectedTopic}
-              customTopic={customTopic}
-              onTopicSelect={setSelectedTopic}
-              onCustomTopicChange={setCustomTopic}
-            />
-          </div>
-
-          {/* Start Button */}
-          <div className="text-center">
-            <button
-              onClick={startDebate}
-              disabled={!selectedOpponent || (!selectedTopic && !customTopic)}
-              className={`text-lg font-semibold py-4 px-12 rounded-lg transition-all ${
-                selectedOpponent && (selectedTopic || customTopic)
-                  ? 'bg-gray-900 text-white hover:bg-gray-800 cursor-pointer'
-                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-              }`}
-            >
-              {selectedOpponent && (selectedTopic || customTopic) 
-                ? 'Begin Debate' 
-                : 'Select an Opponent and Topic'}
-            </button>
-            
-            {selectedOpponent && (selectedTopic || customTopic) && (
-              <p className="mt-4 text-gray-600 text-sm">
-                Ready to debate with {opponents.find(o => o.id === selectedOpponent)?.name}
-              </p>
-            )}
+          {/* Bottom Links */}
+          <div className="mt-16 flex justify-center gap-6">
+            <Link href="/" className="text-slate-500 hover:text-slate-100 text-sm transition-colors">
+              Quick Start
+            </Link>
+            <span className="text-slate-600">•</span>
+            <Link href="/history" className="text-slate-500 hover:text-slate-100 text-sm transition-colors">
+              Previous Debates
+            </Link>
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

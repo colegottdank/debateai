@@ -50,18 +50,18 @@ export default function Home() {
     const debateTopic = isCustomTopic ? userInput : currentTopic;
     const firstArgument = isCustomTopic ? userInput : userInput;
     
-    // Auto-select opponent based on topic
-    let opponent = 'logical';
+    // Auto-generate opponent style based on topic
+    let opponentStyle = 'logical and evidence-based';
     const topicLower = debateTopic.toLowerCase();
     
     if (topicLower.includes('ethic') || topicLower.includes('moral') || topicLower.includes('right') || topicLower.includes('wrong')) {
-      opponent = 'socratic';
+      opponentStyle = 'philosophical and questioning, using the Socratic method';
     } else if (topicLower.includes('practical') || topicLower.includes('implement') || topicLower.includes('real')) {
-      opponent = 'pragmatist';
+      opponentStyle = 'pragmatic and focused on real-world implications';
     } else if (topicLower.includes('research') || topicLower.includes('study') || topicLower.includes('science')) {
-      opponent = 'academic';
+      opponentStyle = 'academic and research-oriented, citing studies and data';
     } else if (userInput.toLowerCase().includes('disagree') || userInput.toLowerCase().includes('wrong')) {
-      opponent = 'devils_advocate';
+      opponentStyle = 'contrarian, playing devil\'s advocate';
     }
     
     const debateId = crypto.randomUUID();
@@ -71,7 +71,8 @@ export default function Home() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          character: opponent,
+          character: 'custom',
+          opponentStyle,
           topic: debateTopic,
           debateId
         })

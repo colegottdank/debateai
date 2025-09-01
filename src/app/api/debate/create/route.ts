@@ -27,11 +27,15 @@ export async function POST(request: Request) {
       }
     }
 
-    const { character: opponent, topic, debateId } = await request.json();
+    const { character: opponent, opponentStyle, topic, debateId } = await request.json();
 
-    if (!opponent || !topic || !debateId) {
+    if (!topic || !debateId) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
+    
+    // Use custom style if provided, otherwise use the character type
+    const effectiveOpponent = opponent || 'custom';
+    const effectiveStyle = opponentStyle || opponent;
 
     // Get user info for the debate
     const user = await currentUser();
@@ -40,17 +44,18 @@ export async function POST(request: Request) {
     // Create initial debate with welcome message
     const initialMessages = [{
       role: 'system',
-      content: `Welcome to the debate arena! Today's topic: "${topic}". Your opponent will argue against you using ${(opponent as string).replace('_', ' ').toUpperCase()} reasoning.`
+      content: `Welcome to the debate arena! Today's topic: "${topic}".${opponentStyle ? ` Your opponent's style: ${opponentStyle}` : ''}`
     }];
     
-    // Save the debate to the database
+    // Save the debate to the database with custom opponent info
     const saveResult = await d1.saveDebate({
       userId,
-      opponent: opponent as OpponentType,
+      opponent: effectiveOpponent as OpponentType,
       topic,
       messages: initialMessages,
-      debateId
-    });
+      debateId,
+      opponentStyle // Save the custom style for later use
+    } as any);
     
     if (!saveResult.success) {
       throw new Error(saveResult.error || 'Failed to create debate');
