@@ -1,10 +1,58 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import Link from 'next/link';
 import { opponents, getOpponentById } from '@/lib/opponents';
+import Header from '@/components/Header';
+
+// Memoized message component to prevent re-renders during streaming
+const Message = memo(({ msg, opponent, isAILoading, isNew }: { 
+  msg: { role: string; content: string }, 
+  opponent: any,
+  isAILoading: boolean,
+  isNew?: boolean 
+}) => {
+  return (
+    <div className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} ${isNew ? 'animate-slide-up' : ''}`}>
+      <div className={`max-w-[70%] ${msg.role === 'user' ? 'order-2' : 'order-1'}`}>
+        {msg.role === 'ai' && (
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-sm">{opponent?.avatar}</span>
+            <span className="text-sm font-medium text-slate-400">{opponent?.name}</span>
+          </div>
+        )}
+        {msg.role === 'user' && (
+          <div className="text-right mb-1">
+            <span className="text-sm font-medium text-slate-400">You</span>
+          </div>
+        )}
+        <div className={`px-4 py-3 rounded-lg streaming-message ${
+          msg.role === 'user' 
+            ? 'message-user' 
+            : 'message-ai'
+        }`}>
+          {msg.role === 'ai' && msg.content === '' && isAILoading ? (
+            <div className="inline-flex gap-1">
+              <span className="dot-bounce"></span>
+              <span className="dot-bounce"></span>
+              <span className="dot-bounce"></span>
+            </div>
+          ) : (
+            <div className="text-slate-100 whitespace-pre-wrap">
+              <span dangerouslySetInnerHTML={{ __html: msg.content || '' }} />
+              {msg.role === 'ai' && isAILoading && msg.content !== '' && (
+                <span className="typewriter-cursor" />
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+});
+
+Message.displayName = 'Message';
 
 export default function DebatePage() {
   const params = useParams();
@@ -23,8 +71,8 @@ export default function DebatePage() {
   const [userInput, setUserInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingDebate, setIsLoadingDebate] = useState(true);
-  const [isTyping, setIsTyping] = useState(false);
   const [isAILoading, setIsAILoading] = useState(false);
+  const [newMessageIndex, setNewMessageIndex] = useState<number | null>(null);
 
   // Track if we've already sent the first message
   const [hasAutoSent, setHasAutoSent] = useState(false);
@@ -59,9 +107,23 @@ export default function DebatePage() {
     }
   }, [isInstant, firstArg, debate, messages.length, hasAutoSent]);
 
-  // Auto-scroll to bottom
+  // Auto-scroll to bottom with debouncing during streaming
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // Only scroll if we're near the bottom (user hasn't scrolled up)
+    const scrollContainer = messagesEndRef.current?.parentElement?.parentElement;
+    if (scrollContainer) {
+      const isNearBottom = scrollContainer.scrollHeight - scrollContainer.scrollTop - scrollContainer.clientHeight < 100;
+      
+      if (isNearBottom && messagesEndRef.current) {
+        // Use requestAnimationFrame for smoother scrolling
+        requestAnimationFrame(() => {
+          messagesEndRef.current?.scrollIntoView({ 
+            behavior: 'auto', // Use 'auto' instead of 'smooth' to prevent conflicts
+            block: 'end' 
+          });
+        });
+      }
+    }
   }, [messages]);
 
   const sendMessage = async (messageText?: string) => {
@@ -72,7 +134,6 @@ export default function DebatePage() {
     setMessages(prev => [...prev, newUserMessage]);
     setUserInput('');
     setIsLoading(true);
-    setIsTyping(true);
     setIsAILoading(true);
 
     // Check if this is the first user turn
@@ -104,13 +165,57 @@ export default function DebatePage() {
       // Add placeholder AI message
       const aiMessageIndex = messages.length + 1;
       setMessages(prev => [...prev, { role: 'ai', content: '' }]);
-      setIsTyping(false);
 
       let accumulatedContent = '';
+      let charQueue: string[] = [];
+      let isProcessing = false;
+      const CHAR_DELAY = 10; // Reduced to 10ms for faster typing
+
+      // Function to process character queue with typewriter effect
+      const processCharQueue = () => {
+        if (isProcessing || charQueue.length === 0) return;
+        
+        isProcessing = true;
+        
+        const processNextChar = () => {
+          if (charQueue.length === 0) {
+            isProcessing = false;
+            return;
+          }
+          
+          const char = charQueue.shift()!;
+          accumulatedContent += char;
+          
+          requestAnimationFrame(() => {
+            setMessages(prev => {
+              const newMessages = [...prev];
+              newMessages[aiMessageIndex] = { 
+                role: 'ai', 
+                content: accumulatedContent
+              };
+              return newMessages;
+            });
+          });
+          
+          if (charQueue.length > 0) {
+            setTimeout(processNextChar, CHAR_DELAY);
+          } else {
+            isProcessing = false;
+          }
+        };
+        
+        processNextChar();
+      };
 
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done) {
+          // Wait for all characters to be processed
+          while (charQueue.length > 0 || isProcessing) {
+            await new Promise(resolve => setTimeout(resolve, 50));
+          }
+          break;
+        }
 
         const chunk = decoder.decode(value);
         const lines = chunk.split('\n');
@@ -125,28 +230,47 @@ export default function DebatePage() {
                 if (isAILoading) {
                   setIsAILoading(false);
                 }
-                accumulatedContent += data.content;
-                setMessages(prev => {
-                  const newMessages = [...prev];
-                  newMessages[aiMessageIndex] = { role: 'ai', content: accumulatedContent };
-                  return newMessages;
-                });
+                
+                // Add characters to queue
+                for (const char of data.content) {
+                  charQueue.push(char);
+                }
+                
+                // Start processing if not already running
+                if (!isProcessing) {
+                  processCharQueue();
+                }
               } else if (data.type === 'searching') {
-                // Show that AI is searching for information
-                setMessages(prev => {
-                  const newMessages = [...prev];
-                  newMessages[aiMessageIndex] = { 
-                    role: 'ai', 
-                    content: `🔍 Searching: "${data.query}"\n\n${accumulatedContent}` 
-                  };
-                  return newMessages;
-                });
+                // Wait for queue to finish then show search
+                const waitForQueue = () => {
+                  if (charQueue.length > 0) {
+                    setTimeout(waitForQueue, 50);
+                  } else {
+                    setMessages(prev => {
+                      const newMessages = [...prev];
+                      newMessages[aiMessageIndex] = { 
+                        role: 'ai', 
+                        content: `🔍 Searching: "${data.query}"\n\n${accumulatedContent}` 
+                      };
+                      return newMessages;
+                    });
+                  }
+                };
+                waitForQueue();
               } else if (data.type === 'complete') {
-                setMessages(prev => {
-                  const newMessages = [...prev];
-                  newMessages[aiMessageIndex] = { role: 'ai', content: data.content || accumulatedContent };
-                  return newMessages;
-                });
+                // Final message - remove cursor
+                const waitForCompletion = () => {
+                  if (charQueue.length > 0 || isProcessing) {
+                    setTimeout(waitForCompletion, 50);
+                  } else {
+                    setMessages(prev => {
+                      const newMessages = [...prev];
+                      newMessages[aiMessageIndex] = { role: 'ai', content: data.content || accumulatedContent };
+                      return newMessages;
+                    });
+                  }
+                };
+                waitForCompletion();
               }
             } catch (e) {
               // Skip invalid JSON
@@ -160,15 +284,19 @@ export default function DebatePage() {
       setIsAILoading(false);
     } finally {
       setIsLoading(false);
-      setIsTyping(false);
     }
   };
 
   if (isLoadingDebate) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-2xl font-semibold text-slate-100 mb-2">Loading debate...</div>
+        <div className="text-center animate-fade-in">
+          <div className="text-xl font-medium text-slate-100 mb-3">Preparing debate arena</div>
+          <div className="inline-flex gap-1">
+            <span className="dot-bounce"></span>
+            <span className="dot-bounce"></span>
+            <span className="dot-bounce"></span>
+          </div>
         </div>
       </div>
     );
@@ -177,39 +305,27 @@ export default function DebatePage() {
   const opponent = debate ? getOpponentById(debate.opponent || debate.character) : null;
 
   return (
-    <div className="min-h-screen bg-slate-900 flex flex-col">
-      {/* Header */}
-      <header className="border-b border-slate-700 bg-slate-900">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-4">
-              <Link href="/" className="text-2xl font-bold text-slate-100">
-                DebateAI
-              </Link>
-              {debate && (
-                <div className="text-sm text-slate-400">
-                  <span className="font-medium">Topic:</span> {debate.topic}
-                </div>
-              )}
-            </div>
-            <div className="flex items-center gap-4">
-              <Link href="/debate" className="text-slate-400 hover:text-slate-100">
-                New Debate
-              </Link>
-              <Link href="/" className="text-slate-400 hover:text-slate-100">
-                Exit
-              </Link>
+    <div className="h-screen bg-slate-900 flex flex-col overflow-hidden animate-fade-in">
+      <Header />
+      
+      {/* Topic Display */}
+      {debate && (
+        <div className="border-b border-slate-700 bg-slate-800 px-4 py-2 animate-slide-down">
+          <div className="container mx-auto max-w-4xl">
+            <div className="text-sm text-slate-400">
+              <span className="font-medium">Topic:</span> {debate.topic}
             </div>
           </div>
         </div>
-      </header>
+      )}
 
-      {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="container mx-auto max-w-4xl px-4 py-8">
+      {/* Messages Area - Scrollable Container */}
+      <div className="flex-1 overflow-hidden flex flex-col">
+        <div className="flex-1 overflow-y-auto">
+          <div className="container mx-auto max-w-4xl px-4 py-8">
           {/* Opponent Info */}
           {opponent && messages.length === 0 && (
-            <div className="text-center mb-8">
+            <div className="text-center mb-8 animate-fade-in-up">
               <div className="inline-flex items-center gap-3 px-4 py-2 bg-slate-800 rounded-full border border-slate-700">
                 <span className="text-2xl">{opponent.avatar}</span>
                 <div className="text-left">
@@ -222,57 +338,23 @@ export default function DebatePage() {
 
           {/* Messages */}
           <div className="space-y-4">
-            {messages.map((msg, idx) => (
-              <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[70%] ${msg.role === 'user' ? 'order-2' : 'order-1'}`}>
-                  {msg.role === 'ai' && (
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-sm">{opponent?.avatar}</span>
-                      <span className="text-sm font-medium text-slate-400">{opponent?.name}</span>
-                    </div>
-                  )}
-                  {msg.role === 'user' && (
-                    <div className="text-right mb-1">
-                      <span className="text-sm font-medium text-slate-400">You</span>
-                    </div>
-                  )}
-                  <div className={`px-4 py-3 rounded-lg ${
-                    msg.role === 'user' 
-                      ? 'message-user' 
-                      : 'message-ai'
-                  }`}>
-                    {msg.role === 'ai' && msg.content === '' && isAILoading ? (
-                      <div className="inline-flex gap-1">
-                        <span className="dot-bounce"></span>
-                        <span className="dot-bounce"></span>
-                        <span className="dot-bounce"></span>
-                      </div>
-                    ) : (
-                      <p className="text-slate-100 whitespace-pre-wrap">{msg.content}</p>
-                    )}
-                  </div>
-                </div>
-              </div>
+            {messages.filter(msg => msg && msg.role).map((msg, idx) => (
+              <Message 
+                key={idx} 
+                msg={msg} 
+                opponent={opponent}
+                isAILoading={isAILoading && idx === messages.length - 1}
+              />
             ))}
-            
-            {/* Typing Indicator */}
-            {isTyping && (
-              <div className="flex justify-start">
-                <div className="typing-indicator">
-                  <span></span>
-                  <span></span>
-                  <span></span>
-                </div>
-              </div>
-            )}
             
             <div ref={messagesEndRef} />
           </div>
         </div>
       </div>
+    </div>
 
-      {/* Input Area */}
-      <div className="border-t border-slate-700 bg-slate-900">
+      {/* Input Area - Fixed */}
+      <div className="border-t border-slate-700 bg-slate-900 flex-shrink-0">
         <div className="container mx-auto max-w-4xl px-4 py-4">
           <div className="flex gap-3">
             <input

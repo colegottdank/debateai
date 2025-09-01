@@ -24,30 +24,7 @@
   --card-bg: #FFFFFF; /* White cards */
 }
 
-/* Dark mode with warm tones */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #1A1817; /* Warm near-black */
-    --surface: #252220; /* Warm dark brown */
-    --surface-hover: #322E2B; /* Slightly lighter */
-    --border: #3A3633; /* Warm dark gray */
-    --border-subtle: #2D2A28; /* Subtle dark border */
-    
-    --foreground: #FAF9F7; /* Cream white */
-    --foreground-secondary: #C4BFB9; /* Warm light gray */
-    --foreground-muted: #9B9590; /* Muted warm gray */
-    
-    --accent: #D4785A; /* Lighter rust for dark mode */
-    --accent-hover: #C15F3C; /* Standard rust on hover */
-    --accent-light: #E08B6D; /* Even lighter */
-    --accent-bg: #2C211E; /* Dark rust tint */
-    
-    --input-bg: #252220; /* Dark inputs */
-    --card-bg: #252220; /* Dark cards */
-  }
-}
-
-/* Force dark mode class */
+/* Dark mode class - no media query to avoid conflicts */
 .dark {
   --background: #1A1817;
   --surface: #252220;
@@ -123,6 +100,17 @@ button {
   }
 }
 
+@keyframes slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .animate-fade-in {
   animation: fade-in 0.5s ease-out;
 }
@@ -133,6 +121,10 @@ button {
 
 .animate-slide-up {
   animation: slide-up 0.4s ease-out;
+}
+
+.animate-slide-down {
+  animation: slide-down 0.4s ease-out;
 }
 
 /* Scrollbar styling - warm theme */
@@ -161,10 +153,6 @@ button {
 }
 
 /* Message styles for debate interface */
-.message {
-  animation: slide-up 0.3s ease-out;
-}
-
 .message-user {
   background: var(--accent-bg);
   color: var(--foreground);
@@ -175,6 +163,58 @@ button {
   background: var(--surface);
   color: var(--foreground);
   border: 1px solid var(--border);
+}
+
+/* Streaming optimizations */
+.streaming-message {
+  /* Use GPU acceleration for smoother rendering */
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  /* Use contain only for paint, not layout to avoid conflicts */
+  contain: paint;
+  min-height: 1.5em; /* Prevent layout shift */
+  /* Disable pointer events during streaming to prevent lag */
+  pointer-events: none;
+}
+
+.streaming-message div {
+  word-break: break-word;
+  overflow-wrap: break-word;
+  /* Smooth text rendering */
+  text-rendering: optimizeSpeed;
+  -webkit-font-smoothing: subpixel-antialiased;
+}
+
+/* Re-enable pointer events after streaming completes */
+.message-ai:not(.streaming-message) {
+  pointer-events: auto;
+}
+
+/* Typewriter cursor animation */
+@keyframes blink-cursor {
+  0%, 49% {
+    opacity: 1;
+  }
+  50%, 100% {
+    opacity: 0;
+  }
+}
+
+.typewriter-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1.2em;
+  background: var(--accent);
+  margin-left: 2px;
+  animation: blink-cursor 1s infinite;
+  vertical-align: text-bottom;
+}
+
+/* Optimized scrolling for chat container */
+.overflow-y-auto {
+  /* Remove smooth scroll to prevent conflicts with JS scrolling */
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch; /* Smooth momentum scrolling on iOS */
 }
 
 /* Typing indicator */
@@ -221,9 +261,10 @@ button {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: currentColor;
+  background: var(--accent);
   opacity: 0.5;
   display: inline-block;
+  vertical-align: middle; /* Center dots vertically */
   animation: bounce-dot 1.4s infinite ease-in-out;
 }
 

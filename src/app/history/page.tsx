@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useUser, SignedIn, UserButton } from '@clerk/nextjs';
+import { useUser } from '@clerk/nextjs';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { opponents, getOpponentById, OpponentType } from '@/lib/opponents';
 import UpgradeModal from '@/components/UpgradeModal';
+import Header from '@/components/Header';
 
 interface Debate {
   id: string;
@@ -129,24 +130,7 @@ export default function HistoryPage() {
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100">
-      {/* Header */}
-      <header className="border-b border-slate-700">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex justify-between items-center">
-            <Link href="/" className="text-xl font-medium text-slate-100">
-              DebateAI
-            </Link>
-            <nav className="flex items-center gap-4">
-              <Link href="/debate" className="text-slate-400 hover:text-slate-100 transition-colors text-sm">
-                New Debate
-              </Link>
-              <SignedIn>
-                <UserButton />
-              </SignedIn>
-            </nav>
-          </div>
-        </div>
-      </header>
+      <Header />
 
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-6xl mx-auto">

@@ -2,11 +2,14 @@ import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { getUserId } from "@/lib/auth-helper";
 import { d1 } from "@/lib/d1";
-import { OPPONENT_PROMPTS } from "@/lib/debate-prompts";
-import { OpponentType } from "@/lib/opponents";
+import { getDebatePrompt, getDailyPersona } from "@/lib/prompts";
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
+  baseURL: 'https://anthropic.helicone.ai',
+  defaultHeaders: {
+    'Helicone-Auth': 'Bearer sk-helicone-mmaqxly-r2zeedy-vk7ojly-z2eymoa',
+  },
 });
 
 export async function POST(request: Request) {
@@ -25,6 +28,15 @@ export async function POST(request: Request) {
       userArgument,
       previousMessages,
     } = await request.json();
+
+    // Debug logging
+    console.log('Debate API Request:', {
+      debateId,
+      character,
+      opponentStyle,
+      topic,
+      userArgument: userArgument?.substring(0, 50) + '...'
+    });
 
     if (!character || !topic || !userArgument) {
       return NextResponse.json(
@@ -51,33 +63,10 @@ export async function POST(request: Request) {
       }
     }
 
-    // Calculate turn number based on previous messages
-    const turnNumber = previousMessages
-      ? Math.floor(
-          previousMessages.filter((m: any) => m.role === "user").length
-        ) + 1
-      : 1;
-
-    // Build system prompt based on custom style or predefined opponent
-    let systemPrompt: string;
-
-    if (character === "custom" && opponentStyle) {
-      // Use custom opponent style
-      systemPrompt = `You are a debate opponent with the following style: ${opponentStyle}
-
-Topic: "${topic}"
-
-Engage in this debate according to your described style. Respond to arguments directly and substantively. Keep responses under 100 words. Be challenging but respectful.`;
-    } else {
-      // Fall back to predefined opponents if available
-      const opponentPrompt =
-        OPPONENT_PROMPTS[character as OpponentType] ||
-        OPPONENT_PROMPTS.socratic;
-      systemPrompt = `${opponentPrompt}
-
-Topic: "${topic}"
-You are engaged in a debate with the user about this topic. Respond to their arguments directly and substantively.`;
-    }
+    // Get the appropriate system prompt from our centralized prompts
+    // Always use the persona-based prompt (either custom or daily)
+    const persona = opponentStyle || getDailyPersona();
+    const systemPrompt = getDebatePrompt(persona, topic);
 
     // Build conversation history for Claude
     const messages: Anthropic.MessageParam[] = [];
@@ -123,24 +112,58 @@ You are engaged in a debate with the user about this topic. Respond to their arg
           });
 
           let accumulatedContent = "";
+          let buffer = "";
+          let lastFlushTime = Date.now();
+          const BUFFER_TIME = 20; // Reduced to 20ms for faster streaming
+          const BUFFER_SIZE = 8; // Send 8 characters at a time for better speed
+          
+          // Simple flush function for character streaming
+          const flushBuffer = () => {
+            if (buffer) {
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify({
+                    type: "chunk",
+                    content: buffer,
+                  })}\n\n`
+                )
+              );
+              buffer = "";
+              lastFlushTime = Date.now();
+            }
+          };
 
           for await (const event of stream) {
             if (event.type === "content_block_delta") {
               if (event.delta.type === "text_delta") {
                 const chunk = event.delta.text;
                 accumulatedContent += chunk;
-
-                // Send chunk to client
+                
+                // Add characters to buffer one by one
+                for (const char of chunk) {
+                  buffer += char;
+                  
+                  // Flush small chunks frequently
+                  const now = Date.now();
+                  if (buffer.length >= BUFFER_SIZE || 
+                      (now - lastFlushTime >= BUFFER_TIME && buffer.length > 0)) {
+                    flushBuffer();
+                  }
+                }
+              }
+            } else if (event.type === "message_stop") {
+              // Flush any remaining buffer
+              if (buffer) {
                 controller.enqueue(
                   encoder.encode(
                     `data: ${JSON.stringify({
                       type: "chunk",
-                      content: chunk,
+                      content: buffer,
                     })}\n\n`
                   )
                 );
+                buffer = "";
               }
-            } else if (event.type === "message_stop") {
               // Save the complete debate turn - fetch existing debate, add messages, and save
               if (debateId && accumulatedContent) {
                 const existingDebate = await d1.getDebate(debateId);
@@ -165,6 +188,7 @@ You are engaged in a debate with the user about this topic. Respond to their arg
                     topic,
                     messages: existingMessages,
                     debateId,
+                    opponentStyle,
                   });
                 }
               }

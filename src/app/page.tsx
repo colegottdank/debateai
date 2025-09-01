@@ -1,27 +1,26 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { SignInButton, SignedIn, SignedOut, UserButton, useUser } from '@clerk/nextjs';
+import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
-import { getDailyQuestion } from '@/lib/debate-topics';
+import { getDailyDebate } from '@/lib/daily-debates';
+import Header from '@/components/Header';
 
 export default function Home() {
   const router = useRouter();
   const { isSignedIn } = useUser();
-  const [currentTopic, setCurrentTopic] = useState('');
+  const [dailyDebate, setDailyDebate] = useState<{ persona: string; topic: string; description?: string } | null>(null);
   const [userInput, setUserInput] = useState('');
   const [isStarting, setIsStarting] = useState(false);
   const [isCustomTopic, setIsCustomTopic] = useState(false);
 
-  // Load daily topic on mount
+  // Load daily debate pairing on mount
   useEffect(() => {
-    const dailyTopic = getDailyQuestion();
-    setCurrentTopic(dailyTopic);
+    const debate = getDailyDebate();
+    setDailyDebate(debate);
   }, []);
 
   const resetToDaily = () => {
-    const dailyTopic = getDailyQuestion();
-    setCurrentTopic(dailyTopic);
     setUserInput('');
     setIsCustomTopic(false);
   };
@@ -30,8 +29,8 @@ export default function Home() {
     setUserInput(value);
     
     // Check if user is typing something unrelated to the prompt
-    if (value.length > 20) {
-      const topicWords = currentTopic.toLowerCase().split(' ');
+    if (value.length > 20 && dailyDebate) {
+      const topicWords = dailyDebate.topic.toLowerCase().split(' ');
       const inputWords = value.toLowerCase().split(' ');
       const hasOverlap = topicWords.some(word => 
         word.length > 3 && inputWords.some(inputWord => inputWord.includes(word))
@@ -42,27 +41,14 @@ export default function Home() {
   };
 
   const startDebate = async () => {
-    if (!userInput.trim()) return;
+    if (!userInput.trim() || !dailyDebate) return;
     
     setIsStarting(true);
     
-    // Determine the actual topic
-    const debateTopic = isCustomTopic ? userInput : currentTopic;
-    const firstArgument = isCustomTopic ? userInput : userInput;
-    
-    // Auto-generate opponent style based on topic
-    let opponentStyle = 'logical and evidence-based';
-    const topicLower = debateTopic.toLowerCase();
-    
-    if (topicLower.includes('ethic') || topicLower.includes('moral') || topicLower.includes('right') || topicLower.includes('wrong')) {
-      opponentStyle = 'philosophical and questioning, using the Socratic method';
-    } else if (topicLower.includes('practical') || topicLower.includes('implement') || topicLower.includes('real')) {
-      opponentStyle = 'pragmatic and focused on real-world implications';
-    } else if (topicLower.includes('research') || topicLower.includes('study') || topicLower.includes('science')) {
-      opponentStyle = 'academic and research-oriented, citing studies and data';
-    } else if (userInput.toLowerCase().includes('disagree') || userInput.toLowerCase().includes('wrong')) {
-      opponentStyle = 'contrarian, playing devil\'s advocate';
-    }
+    // Use daily debate pairing or custom topic
+    const debateTopic = isCustomTopic ? userInput : dailyDebate.topic;
+    const firstArgument = userInput;
+    const opponentStyle = dailyDebate.persona; // Always use today's persona
     
     const debateId = crypto.randomUUID();
     
@@ -98,39 +84,20 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col">
-      {/* Minimal Header */}
-      <header className="border-b border-slate-700">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex justify-between items-center">
-            <h1 className="text-xl font-medium text-slate-100">DebateAI</h1>
-            <nav className="flex items-center gap-4">
-              <SignedIn>
-                <a href="/history" className="text-slate-400 hover:text-slate-100 transition-colors text-sm">
-                  History
-                </a>
-                <UserButton />
-              </SignedIn>
-              <SignedOut>
-                <SignInButton mode="modal">
-                  <button className="text-slate-100 hover:text-slate-200 transition-colors text-sm">
-                    Sign In
-                  </button>
-                </SignInButton>
-              </SignedOut>
-            </nav>
-          </div>
-        </div>
-      </header>
+      <Header />
 
       {/* Main Content */}
       <main className="flex-1 flex items-center justify-center px-4 py-12">
         <div className="max-w-3xl w-full">
           {/* Topic Display */}
           <div className="mb-12 text-center">
-            <p className="text-slate-500 text-sm mb-4 uppercase tracking-wider">Today's Question</p>
-            <h2 className="topic-display">
-              {currentTopic}
+            <p className="text-slate-500 text-sm mb-2 uppercase tracking-wider">Today's Debate</p>
+            <h2 className="text-3xl font-bold text-slate-100 mb-4">
+              {dailyDebate?.topic || 'Loading...'}
             </h2>
+            <p className="text-slate-400 text-lg">
+              Debating against: <span className="text-slate-100 font-medium">{dailyDebate?.persona || '...'}</span>
+            </p>
           </div>
 
           {/* Input Area */}

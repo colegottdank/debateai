@@ -141,6 +141,7 @@ class D1Client {
     aiScore?: number;
     scoreData?: Record<string, unknown>;
     debateId?: string;
+    opponentStyle?: string;
   }) {
     // Use provided ID or generate a new one
     const debateId = data.debateId || crypto.randomUUID();
@@ -154,6 +155,12 @@ class D1Client {
       hasScore: !!data.scoreData
     });
     
+    // Store opponentStyle in scoreData along with other metadata
+    const metadata = {
+      ...data.scoreData,
+      opponentStyle: data.opponentStyle
+    };
+    
     const result = await this.query(
       `INSERT OR REPLACE INTO debates (id, user_id, opponent, topic, messages, user_score, ai_score, score_data) 
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -165,7 +172,7 @@ class D1Client {
         JSON.stringify(data.messages),
         data.userScore || 0,
         data.aiScore || 0,
-        data.scoreData ? JSON.stringify(data.scoreData) : null
+        JSON.stringify(metadata)
       ]
     );
     
@@ -194,12 +201,17 @@ class D1Client {
       // Parse the JSON score_data field if it exists
       if (debate.score_data && typeof debate.score_data === 'string') {
         debate.score_data = JSON.parse(debate.score_data);
+        // Extract opponentStyle from score_data and add it as a top-level field
+        if (debate.score_data && typeof debate.score_data === 'object' && 'opponentStyle' in debate.score_data) {
+          debate.opponentStyle = (debate.score_data as any).opponentStyle;
+        }
       }
       console.log('Debate found:', {
         id: debate.id,
         userId: debate.user_id,
         messageCount: Array.isArray(debate.messages) ? debate.messages.length : 0,
-        hasScore: !!debate.score_data
+        hasScore: !!debate.score_data,
+        opponentStyle: debate.opponentStyle
       });
       return { success: true, debate };
     }

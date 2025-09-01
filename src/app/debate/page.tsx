@@ -1,10 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { useUser, SignedIn, UserButton } from '@clerk/nextjs';
-import Link from 'next/link';
+import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import UpgradeModal from '@/components/UpgradeModal';
+import Header from '@/components/Header';
 
 export default function DebatePage() {
   const { user } = useUser();
@@ -87,24 +88,7 @@ export default function DebatePage() {
         limitData={upgradeModal.limitData}
       />
       
-      {/* Header */}
-      <header className="border-b border-slate-700">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex justify-between items-center">
-            <Link href="/" className="text-xl font-medium text-slate-100">
-              DebateAI
-            </Link>
-            <nav className="flex items-center gap-4">
-              <Link href="/history" className="text-slate-400 hover:text-slate-100 transition-colors text-sm">
-                History
-              </Link>
-              <SignedIn>
-                <UserButton />
-              </SignedIn>
-            </nav>
-          </div>
-        </div>
-      </header>
+      <Header />
 
       {/* Main Content */}
       <main className="flex-1 flex items-center justify-center px-4 py-12">
@@ -120,13 +104,13 @@ export default function DebatePage() {
             {/* Opponent Style */}
             <div>
               <label htmlFor="opponent" className="block text-sm font-medium text-slate-400 mb-2">
-                Opponent Style
+                Opponent Style or Person
               </label>
               <textarea
                 id="opponent"
                 value={opponentStyle}
                 onChange={(e) => setOpponentStyle(e.target.value)}
-                placeholder="Describe your opponent's debate style... (e.g., 'aggressive and confrontational', 'logical and evidence-based', 'philosophical and questioning')"
+                placeholder="Describe your opponent's style OR name a specific person (e.g., 'Elon Musk', 'Jordan Peterson', 'AOC', or 'aggressive and confrontational', 'philosophical and questioning')"
                 className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg focus:border-indigo-500 focus:outline-none resize-none h-24 text-slate-100 placeholder-slate-500 transition-colors"
               />
             </div>
