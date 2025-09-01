@@ -24,6 +24,7 @@ export default function DebatePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingDebate, setIsLoadingDebate] = useState(true);
   const [isTyping, setIsTyping] = useState(false);
+  const [isAILoading, setIsAILoading] = useState(false);
 
   // Track if we've already sent the first message
   const [hasAutoSent, setHasAutoSent] = useState(false);
@@ -72,6 +73,7 @@ export default function DebatePage() {
     setUserInput('');
     setIsLoading(true);
     setIsTyping(true);
+    setIsAILoading(true);
 
     // Check if this is the first user turn
     const isFirstTurn = messages.filter(m => m.role === 'user').length === 0;
@@ -119,6 +121,10 @@ export default function DebatePage() {
               const data = JSON.parse(line.substring(6));
               
               if (data.type === 'chunk') {
+                // Clear loading state on first chunk
+                if (isAILoading) {
+                  setIsAILoading(false);
+                }
                 accumulatedContent += data.content;
                 setMessages(prev => {
                   const newMessages = [...prev];
@@ -151,6 +157,7 @@ export default function DebatePage() {
     } catch (error) {
       console.error('Error:', error);
       setMessages(prev => [...prev, { role: 'ai', content: 'Error: Could not generate response. Try again!' }]);
+      setIsAILoading(false);
     } finally {
       setIsLoading(false);
       setIsTyping(false);
@@ -234,7 +241,15 @@ export default function DebatePage() {
                       ? 'message-user' 
                       : 'message-ai'
                   }`}>
-                    <p className="text-slate-100 whitespace-pre-wrap">{msg.content}</p>
+                    {msg.role === 'ai' && msg.content === '' && isAILoading ? (
+                      <div className="inline-flex gap-1">
+                        <span className="dot-bounce"></span>
+                        <span className="dot-bounce"></span>
+                        <span className="dot-bounce"></span>
+                      </div>
+                    ) : (
+                      <p className="text-slate-100 whitespace-pre-wrap">{msg.content}</p>
+                    )}
                   </div>
                 </div>
               </div>

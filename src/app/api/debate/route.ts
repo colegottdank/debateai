@@ -60,8 +60,8 @@ export async function POST(request: Request) {
 
     // Build system prompt based on custom style or predefined opponent
     let systemPrompt: string;
-    
-    if (character === 'custom' && opponentStyle) {
+
+    if (character === "custom" && opponentStyle) {
       // Use custom opponent style
       systemPrompt = `You are a debate opponent with the following style: ${opponentStyle}
 
@@ -70,7 +70,9 @@ Topic: "${topic}"
 Engage in this debate according to your described style. Respond to arguments directly and substantively. Keep responses under 100 words. Be challenging but respectful.`;
     } else {
       // Fall back to predefined opponents if available
-      const opponentPrompt = OPPONENT_PROMPTS[character as OpponentType] || OPPONENT_PROMPTS.socratic;
+      const opponentPrompt =
+        OPPONENT_PROMPTS[character as OpponentType] ||
+        OPPONENT_PROMPTS.socratic;
       systemPrompt = `${opponentPrompt}
 
 Topic: "${topic}"
@@ -111,6 +113,13 @@ You are engaged in a debate with the user about this topic. Respond to their arg
             system: systemPrompt,
             messages: messages,
             stream: true,
+            tools: [
+              {
+                type: "web_search_20250305",
+                name: "web_search",
+                max_uses: 5,
+              },
+            ],
           });
 
           let accumulatedContent = "";
