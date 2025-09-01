@@ -95,7 +95,7 @@ You are engaged in a debate with the user about this topic. Respond to their arg
           );
 
           const stream = await anthropic.messages.create({
-            model: "claude-3-5-sonnet-latest",
+            model: "claude-sonnet-4-20250514",
             max_tokens: 1000,
             temperature: 0.7,
             system: systemPrompt,
@@ -126,18 +126,26 @@ You are engaged in a debate with the user about this topic. Respond to their arg
               if (debateId && accumulatedContent) {
                 const existingDebate = await d1.getDebate(debateId);
                 if (existingDebate.success && existingDebate.debate) {
-                  const existingMessages = Array.isArray(existingDebate.debate.messages) 
-                    ? existingDebate.debate.messages 
+                  const existingMessages = Array.isArray(
+                    existingDebate.debate.messages
+                  )
+                    ? existingDebate.debate.messages
                     : [];
-                  existingMessages.push({ role: "user", content: userArgument });
-                  existingMessages.push({ role: "ai", content: accumulatedContent });
-                  
+                  existingMessages.push({
+                    role: "user",
+                    content: userArgument,
+                  });
+                  existingMessages.push({
+                    role: "ai",
+                    content: accumulatedContent,
+                  });
+
                   await d1.saveDebate({
                     userId,
                     opponent: character,
                     topic,
                     messages: existingMessages,
-                    debateId
+                    debateId,
                   });
                 }
               }

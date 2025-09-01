@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useUser } from '@/lib/useTestUser';
+import { useUser, SignedIn, UserButton } from '@clerk/nextjs';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { opponents, getOpponentById, OpponentType } from '@/lib/opponents';
@@ -9,10 +9,12 @@ import UpgradeModal from '@/components/UpgradeModal';
 
 interface Debate {
   id: string;
-  character: OpponentType;
+  opponent: OpponentType;
   topic: string;
-  messageCount: number;
-  createdAt: string;
+  messages: Array<{ role: string; content: string }>;
+  created_at: string;
+  user_score?: number;
+  ai_score?: number;
 }
 
 export default function HistoryPage() {
@@ -66,12 +68,11 @@ export default function HistoryPage() {
   };
 
   const filteredDebates = debates.filter(debate => {
-    // Add null/undefined checks
     if (!debate || !debate.topic) return false;
     
     const matchesSearch = debate.topic.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCharacter = selectedCharacter === 'all' || debate.character === selectedCharacter;
-    return matchesSearch && matchesCharacter;
+    const matchesOpponent = selectedOpponent === 'all' || debate.opponent === selectedOpponent;
+    return matchesSearch && matchesOpponent;
   });
 
   const formatDate = (dateString: string) => {
@@ -90,6 +91,11 @@ export default function HistoryPage() {
     return date.toLocaleDateString();
   };
 
+  const getMessageCount = (debate: Debate) => {
+    if (!debate.messages || !Array.isArray(debate.messages)) return 0;
+    return debate.messages.filter(m => m.role === 'user' || m.role === 'ai').length;
+  };
+
   const handleManageSubscription = async () => {
     try {
       setIsManagingSubscription(true);
@@ -104,7 +110,6 @@ export default function HistoryPage() {
       });
       
       const data = await response.json();
-      console.log('Manage response:', data);
       
       if (data.url) {
         window.location.href = data.url;
@@ -123,174 +128,172 @@ export default function HistoryPage() {
   };
 
   return (
-    <div className="min-h-screen relative chaos-scatter bedroom-mess cartman-room-bg">
-      {/* Header Banner */}
-      <div className="messy-banner p-2 text-center relative">
-        <span className="font-black text-white text-sm tracking-wider">
-          📼 DEBATE ARCHIVES 📼 YOUR PATHETIC HISTORY 📼 RELIVE YOUR DEFEATS 📼
-        </span>
-      </div>
-
-      {/* Scattered Elements */}
-      <div className="absolute top-20 left-8 text-3xl opacity-10 transform rotate-12 z-0 hidden sm:block">📚</div>
-      <div className="absolute top-32 right-12 text-2xl opacity-15 transform -rotate-15 z-0 hidden sm:block">🎬</div>
-      <div className="absolute top-1/3 left-16 text-xl opacity-20 transform rotate-45 z-0 hidden lg:block">📺</div>
-
-      <div className="p-4 sm:p-8 relative z-10">
-        {/* Navigation */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-          <Link href="/" className="inline-block bg-yellow-400 hover:bg-yellow-300 text-black font-bold py-2 px-4 sm:py-3 sm:px-6 rounded-xl transition-all transform hover:rotate-1 border-4 border-black shadow-lg">
-            ← Back to Studio
-          </Link>
-          
-          <Link href="/debate" className="inline-block bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 sm:py-3 sm:px-6 rounded-xl transition-all transform hover:rotate-1 border-4 border-black shadow-lg">
-            🆕 Start New Debate
-          </Link>
+    <div className="min-h-screen bg-slate-900 text-slate-100">
+      {/* Header */}
+      <header className="border-b border-slate-700">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex justify-between items-center">
+            <Link href="/" className="text-xl font-medium text-slate-100">
+              DebateAI
+            </Link>
+            <nav className="flex items-center gap-4">
+              <Link href="/debate" className="text-slate-400 hover:text-slate-100 transition-colors text-sm">
+                New Debate
+              </Link>
+              <SignedIn>
+                <UserButton />
+              </SignedIn>
+            </nav>
+          </div>
         </div>
+      </header>
 
-        <div className="max-w-7xl mx-auto">
-          {/* Title */}
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-6xl mx-auto">
+          {/* Page Title */}
           <div className="text-center mb-8">
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-black south-park-title mb-4">
-              <span className="text-red-500">YOUR</span>
-              <span className="text-yellow-400"> DEBATE </span>
-              <span className="text-white">HISTORY</span>
-            </h1>
-            
-            <div className="comic-bubble max-w-sm sm:max-w-xl mx-auto p-4 mb-6">
-              <p className="text-sm sm:text-lg font-bold text-black">
-                &quot;Look at all these times you got DESTROYED! Want to try again, loser?&quot;
-              </p>
-            </div>
+            <h1 className="text-3xl font-bold text-slate-100 mb-2">Debate History</h1>
+            <p className="text-slate-400">Review and continue your previous debates</p>
           </div>
 
-          {/* Subscription Status Card */}
-          <div className={`mb-8 p-4 sm:p-6 rounded-2xl border-4 border-black shadow-lg transform ${subscription.isSubscribed ? '-rotate-1' : 'rotate-1'} ${subscription.isSubscribed ? 'bg-gradient-to-br from-yellow-500 to-yellow-600' : 'bg-gradient-to-br from-gray-600 to-gray-700'}`}>
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="text-4xl">{subscription.isSubscribed ? '👑' : '🔒'}</div>
+          {/* Subscription Status */}
+          {!isLoading && (
+            <div className={`mb-8 p-6 rounded-lg border ${
+              subscription.isSubscribed 
+                ? 'bg-indigo-900/20 border-indigo-700' 
+                : 'bg-slate-800 border-slate-700'
+            }`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="text-2xl">{subscription.isSubscribed ? '👑' : '🔒'}</div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-slate-100">
+                      {subscription.isSubscribed ? 'Premium Member' : 'Free Plan'}
+                    </h3>
+                    <p className="text-sm text-slate-400">
+                      {subscription.isSubscribed 
+                        ? 'Unlimited debates and messages' 
+                        : `${debates.length}/3 debates used • Upgrade for unlimited access`}
+                    </p>
+                  </div>
+                </div>
+                
                 <div>
-                  <h3 className="text-xl sm:text-2xl font-black text-white">
-                    {subscription.isSubscribed ? 'PREMIUM MASTER DEBATER' : 'FREE PEASANT'}
-                  </h3>
-                  <p className="text-sm font-bold text-white/90">
-                    {subscription.isSubscribed 
-                      ? 'Unlimited debates and messages - You rule!' 
-                      : `${debates.length}/3 debates used • Upgrade for unlimited`}
-                  </p>
+                  {subscription.isSubscribed ? (
+                    <button
+                      onClick={handleManageSubscription}
+                      disabled={isManagingSubscription}
+                      className={`px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-100 rounded-lg text-sm font-medium transition-colors ${
+                        isManagingSubscription ? 'opacity-50 cursor-wait' : ''
+                      }`}
+                    >
+                      {isManagingSubscription ? 'Loading...' : 'Manage'}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleUpgrade}
+                      className="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg text-sm font-medium transition-colors"
+                    >
+                      Upgrade
+                    </button>
+                  )}
                 </div>
               </div>
               
-              <div className="flex gap-2">
-                {subscription.isSubscribed ? (
-                  <button
-                    onClick={handleManageSubscription}
-                    disabled={isManagingSubscription}
-                    className={`bg-white text-black font-black py-2 px-4 rounded-lg border-2 border-black ${isManagingSubscription ? 'opacity-50 cursor-wait' : 'hover:scale-105 cursor-pointer'} transition-all text-sm`}
-                  >
-                    {isManagingSubscription ? '⏳ LOADING...' : '⚙️ MANAGE'}
-                  </button>
-                ) : (
-                  <button
-                    onClick={handleUpgrade}
-                    className="bg-red-600 hover:bg-red-700 text-white font-black py-2 px-4 rounded-lg border-2 border-black hover:scale-105 cursor-pointer transition-all text-sm"
-                  >
-                    💰 UPGRADE NOW
-                  </button>
-                )}
-              </div>
+              {subscription.isSubscribed && subscription.currentPeriodEnd && (
+                <div className="mt-3 text-xs text-slate-500">
+                  {subscription.cancelAtPeriodEnd 
+                    ? `Subscription ends on ${new Date(subscription.currentPeriodEnd).toLocaleDateString()}`
+                    : `Next billing date: ${new Date(subscription.currentPeriodEnd).toLocaleDateString()}`}
+                </div>
+              )}
             </div>
+          )}
+
+          {/* Search and Filters */}
+          <div className="mb-6 flex flex-col sm:flex-row gap-4">
+            <input
+              type="text"
+              placeholder="Search debates..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="flex-1 px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:border-indigo-500 focus:outline-none text-slate-100 placeholder-slate-500"
+            />
             
-            {subscription.isSubscribed && subscription.currentPeriodEnd && (
-              <div className="mt-3 text-xs font-bold text-white/80">
-                Renews on {new Date(subscription.currentPeriodEnd).toLocaleDateString()}
-              </div>
-            )}
+            <select
+              value={selectedOpponent}
+              onChange={(e) => setSelectedOpponent(e.target.value as OpponentType | 'all')}
+              className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:border-indigo-500 focus:outline-none text-slate-100"
+            >
+              <option value="all">All Opponents</option>
+              {opponents.map(opponent => (
+                <option key={opponent.id} value={opponent.id}>
+                  {opponent.name}
+                </option>
+              ))}
+            </select>
           </div>
 
-          {/* Filters */}
-          <div className="bg-black/50 border-4 border-yellow-400 rounded-2xl p-4 sm:p-6 mb-8">
-            <div className="flex flex-col lg:flex-row gap-4">
-              <input
-                type="text"
-                placeholder="Search by topic..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="flex-1 p-3 rounded-lg bg-black/70 border-2 border-gray-600 focus:border-yellow-400 focus:outline-none text-white font-bold"
-              />
-              
-              <select
-                value={selectedCharacter}
-                onChange={(e) => setSelectedCharacter(e.target.value as Character | 'all')}
-                className="p-3 rounded-lg bg-black/70 border-2 border-gray-600 focus:border-yellow-400 focus:outline-none text-white font-bold"
-              >
-                <option value="all">All Characters</option>
-                {characters.map(char => (
-                  <option key={char.id} value={char.id}>{char.name}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Debates Grid */}
+          {/* Debates List */}
           {isLoading ? (
             <div className="text-center py-12">
-              <div className="text-2xl font-black text-yellow-400 animate-pulse">
-                Loading your shameful history...
-              </div>
+              <div className="text-slate-400">Loading debates...</div>
             </div>
           ) : filteredDebates.length === 0 ? (
             <div className="text-center py-12">
-              <div className="comic-bubble inline-block p-6 text-black font-bold">
+              <div className="text-slate-400">
                 {debates.length === 0 
-                  ? "You haven't been destroyed yet? Start a debate!"
-                  : "No debates match your search. Try being less specific, dumbass!"}
+                  ? "No debates yet. Start your first debate!"
+                  : "No debates match your search."}
               </div>
+              {debates.length === 0 && (
+                <Link href="/debate" className="inline-block mt-4 px-6 py-3 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg font-medium transition-colors">
+                  Start First Debate
+                </Link>
+              )}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
+            <div className="grid gap-4">
               {filteredDebates.map((debate) => {
-                const character = characters.find(c => c.id === debate.character);
-                if (!character) return null;
+                const opponent = getOpponentById(debate.opponent);
+                if (!opponent) return null;
                 
                 return (
                   <div
                     key={debate.id}
-                    className="relative transform hover:scale-105 transition-all cursor-pointer"
                     onClick={() => router.push(`/debate/${debate.id}`)}
+                    className="p-6 bg-slate-800 border border-slate-700 rounded-lg hover:border-slate-600 cursor-pointer transition-all"
                   >
-                    <div className={`${character.color} p-4 sm:p-6 rounded-2xl border-4 border-black shadow-lg hover:shadow-2xl`}>
-                      {/* Character Avatar */}
-                      <div className="flex items-start gap-4 mb-4">
-                        <div className="flex-shrink-0">
-                          {getCharacterAvatar(character, 'md')}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-black text-lg sm:text-xl mb-1">{character.name}</div>
-                          <div className="text-xs sm:text-sm opacity-90">{formatDate(debate.createdAt)}</div>
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="text-2xl">{opponent.emoji}</div>
+                        <div>
+                          <h3 className="font-semibold text-slate-100">{opponent.name}</h3>
+                          <p className="text-xs text-slate-500">{opponent.style}</p>
                         </div>
                       </div>
-                      
-                      {/* Topic */}
-                      <div className="mb-3">
-                        <div className="text-xs font-bold opacity-75 mb-1">TOPIC:</div>
-                        <div className="font-bold text-sm sm:text-base line-clamp-2">{debate.topic}</div>
+                      <div className="text-sm text-slate-500">
+                        {formatDate(debate.created_at)}
                       </div>
-                      
-                      {/* Stats */}
-                      <div className="flex justify-between items-center">
-                        <div className="bg-black/30 rounded px-2 py-1 text-xs font-bold">
-                          💬 {debate.messageCount} messages
-                        </div>
-                        <button className="bg-white/20 hover:bg-white/30 rounded px-3 py-1 text-xs font-bold transition-colors">
-                          CONTINUE →
-                        </button>
+                    </div>
+                    
+                    <div className="mb-3">
+                      <h4 className="text-sm font-medium text-slate-400 mb-1">Topic</h4>
+                      <p className="text-slate-100">{debate.topic}</p>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4 text-sm text-slate-400">
+                        <span>💬 {getMessageCount(debate)} messages</span>
+                        {debate.user_score !== undefined && debate.ai_score !== undefined && (
+                          <span>
+                            Score: {debate.user_score} - {debate.ai_score}
+                          </span>
+                        )}
                       </div>
-                      
-                      {/* Hover decoration */}
-                      <div className="absolute -top-2 -right-2 text-2xl opacity-0 group-hover:opacity-100 transition-opacity">
-                        ⚔️
-                      </div>
+                      <button className="text-indigo-400 hover:text-indigo-300 text-sm font-medium transition-colors">
+                        Continue →
+                      </button>
                     </div>
                   </div>
                 );
@@ -300,35 +303,38 @@ export default function HistoryPage() {
 
           {/* Stats Summary */}
           {debates.length > 0 && (
-            <div className="mt-12 bg-gradient-to-r from-yellow-400 to-red-500 text-black p-4 sm:p-6 rounded-2xl border-4 border-black transform -rotate-1">
-              <h3 className="text-xl sm:text-2xl font-black mb-4 text-center">YOUR PATHETIC STATS</h3>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+            <div className="mt-12 p-6 bg-slate-800 border border-slate-700 rounded-lg">
+              <h3 className="text-lg font-semibold text-slate-100 mb-4">Statistics</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div>
-                  <div className="text-2xl sm:text-3xl font-black">{debates.length}</div>
-                  <div className="text-xs sm:text-sm font-bold">Total Debates</div>
+                  <div className="text-2xl font-bold text-slate-100">{debates.length}</div>
+                  <div className="text-sm text-slate-400">Total Debates</div>
                 </div>
                 <div>
-                  <div className="text-2xl sm:text-3xl font-black">
-                    {debates.reduce((sum, d) => sum + d.messageCount, 0)}
+                  <div className="text-2xl font-bold text-slate-100">
+                    {debates.reduce((sum, d) => sum + getMessageCount(d), 0)}
                   </div>
-                  <div className="text-xs sm:text-sm font-bold">Total Messages</div>
+                  <div className="text-sm text-slate-400">Total Messages</div>
                 </div>
                 <div>
-                  <div className="text-2xl sm:text-3xl font-black">
+                  <div className="text-2xl font-bold text-slate-100">
                     {(() => {
                       const counts = debates.reduce((acc, d) => {
-                        acc[d.character] = (acc[d.character] || 0) + 1;
+                        acc[d.opponent] = (acc[d.opponent] || 0) + 1;
                         return acc;
                       }, {} as Record<string, number>);
-                      const [char] = Object.entries(counts).sort(([,a], [,b]) => b - a)[0] || ['None', 0];
-                      return characters.find(c => c.id === char)?.name || 'None';
+                      const [opponentId] = Object.entries(counts).sort(([,a], [,b]) => b - a)[0] || ['', 0];
+                      const opponent = getOpponentById(opponentId as OpponentType);
+                      return opponent?.name || 'None';
                     })()}
                   </div>
-                  <div className="text-xs sm:text-sm font-bold">Main Rival</div>
+                  <div className="text-sm text-slate-400">Most Debated</div>
                 </div>
                 <div>
-                  <div className="text-2xl sm:text-3xl font-black">0%</div>
-                  <div className="text-xs sm:text-sm font-bold">Win Rate</div>
+                  <div className="text-2xl font-bold text-slate-100">
+                    {debates.filter(d => (d.user_score || 0) > (d.ai_score || 0)).length}
+                  </div>
+                  <div className="text-sm text-slate-400">Wins</div>
                 </div>
               </div>
             </div>
