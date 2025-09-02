@@ -842,7 +842,7 @@ export default function DebatePage() {
                   }
                 }}
                 placeholder="Type your argument... (Shift+Enter for new line)"
-                className="w-full px-4 py-3 pr-12 bg-slate-800 border border-slate-700 rounded-lg focus:border-indigo-500 focus:outline-none text-slate-100 placeholder-slate-500 resize-none"
+                className="w-full px-4 py-3 pr-12 bg-slate-800 border border-slate-700 rounded-lg focus:border-indigo-500 focus:outline-none text-slate-100 placeholder-slate-500 resize-none leading-6"
                 style={{ minHeight: '48px', maxHeight: '200px', overflowY: 'hidden' }}
                 rows={1}
                 disabled={isLoading}
@@ -850,12 +850,17 @@ export default function DebatePage() {
               <button
                 onClick={handleAITakeover}
                 disabled={isLoading || isAITakeover}
-                className={`absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-md transition-all group ${
+                className={`absolute right-3 flex items-center justify-center rounded-md transition-all group ${
                   isLoading || isAITakeover
                     ? 'text-slate-600 cursor-not-allowed'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
                 }`}
-                style={{ maxHeight: '36px' }}
+                style={{ 
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  height: '32px',
+                  width: '32px'
+                }}
                 title="Let AI argue for you"
               >
                 {/* Tooltip */}
