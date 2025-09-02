@@ -75,15 +75,16 @@ export async function POST(request: Request) {
 
     const systemPrompt = `You are an AI assistant helping a human in a debate about "${topic}".
 
-${opponentStyle ? `The opponent's style is: ${opponentStyle}` : ""}
+${opponentStyle ? `The opponent is ${opponentStyle}. Match their energy and debate style while maintaining substance. If they're aggressive and confrontational, be bold and assertive in response. If they're comedic, add wit. If they're academic, be scholarly. BUT always prioritize strong arguments over pure style.` : ""}
 
 Based on the human's previous arguments, you need to continue arguing from THEIR perspective and position.
 Generate ONE strong, compelling argument that:
 1. Continues their line of reasoning
-2. Addresses the opponent's latest points
-3. Uses evidence and logic
+2. Addresses the opponent's latest points directly and forcefully
+3. Uses evidence and logic as your foundation
 4. Maintains consistency with their previous arguments
 5. Is concise and impactful - aim for 150-200 words (about 2-3 short paragraphs)
+${opponentStyle ? "\n6. Match the opponent's energy - if they're being dramatic, don't be timid. Use emphatic language, rhetorical questions, and strong statements. Light personality touches are good (like 'Listen,' or 'Here's the thing') but avoid stage directions or physical descriptions." : ""}
 
 Citation Guidelines:
 1. Use web search ONLY when making specific factual claims that would benefit from verification (e.g., recent statistics, controversial facts, or claims central to your argument).
@@ -101,7 +102,8 @@ The human's position (based on their arguments): ${
         : "The human is just starting the debate."
     }
 
-Now generate the next argument FROM THE HUMAN'S PERSPECTIVE. Do not switch sides or argue against their position.`;
+Now generate the next argument FROM THE HUMAN'S PERSPECTIVE. Do not switch sides or argue against their position.
+${opponentStyle ? "\nWrite naturally and conversationally - this is a debate, not an essay. Show confidence and conviction." : ""}`;
 
     const lastOpponentMessage =
       previousMessages.filter((msg: any) => msg.role === "ai").pop()?.content ||
