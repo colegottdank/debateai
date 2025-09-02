@@ -185,6 +185,7 @@ export default function DebatePage() {
   const [newMessageIndex, setNewMessageIndex] = useState<number | null>(null);
   const [currentCitations, setCurrentCitations] = useState<Array<{id: number; url: string; title: string}>>([]);
   const [isAITakeover, setIsAITakeover] = useState(false);
+  const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(true);
 
   // Track if we've already sent the first message
   const [hasAutoSent, setHasAutoSent] = useState(false);
@@ -221,22 +222,32 @@ export default function DebatePage() {
 
   // Auto-scroll to bottom with debouncing during streaming
   useEffect(() => {
-    // Only scroll if we're near the bottom (user hasn't scrolled up)
-    const scrollContainer = messagesEndRef.current?.parentElement?.parentElement;
-    if (scrollContainer) {
-      const isNearBottom = scrollContainer.scrollHeight - scrollContainer.scrollTop - scrollContainer.clientHeight < 100;
-      
-      if (isNearBottom && messagesEndRef.current) {
-        // Use requestAnimationFrame for smoother scrolling
-        requestAnimationFrame(() => {
-          messagesEndRef.current?.scrollIntoView({ 
-            behavior: 'auto', // Use 'auto' instead of 'smooth' to prevent conflicts
-            block: 'end' 
-          });
+    // Only auto-scroll if enabled
+    if (isAutoScrollEnabled && messagesEndRef.current) {
+      // Use requestAnimationFrame for smoother scrolling
+      requestAnimationFrame(() => {
+        messagesEndRef.current?.scrollIntoView({ 
+          behavior: 'auto', // Use 'auto' instead of 'smooth' to prevent conflicts
+          block: 'end' 
         });
-      }
+      });
     }
-  }, [messages]);
+  }, [messages, isAutoScrollEnabled]);
+
+  // Handle scroll detection to enable/disable auto-scroll
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const scrollContainer = e.currentTarget;
+    const scrollBottom = scrollContainer.scrollHeight - scrollContainer.scrollTop - scrollContainer.clientHeight;
+    
+    // If user scrolled up more than 100px from bottom, disable auto-scroll
+    if (scrollBottom > 100 && isAutoScrollEnabled) {
+      setIsAutoScrollEnabled(false);
+    }
+    // If user scrolled back to within 50px of bottom, re-enable auto-scroll
+    else if (scrollBottom < 50 && !isAutoScrollEnabled) {
+      setIsAutoScrollEnabled(true);
+    }
+  }, [isAutoScrollEnabled]);
 
   const sendMessage = async (messageText?: string, isAIAssisted: boolean = false) => {
     const textToSend = messageText || userInput;
@@ -761,7 +772,7 @@ export default function DebatePage() {
 
       {/* Messages Area - Scrollable Container */}
       <div className="flex-1 overflow-hidden flex flex-col">
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto relative" onScroll={handleScroll}>
           <div className="container mx-auto max-w-4xl px-4 py-4">
           {/* Opponent Info */}
           {opponent && messages.length === 0 && (
@@ -791,6 +802,13 @@ export default function DebatePage() {
             
             <div ref={messagesEndRef} />
           </div>
+          
+          {/* Auto-scroll indicator */}
+          {!isAutoScrollEnabled && (
+            <div className="absolute bottom-24 right-4 bg-slate-800 text-slate-400 text-xs px-3 py-1.5 rounded-full border border-slate-700 animate-fade-in">
+              Auto-scroll paused • Scroll to bottom to resume
+            </div>
+          )}
         </div>
       </div>
     </div>
