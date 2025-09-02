@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { getUserId } from "@/lib/auth-helper";
 import { d1 } from "@/lib/d1";
-import { getDebatePrompt, getDailyPersona } from "@/lib/prompts";
 import { checkAppDisabled } from "@/lib/app-disabled";
 
 const anthropic = new Anthropic({
@@ -27,27 +26,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const {
-      debateId,
-      character, // This will be the opponent type or 'custom'
-      opponentStyle, // Custom opponent style description
-      topic,
-      userArgument,
-      previousMessages,
-    } = await request.json();
+    const { debateId, topic, previousMessages, opponentStyle } =
+      await request.json();
 
-    if (!character || !topic || !userArgument) {
+    if (!topic || !debateId) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
       );
     }
 
-    // Check message limit
+    // Check message limit for free users
     const isTestMode = process.env.NEXT_PUBLIC_TEST_MODE === "true";
-    if (debateId && !isTestMode) {
+    if (!isTestMode) {
       const messageLimit = await d1.checkDebateMessageLimit(debateId);
-      if (!messageLimit.allowed) {
+      if (!messageLimit.allowed && !messageLimit.isPremium) {
         return NextResponse.json(
           {
             error: "message_limit_exceeded",
@@ -61,44 +54,73 @@ export async function POST(request: Request) {
       }
     }
 
-    // Get the appropriate system prompt from our centralized prompts
-    // Always use the persona-based prompt (either custom or daily)
-    const persona = opponentStyle || getDailyPersona();
-    const systemPrompt = getDebatePrompt(persona, topic);
-
-    // Build conversation history for Claude
-    const messages: Anthropic.MessageParam[] = [];
-
-    // Add previous messages if they exist
-    if (previousMessages && previousMessages.length > 0) {
-      for (const msg of previousMessages) {
+    // Build conversation history for context
+    const conversationHistory = previousMessages
+      .map((msg: any) => {
         if (msg.role === "user") {
-          messages.push({ role: "user", content: msg.content });
+          return `Human's argument: ${msg.content}`;
         } else if (msg.role === "ai") {
-          messages.push({ role: "assistant", content: msg.content });
+          return `Opponent's argument: ${msg.content}`;
         }
-      }
+        return "";
+      })
+      .filter(Boolean)
+      .join("\n\n");
+
+    // Extract the user's position from their previous arguments
+    const userArguments = previousMessages
+      .filter((msg: any) => msg.role === "user")
+      .map((msg: any) => msg.content)
+      .join(" ");
+
+    const systemPrompt = `You are an AI assistant helping a human in a debate about "${topic}".
+
+${opponentStyle ? `The opponent's style is: ${opponentStyle}` : ""}
+
+Based on the human's previous arguments, you need to continue arguing from THEIR perspective and position.
+Generate ONE strong, compelling argument that:
+1. Continues their line of reasoning
+2. Addresses the opponent's latest points
+3. Uses evidence and logic
+4. Maintains consistency with their previous arguments
+5. Is concise and impactful (2-3 paragraphs max)
+
+Previous debate context:
+${conversationHistory}
+
+The human's position (based on their arguments): ${
+      userArguments
+        ? `The human has been arguing: ${userArguments.substring(0, 500)}...`
+        : "The human is just starting the debate."
     }
 
-    // Add the current user argument
-    messages.push({ role: "user", content: userArgument });
+Now generate the next argument FROM THE HUMAN'S PERSPECTIVE. Do not switch sides or argue against their position.`;
 
-    // Always use streaming response
-    const encoder = new TextEncoder();
-    const streamResponse = new ReadableStream({
+    const lastOpponentMessage =
+      previousMessages.filter((msg: any) => msg.role === "ai").pop()?.content ||
+      "";
+
+    const userPrompt = lastOpponentMessage
+      ? `The opponent just said: "${lastOpponentMessage}"\n\nGenerate my response arguing for my position.`
+      : `Generate my opening argument for this debate on "${topic}".`;
+
+    // Generate the AI takeover response
+    const stream = new ReadableStream({
       async start(controller) {
-        try {
-          // Send initial message
-          controller.enqueue(
-            encoder.encode(`data: ${JSON.stringify({ type: "start" })}\n\n`)
-          );
+        const encoder = new TextEncoder();
 
-          const stream = await anthropic.messages.create({
+        try {
+          const response = await anthropic.messages.create({
             model: "claude-sonnet-4-20250514",
             max_tokens: 800,
             temperature: 0.7,
             system: systemPrompt,
-            messages: messages,
+            messages: [
+              {
+                role: "user",
+                content: userPrompt,
+              },
+            ],
             stream: true,
             tools: [
               {
@@ -109,15 +131,13 @@ export async function POST(request: Request) {
             ],
           });
 
-          let accumulatedContent = "";
           let buffer = "";
           let lastFlushTime = Date.now();
-          const BUFFER_TIME = 20; // Reduced to 20ms for faster streaming
-          const BUFFER_SIZE = 8; // Send 8 characters at a time for better speed
+          const BUFFER_TIME = 20;
+          const BUFFER_SIZE = 8;
           const citations: any[] = [];
           let citationCounter = 1;
 
-          // Simple flush function for character streaming
           const flushBuffer = () => {
             if (buffer) {
               controller.enqueue(
@@ -133,7 +153,7 @@ export async function POST(request: Request) {
             }
           };
 
-          for await (const event of stream) {
+          for await (const event of response) {
             if (event.type === "content_block_start") {
               if (
                 event.content_block?.type === "server_tool_use" &&
@@ -186,8 +206,7 @@ export async function POST(request: Request) {
             } else if (event.type === "content_block_delta") {
               if (event.delta.type === "text_delta") {
                 const chunk = event.delta.text;
-                accumulatedContent += chunk;
-
+                
                 // Add characters to buffer one by one
                 for (const char of chunk) {
                   buffer += char;
@@ -202,69 +221,21 @@ export async function POST(request: Request) {
                   }
                 }
               }
-            } else if (event.type === "message_stop") {
-              // Flush any remaining buffer
-              if (buffer) {
-                controller.enqueue(
-                  encoder.encode(
-                    `data: ${JSON.stringify({
-                      type: "chunk",
-                      content: buffer,
-                    })}\n\n`
-                  )
-                );
-                buffer = "";
-              }
-              // Save the complete debate turn - fetch existing debate, add messages, and save
-              if (debateId && accumulatedContent) {
-                const existingDebate = await d1.getDebate(debateId);
-                if (existingDebate.success && existingDebate.debate) {
-                  const existingMessages = Array.isArray(
-                    existingDebate.debate.messages
-                  )
-                    ? existingDebate.debate.messages
-                    : [];
-                  existingMessages.push({
-                    role: "user",
-                    content: userArgument,
-                  });
-                  existingMessages.push({
-                    role: "ai",
-                    content: accumulatedContent,
-                    ...(citations.length > 0 && { citations }),
-                  });
-
-                  await d1.saveDebate({
-                    userId,
-                    opponent: character,
-                    topic: existingDebate.debate.topic || topic, // Preserve original topic
-                    messages: existingMessages,
-                    debateId,
-                    opponentStyle,
-                  });
-                }
-              }
-
-              // Send completion message with citations
-              controller.enqueue(
-                encoder.encode(
-                  `data: ${JSON.stringify({
-                    type: "complete",
-                    content: accumulatedContent,
-                    debateId: debateId,
-                    citations: citations.length > 0 ? citations : undefined,
-                  })}\n\n`
-                )
-              );
             }
           }
+
+          // Flush any remaining buffer
+          if (buffer) {
+            flushBuffer();
+          }
+
+          controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
         } catch (error) {
-          console.error("Streaming error:", error);
+          console.error("AI Takeover error:", error);
           controller.enqueue(
             encoder.encode(
               `data: ${JSON.stringify({
-                type: "error",
-                error: "Failed to generate response",
+                error: "Failed to generate AI argument",
               })}\n\n`
             )
           );
@@ -274,7 +245,7 @@ export async function POST(request: Request) {
       },
     });
 
-    return new NextResponse(streamResponse, {
+    return new Response(stream, {
       headers: {
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache",
@@ -282,9 +253,9 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
-    console.error("Debate API error:", error);
+    console.error("AI takeover error:", error);
     return NextResponse.json(
-      { error: "Failed to generate debate response" },
+      { error: "Failed to process AI takeover" },
       { status: 500 }
     );
   }

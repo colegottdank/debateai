@@ -8,9 +8,10 @@ import { opponents, getOpponentById } from '@/lib/opponents';
 import Header from '@/components/Header';
 
 // Memoized message component to prevent re-renders during streaming
-const Message = memo(({ msg, opponent, isAILoading, isNew }: { 
-  msg: { role: string; content: string; citations?: Array<{id: number; url: string; title: string}> }, 
+const Message = memo(({ msg, opponent, debate, isAILoading, isNew }: { 
+  msg: { role: string; content: string; aiAssisted?: boolean; citations?: Array<{id: number; url: string; title: string}> }, 
   opponent: any,
+  debate: any,
   isAILoading: boolean,
   isNew?: boolean 
 }) => {
@@ -58,18 +59,25 @@ const Message = memo(({ msg, opponent, isAILoading, isNew }: {
       <div className={`max-w-[70%] ${msg.role === 'user' ? 'order-2' : 'order-1'}`}>
         {msg.role === 'ai' && (
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-sm">{opponent?.avatar}</span>
-            <span className="text-sm font-medium text-slate-400">{opponent?.name}</span>
+            <span className="text-sm">{opponent?.avatar || '🤖'}</span>
+            <span className="text-sm font-medium text-slate-400">
+              {debate?.opponentStyle || opponent?.name || 'AI Opponent'}
+            </span>
           </div>
         )}
         {msg.role === 'user' && (
           <div className="text-right mb-1">
-            <span className="text-sm font-medium text-slate-400">You</span>
+            <span className="text-sm font-medium text-slate-400">
+              You
+              {msg.aiAssisted && (
+                <span className="ml-2 text-xs text-indigo-400">🤖 AI-assisted</span>
+              )}
+            </span>
           </div>
         )}
         <div className={`px-4 py-3 rounded-lg streaming-message ${
           msg.role === 'user' 
-            ? 'message-user' 
+            ? msg.aiAssisted ? 'message-user border-dashed' : 'message-user'
             : 'message-ai'
         }`}>
           {msg.role === 'ai' && msg.content === '' && isAILoading ? (
@@ -154,13 +162,14 @@ export default function DebatePage() {
   const firstArg = searchParams.get('firstArg') || '';
   
   const [debate, setDebate] = useState<any>(null);
-  const [messages, setMessages] = useState<Array<{ role: string; content: string; citations?: Array<{id: number; url: string; title: string}> }>>([]);
+  const [messages, setMessages] = useState<Array<{ role: string; content: string; aiAssisted?: boolean; citations?: Array<{id: number; url: string; title: string}> }>>([]);
   const [userInput, setUserInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingDebate, setIsLoadingDebate] = useState(true);
   const [isAILoading, setIsAILoading] = useState(false);
   const [newMessageIndex, setNewMessageIndex] = useState<number | null>(null);
   const [currentCitations, setCurrentCitations] = useState<Array<{id: number; url: string; title: string}>>([]);
+  const [isAITakeover, setIsAITakeover] = useState(false);
 
   // Track if we've already sent the first message
   const [hasAutoSent, setHasAutoSent] = useState(false);
@@ -214,11 +223,14 @@ export default function DebatePage() {
     }
   }, [messages]);
 
-  const sendMessage = async (messageText?: string) => {
+  const sendMessage = async (messageText?: string, isAIAssisted: boolean = false) => {
     const textToSend = messageText || userInput;
     if (!textToSend.trim() || isLoading) return;
 
-    const newUserMessage = { role: 'user', content: textToSend };
+    const newUserMessage: any = { role: 'user', content: textToSend };
+    if (isAIAssisted) {
+      newUserMessage.aiAssisted = true;
+    }
     setMessages(prev => [...prev, newUserMessage]);
     setUserInput('');
     setIsLoading(true);
@@ -390,6 +402,205 @@ export default function DebatePage() {
     }
   };
 
+  // AI Takeover - Let AI argue on user's behalf
+  const handleAITakeover = async () => {
+    if (isLoading || isAITakeover) return;
+    
+    setIsAITakeover(true);
+    setIsLoading(true);
+
+    try {
+      const response = await fetch('/api/debate/takeover', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          debateId,
+          topic: debate?.topic,
+          previousMessages: messages,
+          opponentStyle: debate?.opponentStyle,
+        })
+      });
+
+      if (!response.body) {
+        throw new Error('No response body');
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let aiArgument = '';
+      let aiCitations: any[] = [];
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            if (data === '[DONE]') {
+              // AI takeover complete, send the message with citations
+              if (aiArgument.trim()) {
+                const messageWithCitations: any = { 
+                  role: 'user', 
+                  content: aiArgument,
+                  aiAssisted: true
+                };
+                if (aiCitations.length > 0) {
+                  messageWithCitations.citations = aiCitations;
+                }
+                setMessages(prev => [...prev, messageWithCitations]);
+                setUserInput('');
+                
+                // Now trigger the opponent's response
+                setIsLoading(true);
+                setIsAILoading(true);
+                
+                // Use the regular debate API for opponent response
+                const opponentResponse = await fetch('/api/debate', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    debateId,
+                    character: debate?.opponent || debate?.character || 'custom',
+                    opponentStyle: debate?.opponentStyle,
+                    topic: debate?.topic,
+                    userArgument: aiArgument,
+                    previousMessages: messages,
+                    stream: true
+                  })
+                });
+
+                // Process opponent response with existing logic
+                if (!opponentResponse.body) {
+                  throw new Error('No response body');
+                }
+
+                const opponentReader = opponentResponse.body.getReader();
+                const opponentDecoder = new TextDecoder();
+                
+                const aiMessageIndex = messages.length + 1;
+                setMessages(prev => [...prev, { role: 'ai', content: '' }]);
+
+                let accumulatedContent = '';
+                const charQueue: string[] = [];
+                let isProcessing = false;
+                const CHAR_DELAY = 10;
+
+                const processCharQueue = async () => {
+                  if (isProcessing || charQueue.length === 0) return;
+                  isProcessing = true;
+                  
+                  while (charQueue.length > 0) {
+                    const chars = charQueue.splice(0, 3);
+                    const charBatch = chars.join('');
+                    accumulatedContent += charBatch;
+                    
+                    setMessages(prev => {
+                      const newMessages = [...prev];
+                      newMessages[aiMessageIndex] = { 
+                        ...newMessages[aiMessageIndex],
+                        role: 'ai', 
+                        content: accumulatedContent 
+                      };
+                      return newMessages;
+                    });
+                    
+                    if (charQueue.length > 0) {
+                      await new Promise(resolve => setTimeout(resolve, CHAR_DELAY));
+                    }
+                  }
+                  
+                  isProcessing = false;
+                  if (charQueue.length > 0) {
+                    processCharQueue();
+                  }
+                };
+
+                const waitForCompletion = async () => {
+                  while (charQueue.length > 0 || isProcessing) {
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                  }
+                  setIsAILoading(false);
+                };
+
+                while (true) {
+                  const { done: opponentDone, value: opponentValue } = await opponentReader.read();
+                  if (opponentDone) {
+                    await waitForCompletion();
+                    break;
+                  }
+
+                  const opponentChunk = opponentDecoder.decode(opponentValue);
+                  const opponentLines = opponentChunk.split('\n');
+
+                  for (const line of opponentLines) {
+                    if (line.startsWith('data: ')) {
+                      const data = line.slice(6);
+                      if (data === '[DONE]') {
+                        await waitForCompletion();
+                      } else {
+                        try {
+                          const parsed = JSON.parse(data);
+                          if (parsed.type === 'chunk' && parsed.content) {
+                            for (const char of parsed.content) {
+                              charQueue.push(char);
+                            }
+                            if (!isProcessing) {
+                              processCharQueue();
+                            }
+                          } else if (parsed.type === 'citations' && parsed.citations) {
+                            setMessages(prev => {
+                              const newMessages = [...prev];
+                              const currentMessage = newMessages[aiMessageIndex];
+                              newMessages[aiMessageIndex] = { 
+                                ...currentMessage,
+                                citations: parsed.citations
+                              };
+                              return newMessages;
+                            });
+                          } else if (parsed.type === 'search_start') {
+                            if (isAILoading) {
+                              setIsAILoading(false);
+                            }
+                          } else if (parsed.type === 'completed') {
+                            waitForCompletion();
+                          }
+                        } catch (e) {
+                          // Skip invalid JSON
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            } else {
+              try {
+                const parsed = JSON.parse(data);
+                if (parsed.type === 'chunk' && parsed.content) {
+                  aiArgument += parsed.content;
+                } else if (parsed.type === 'citations' && parsed.citations) {
+                  aiCitations = parsed.citations;
+                }
+              } catch (e) {
+                // Ignore parse errors
+              }
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('AI takeover error:', error);
+      alert('Failed to generate AI argument. Please try again.');
+      setIsAILoading(false);
+    } finally {
+      setIsAITakeover(false);
+      setIsLoading(false);
+    }
+  };
+
   if (isLoadingDebate) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -458,6 +669,7 @@ export default function DebatePage() {
                 key={idx} 
                 msg={msg} 
                 opponent={opponent}
+                debate={debate}
                 isAILoading={isAILoading && idx === messages.length - 1}
               />
             ))}
@@ -481,6 +693,19 @@ export default function DebatePage() {
               className="flex-1 px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg focus:border-indigo-500 focus:outline-none text-slate-100 placeholder-slate-500"
               disabled={isLoading}
             />
+            <button
+              onClick={handleAITakeover}
+              disabled={isLoading || isAITakeover}
+              className={`px-4 py-3 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+                isLoading || isAITakeover
+                  ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                  : 'bg-slate-700 text-slate-100 hover:bg-slate-600'
+              }`}
+              title="Let AI argue for you"
+            >
+              <span className="text-lg">🤖</span>
+              {isAITakeover ? 'Thinking...' : 'AI Argue'}
+            </button>
             <button
               onClick={() => sendMessage()}
               disabled={isLoading || !userInput.trim()}

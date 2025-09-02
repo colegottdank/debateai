@@ -2,6 +2,13 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## CRITICAL: Claude API Model Configuration
+
+**ALWAYS use model `claude-sonnet-4-20250514` for all Claude API calls**
+- This is the latest and most capable Claude model
+- Do NOT use older models like `claude-3-5-sonnet-*` 
+- This model supports web search via the `web_search_20250305` tool
+
 ## Common Development Commands
 
 ### Development Server
