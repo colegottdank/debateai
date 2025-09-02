@@ -850,11 +850,12 @@ export default function DebatePage() {
               <button
                 onClick={handleAITakeover}
                 disabled={isLoading || isAITakeover}
-                className={`absolute right-2 top-2.5 p-2 rounded-md transition-all group ${
+                className={`absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-md transition-all group ${
                   isLoading || isAITakeover
                     ? 'text-slate-600 cursor-not-allowed'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
                 }`}
+                style={{ maxHeight: '36px' }}
                 title="Let AI argue for you"
               >
                 {/* Tooltip */}
