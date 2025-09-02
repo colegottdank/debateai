@@ -99,7 +99,7 @@ export async function POST(request: Request) {
 
           const stream = await anthropic.messages.create({
             model: "claude-sonnet-4-20250514",
-            max_tokens: 1000,
+            max_tokens: 600, // Further reduced to enforce brevity
             temperature: 0.7,
             system: systemPrompt,
             messages: messages,
@@ -108,7 +108,7 @@ export async function POST(request: Request) {
               {
                 type: "web_search_20250305",
                 name: "web_search",
-                max_uses: 3,
+                max_uses: 1,
               },
             ],
           });
@@ -177,18 +177,7 @@ export async function POST(request: Request) {
 
                 if (extractedCitations.length > 0) {
                   citations.push(...extractedCitations);
-
-                  // Send citations to frontend immediately
-                  if (!controllerClosed) {
-                    controller.enqueue(
-                      encoder.encode(
-                        `data: ${JSON.stringify({
-                          type: "citations",
-                          citations: extractedCitations,
-                        })}\n\n`
-                      )
-                    );
-                  }
+                  // Don't send citations immediately - wait to filter them
                 }
               }
             } else if (event.type === "content_block_delta") {
@@ -223,6 +212,30 @@ export async function POST(request: Request) {
                 );
                 buffer = "";
               }
+
+              // Filter citations to only include those actually used in the response
+              const usedCitations: any[] = [];
+              if (citations.length > 0) {
+                // Check which citation numbers appear in the accumulated content
+                for (const citation of citations) {
+                  const citationPattern = new RegExp(`\\[${citation.id}\\]`, 'g');
+                  if (citationPattern.test(accumulatedContent)) {
+                    usedCitations.push(citation);
+                  }
+                }
+                
+                // Send only used citations to frontend
+                if (usedCitations.length > 0 && !controllerClosed) {
+                  controller.enqueue(
+                    encoder.encode(
+                      `data: ${JSON.stringify({
+                        type: "citations",
+                        citations: usedCitations,
+                      })}\n\n`
+                    )
+                  );
+                }
+              }
               // Save the complete debate turn - fetch existing debate, add messages, and save
               if (debateId && accumulatedContent) {
                 const existingDebate = await d1.getDebate(debateId);
@@ -240,7 +253,7 @@ export async function POST(request: Request) {
                   existingMessages.push({
                     role: "ai",
                     content: accumulatedContent,
-                    ...(citations.length > 0 && { citations }),
+                    ...(usedCitations.length > 0 && { citations: usedCitations }),
                   });
 
                   await d1.saveDebate({
@@ -254,7 +267,7 @@ export async function POST(request: Request) {
                 }
               }
 
-              // Send completion message with citations
+              // Send completion message with filtered citations
               if (!controllerClosed) {
                 controller.enqueue(
                   encoder.encode(
@@ -262,7 +275,7 @@ export async function POST(request: Request) {
                       type: "complete",
                       content: accumulatedContent,
                       debateId: debateId,
-                      citations: citations.length > 0 ? citations : undefined,
+                      citations: usedCitations.length > 0 ? usedCitations : undefined,
                     })}\n\n`
                   )
                 );

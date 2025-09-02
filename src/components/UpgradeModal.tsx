@@ -131,11 +131,11 @@ export default function UpgradeModal({
     }
     if (isMessageLimit) {
       return {
-        title: 'MESSAGE LIMIT REACHED!',
-        subtitle: "You've sent all your free messages!",
+        title: 'CONTINUE THIS DEBATE?',
+        subtitle: "You've used your 2 free messages!",
         emoji: '🔒',
-        stamp: 'MESSAGE LIMIT',
-        bgGradient: 'from-red-600 to-red-900'
+        stamp: 'UPGRADE NOW',
+        bgGradient: 'from-indigo-600 to-purple-900'
       };
     }
     if (trigger === 'feature') {
@@ -216,12 +216,12 @@ export default function UpgradeModal({
           {/* Features - Compact */}
           <div className="bg-black/30 rounded-xl p-3 mb-4">
             <h3 className="text-sm font-black text-yellow-300 mb-2">
-              {isRateLimit ? 'UNLOCK WITH PREMIUM:' : 'PREMIUM FEATURES:'}
+              {isMessageLimit ? 'CONTINUE WITH PREMIUM:' : isRateLimit ? 'UNLOCK WITH PREMIUM:' : 'PREMIUM FEATURES:'}
             </h3>
             <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-white text-xs font-bold">
               <div className="flex items-center">
                 <span className="text-sm mr-1">✅</span>
-                UNLIMITED DEBATES
+                {isMessageLimit ? 'FINISH THIS DEBATE' : 'UNLIMITED DEBATES'}
               </div>
               <div className="flex items-center">
                 <span className="text-sm mr-1">✅</span>
@@ -229,11 +229,11 @@ export default function UpgradeModal({
               </div>
               <div className="flex items-center">
                 <span className="text-sm mr-1">✅</span>
-                PRIORITY ROASTING
+                WEB CITATIONS
               </div>
               <div className="flex items-center">
                 <span className="text-sm mr-1">✅</span>
-                PREMIUM MEMBER
+                DEBATE HISTORY
               </div>
             </div>
           </div>

@@ -373,7 +373,7 @@ class D1Client {
       };
     }
     
-    return { success: false, count: 0, limit: 3, allowed: true, remaining: 3, isPremium: false };
+    return { success: false, count: 0, limit: 2, allowed: true, remaining: 2, isPremium: false };
   }
 
   async checkDebateMessageLimit(debateId: string) {
@@ -396,7 +396,7 @@ class D1Client {
       const messages = result.debate.messages as Array<{ role: string; content: string }> || [];
       // Count only user messages (not system or AI messages)
       const userMessageCount = messages.filter(m => m.role === 'user').length;
-      const limit = 3; // Free tier limit per debate
+      const limit = 2; // Free tier limit per debate - paywall after 2 messages
       
       return {
         success: true,
@@ -408,7 +408,7 @@ class D1Client {
       };
     }
     
-    return { success: false, count: 0, limit: 3, allowed: true, remaining: 3, isPremium: false };
+    return { success: false, count: 0, limit: 2, allowed: true, remaining: 2, isPremium: false };
   }
 }
 

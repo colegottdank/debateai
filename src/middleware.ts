@@ -8,8 +8,9 @@ const isPublicRoute = createRouteMatcher([
   '/api/stripe/health',  // Allow public health check
   '/api/stripe/price',   // Allow public price check
   '/api/stripe/test',    // Allow public test endpoint
-  '/debate/(.*)',  // Allow public access to view specific debates
-  '/api/debate/(.*)',  // Allow API access to fetch debate data
+  '/debate',  // Allow access to debate setup page (will handle auth client-side)
+  '/debate/(.*)',  // Allow debate pages to load and handle auth client-side
+  '/history',  // Allow history page to load and handle auth client-side
 ])
 
 export default clerkMiddleware(async (auth, req) => {

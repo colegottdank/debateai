@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useUser, useClerk } from '@clerk/nextjs';
 import Link from 'next/link';
 import Header from '@/components/Header';
 
@@ -16,13 +17,21 @@ interface Debate {
 
 export default function HistoryPage() {
   const router = useRouter();
+  const { isSignedIn } = useUser();
+  const { openSignIn } = useClerk();
   const [debates, setDebates] = useState<Debate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Check authentication and prompt sign-in if needed
   useEffect(() => {
-    fetchDebates();
-  }, []);
+    if (isSignedIn === false) {
+      openSignIn();
+      router.push('/');
+    } else if (isSignedIn === true) {
+      fetchDebates();
+    }
+  }, [isSignedIn, openSignIn, router]);
 
   const fetchDebates = async () => {
     try {
@@ -55,6 +64,22 @@ export default function HistoryPage() {
     if (diffDays < 7) return `${diffDays}d ago`;
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
+
+  // Show loading state while checking auth
+  if (isSignedIn === undefined) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center animate-fade-in">
+          <div className="text-xl font-medium text-slate-100 mb-3">Checking authentication...</div>
+          <div className="inline-flex gap-1">
+            <span className="dot-bounce"></span>
+            <span className="dot-bounce"></span>
+            <span className="dot-bounce"></span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground">

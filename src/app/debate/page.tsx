@@ -1,14 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { useUser } from '@clerk/nextjs';
+import { useUser, useClerk } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import UpgradeModal from '@/components/UpgradeModal';
 import Header from '@/components/Header';
 
 export default function DebatePage() {
-  const { user } = useUser();
+  const { user, isSignedIn } = useUser();
+  const { openSignIn } = useClerk();
   const router = useRouter();
   const [opponentStyle, setOpponentStyle] = useState('');
   const [topic, setTopic] = useState('');
@@ -29,6 +30,12 @@ export default function DebatePage() {
 
   const startDebate = async () => {
     if (!opponentStyle.trim() || !topic.trim()) {
+      return;
+    }
+    
+    // Check if user is signed in first
+    if (!isSignedIn) {
+      openSignIn();
       return;
     }
     
@@ -65,7 +72,8 @@ export default function DebatePage() {
             }
           });
         } else if (response.status === 401) {
-          alert('Please sign in to start a debate');
+          // This shouldn't happen now, but keep as fallback
+          openSignIn();
         } else {
           alert('Failed to create debate. Please try again.');
         }

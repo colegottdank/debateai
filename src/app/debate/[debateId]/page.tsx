@@ -8,13 +8,14 @@ import { opponents, getOpponentById } from '@/lib/opponents';
 import Header from '@/components/Header';
 
 // Memoized message component to prevent re-renders during streaming
-const Message = memo(({ msg, opponent, debate, isAILoading, isUserLoading, isNew }: { 
+const Message = memo(({ msg, opponent, debate, isAILoading, isUserLoading, isNew, msgIndex }: { 
   msg: { role: string; content: string; aiAssisted?: boolean; citations?: Array<{id: number; url: string; title: string}>; isSearching?: boolean }, 
   opponent: any,
   debate: any,
   isAILoading: boolean,
   isUserLoading?: boolean,
-  isNew?: boolean 
+  isNew?: boolean,
+  msgIndex: number 
 }) => {
   const [isSourcesExpanded, setIsSourcesExpanded] = useState(false);
   
@@ -26,7 +27,7 @@ const Message = memo(({ msg, opponent, debate, isAILoading, isUserLoading, isNew
     return content.replace(/\[(\d+)\]/g, (match, num) => {
       const citation = citations.find(c => c.id === parseInt(num));
       if (citation) {
-        return `<sup><a href="#sources-msg" class="citation-inline" data-citation="${num}" title="${citation.title || 'View source'}">[${num}]</a></sup>`;
+        return `<sup><a href="#sources-msg-${msgIndex}" class="citation-inline" data-citation="${num}" title="${citation.title || 'View source'}">[${num}]</a></sup>`;
       }
       return match;
     });
@@ -42,7 +43,7 @@ const Message = memo(({ msg, opponent, debate, isAILoading, isUserLoading, isNew
       
       // Wait for DOM update if we just expanded
       setTimeout(() => {
-        const sourcesSection = document.getElementById('sources-msg');
+        const sourcesSection = document.getElementById(`sources-msg-${msgIndex}`);
         if (sourcesSection) {
           sourcesSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
           // Highlight the specific citation
@@ -111,7 +112,7 @@ const Message = memo(({ msg, opponent, debate, isAILoading, isUserLoading, isNew
                 )}
               </div>
               {msg.citations && msg.citations.length > 0 && (
-                <div className="mt-3 pt-2 border-t border-slate-700" id="sources-msg">
+                <div className="mt-3 pt-2 border-t border-slate-700" id={`sources-msg-${msgIndex}`}>
                   <div 
                     className={`flex items-center justify-between cursor-pointer select-none ${isSourcesExpanded ? 'mb-2' : ''}`}
                     onClick={() => setIsSourcesExpanded(!isSourcesExpanded)}
@@ -172,9 +173,9 @@ export default function DebatePage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   
-  // Check if this is an instant debate from homepage
-  const isInstant = searchParams.get('instant') === 'true';
-  const firstArg = searchParams.get('firstArg') || '';
+  // Check if this is an instant debate from homepage (using sessionStorage)
+  const [isInstant, setIsInstant] = useState(false);
+  const [firstArg, setFirstArg] = useState('');
   
   const [debate, setDebate] = useState<any>(null);
   const [messages, setMessages] = useState<Array<{ role: string; content: string; aiAssisted?: boolean; citations?: Array<{id: number; url: string; title: string}>; isSearching?: boolean }>>([]);
@@ -190,6 +191,28 @@ export default function DebatePage() {
 
   // Track if we've already sent the first message
   const [hasAutoSent, setHasAutoSent] = useState(false);
+
+  // Redirect to landing page if not authenticated
+  useEffect(() => {
+    if (isSignedIn === false) {
+      router.push('/');
+    }
+  }, [isSignedIn, router]);
+
+  // Check sessionStorage for instant debate data
+  useEffect(() => {
+    // Only check sessionStorage on client side
+    const instantDebate = sessionStorage.getItem('isInstantDebate') === 'true';
+    const firstArgument = sessionStorage.getItem('firstArgument') || '';
+    
+    if (instantDebate) {
+      setIsInstant(true);
+      setFirstArg(firstArgument);
+      // Clear sessionStorage to prevent reuse
+      sessionStorage.removeItem('isInstantDebate');
+      sessionStorage.removeItem('firstArgument');
+    }
+  }, []);
 
   // Load debate data
   useEffect(() => {
@@ -731,11 +754,14 @@ export default function DebatePage() {
     }
   };
 
-  if (isLoadingDebate) {
+  // Show loading state while checking auth or loading debate
+  if (isSignedIn === undefined || isLoadingDebate) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center animate-fade-in">
-          <div className="text-xl font-medium text-slate-100 mb-3">Preparing debate arena</div>
+          <div className="text-xl font-medium text-slate-100 mb-3">
+            {isSignedIn === undefined ? 'Checking authentication...' : 'Preparing debate arena'}
+          </div>
           <div className="inline-flex gap-1">
             <span className="dot-bounce"></span>
             <span className="dot-bounce"></span>
@@ -802,14 +828,15 @@ export default function DebatePage() {
                 debate={debate}
                 isAILoading={isAILoading && idx === messages.length - 1}
                 isUserLoading={isUserLoading && idx === messages.length - 1}
+                msgIndex={idx}
               />
             ))}
             
             <div ref={messagesEndRef} />
           </div>
           
-          {/* Auto-scroll indicator */}
-          {!isAutoScrollEnabled && (
+          {/* Auto-scroll indicator - only show during active streaming */}
+          {!isAutoScrollEnabled && isLoading && (
             <div className="absolute bottom-24 right-4 bg-slate-800 text-slate-400 text-xs px-3 py-1.5 rounded-full border border-slate-700 animate-fade-in">
               Auto-scroll paused • Scroll to bottom to resume
             </div>
@@ -850,17 +877,11 @@ export default function DebatePage() {
               <button
                 onClick={handleAITakeover}
                 disabled={isLoading || isAITakeover}
-                className={`absolute right-3 flex items-center justify-center rounded-md transition-all group ${
+                className={`absolute right-3 top-1/2 -translate-y-1/2 h-8 w-8 flex items-center justify-center rounded-md transition-all group ${
                   isLoading || isAITakeover
                     ? 'text-slate-600 cursor-not-allowed'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
                 }`}
-                style={{ 
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  height: '32px',
-                  width: '32px'
-                }}
                 title="Let AI argue for you"
               >
                 {/* Tooltip */}

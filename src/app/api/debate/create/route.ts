@@ -17,20 +17,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check rate limit (skip in test mode)
-    const isTestMode = process.env.NEXT_PUBLIC_TEST_MODE === 'true';
-    if (!isTestMode) {
-      const debateLimit = await d1.checkUserDebateLimit(userId);
-      if (!debateLimit.allowed) {
-        return NextResponse.json({ 
-          error: 'debate_limit_exceeded',
-          message: `You've reached your limit of ${debateLimit.limit} debates. Upgrade to premium for unlimited debates!`,
-          current: debateLimit.count,
-          limit: debateLimit.limit,
-          upgrade_required: true
-        }, { status: 429 });
-      }
-    }
+    // No debate creation limit - Vercel rate limiting handles bot protection
 
     const { character: opponent, opponentStyle, topic, debateId } = await request.json();
 

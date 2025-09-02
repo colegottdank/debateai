@@ -3,6 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { getUserId } from "@/lib/auth-helper";
 import { d1 } from "@/lib/d1";
 import { checkAppDisabled } from "@/lib/app-disabled";
+import { getTakeoverPrompt } from "@/lib/prompts";
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
@@ -55,7 +56,7 @@ export async function POST(request: Request) {
     }
 
     // Build conversation history for context
-    const conversationHistory = previousMessages
+    const conversationHistory = (previousMessages || [])
       .map((msg: any) => {
         if (msg.role === "user") {
           return `Human's argument: ${msg.content}`;
@@ -68,45 +69,16 @@ export async function POST(request: Request) {
       .join("\n\n");
 
     // Extract the user's position from their previous arguments
-    const userArguments = previousMessages
+    const userArguments = (previousMessages || [])
       .filter((msg: any) => msg.role === "user")
       .map((msg: any) => msg.content)
       .join(" ");
 
-    const systemPrompt = `You are an AI assistant helping a human in a debate about "${topic}".
-
-${opponentStyle ? `The opponent is ${opponentStyle}. Match their energy and debate style while maintaining substance. If they're aggressive and confrontational, be bold and assertive in response. If they're comedic, add wit. If they're academic, be scholarly. BUT always prioritize strong arguments over pure style.` : ""}
-
-Based on the human's previous arguments, you need to continue arguing from THEIR perspective and position.
-Generate ONE strong, compelling argument that:
-1. Continues their line of reasoning
-2. Addresses the opponent's latest points directly and forcefully
-3. Uses evidence and logic as your foundation
-4. Maintains consistency with their previous arguments
-5. Is concise and impactful - aim for 150-200 words (about 2-3 short paragraphs)
-${opponentStyle ? "\n6. Match the opponent's energy - if they're being dramatic, don't be timid. Use emphatic language, rhetorical questions, and strong statements. Light personality touches are good (like 'Listen,' or 'Here's the thing') but avoid stage directions or physical descriptions." : ""}
-
-Citation Guidelines:
-1. Use web search ONLY when making specific factual claims that would benefit from verification (e.g., recent statistics, controversial facts, or claims central to your argument).
-2. Do NOT search for commonly known facts, general statements, or philosophical arguments.
-3. When you do search, add citation markers [1], [2], etc. inline where you reference the information.
-4. Quality over quantity - a strong logical argument is better than many weak citations.
-5. Use citations strategically to strengthen key points, not for every statement.
-
-Previous debate context:
-${conversationHistory}
-
-The human's position (based on their arguments): ${
-      userArguments
-        ? `The human has been arguing: ${userArguments.substring(0, 500)}...`
-        : "The human is just starting the debate."
-    }
-
-Now generate the next argument FROM THE HUMAN'S PERSPECTIVE. Do not switch sides or argue against their position.
-${opponentStyle ? "\nWrite naturally and conversationally - this is a debate, not an essay. Show confidence and conviction." : ""}`;
+    // Get the takeover prompt from centralized prompts
+    const systemPrompt = getTakeoverPrompt(topic, opponentStyle, conversationHistory, userArguments);
 
     const lastOpponentMessage =
-      previousMessages.filter((msg: any) => msg.role === "ai").pop()?.content ||
+      (previousMessages || []).filter((msg: any) => msg.role === "ai").pop()?.content ||
       "";
 
     const userPrompt = lastOpponentMessage
@@ -124,7 +96,7 @@ ${opponentStyle ? "\nWrite naturally and conversationally - this is a debate, no
         try {
           const response = await anthropic.messages.create({
             model: "claude-sonnet-4-20250514",
-            max_tokens: 1000,
+            max_tokens: 400, // Strictly enforce brevity for takeover
             temperature: 0.7,
             system: systemPrompt,
             messages: [
@@ -138,15 +110,16 @@ ${opponentStyle ? "\nWrite naturally and conversationally - this is a debate, no
               {
                 type: "web_search_20250305",
                 name: "web_search",
-                max_uses: 3,
+                max_uses: 1,
               },
             ],
           });
 
           let buffer = "";
+          let accumulatedContent = ""; // Track full content for citation filtering
           let lastFlushTime = Date.now();
-          const BUFFER_TIME = 20;
-          const BUFFER_SIZE = 8;
+          const BUFFER_TIME = 50; // Slower for more human-like streaming
+          const BUFFER_SIZE = 5; // Smaller chunks for smoother flow
           const citations: any[] = [];
           let citationCounter = 1;
 
@@ -205,23 +178,13 @@ ${opponentStyle ? "\nWrite naturally and conversationally - this is a debate, no
 
                 if (extractedCitations.length > 0) {
                   citations.push(...extractedCitations);
-
-                  // Send citations to frontend immediately
-                  if (!controllerClosed) {
-                    controller.enqueue(
-                      encoder.encode(
-                        `data: ${JSON.stringify({
-                          type: "citations",
-                          citations: extractedCitations,
-                        })}\n\n`
-                      )
-                    );
-                  }
+                  // Don't send citations immediately - wait to filter them
                 }
               }
             } else if (event.type === "content_block_delta") {
               if (event.delta.type === "text_delta") {
                 const chunk = event.delta.text;
+                accumulatedContent += chunk; // Accumulate for citation filtering
 
                 // Add characters to buffer one by one
                 for (const char of chunk) {
@@ -243,6 +206,30 @@ ${opponentStyle ? "\nWrite naturally and conversationally - this is a debate, no
           // Flush any remaining buffer
           if (buffer) {
             flushBuffer();
+          }
+
+          // Filter citations to only include those actually used in the response
+          const usedCitations: any[] = [];
+          if (citations.length > 0) {
+            // Check which citation numbers appear in the accumulated content
+            for (const citation of citations) {
+              const citationPattern = new RegExp(`\\[${citation.id}\\]`, 'g');
+              if (citationPattern.test(accumulatedContent)) {
+                usedCitations.push(citation);
+              }
+            }
+            
+            // Send only used citations to frontend
+            if (usedCitations.length > 0 && !controllerClosed) {
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify({
+                    type: "citations",
+                    citations: usedCitations,
+                  })}\n\n`
+                )
+              );
+            }
           }
 
           if (!controllerClosed) {

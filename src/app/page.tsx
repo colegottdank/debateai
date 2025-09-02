@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useUser } from '@clerk/nextjs';
+import { useUser, useClerk } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getDailyDebate } from '@/lib/daily-debates';
@@ -10,10 +10,10 @@ import Header from '@/components/Header';
 export default function Home() {
   const router = useRouter();
   const { isSignedIn } = useUser();
+  const { openSignIn } = useClerk();
   const [dailyDebate, setDailyDebate] = useState<{ persona: string; topic: string; description?: string } | null>(null);
   const [userInput, setUserInput] = useState('');
   const [isStarting, setIsStarting] = useState(false);
-  const [isCustomTopic, setIsCustomTopic] = useState(false);
 
   // Load daily debate pairing on mount
   useEffect(() => {
@@ -23,31 +23,22 @@ export default function Home() {
 
   const resetToDaily = () => {
     setUserInput('');
-    setIsCustomTopic(false);
   };
 
-  const handleInputChange = (value: string) => {
-    setUserInput(value);
-    
-    // Check if user is typing something unrelated to the prompt
-    if (value.length > 20 && dailyDebate) {
-      const topicWords = dailyDebate.topic.toLowerCase().split(' ');
-      const inputWords = value.toLowerCase().split(' ');
-      const hasOverlap = topicWords.some(word => 
-        word.length > 3 && inputWords.some(inputWord => inputWord.includes(word))
-      );
-      
-      setIsCustomTopic(!hasOverlap);
-    }
-  };
 
   const startDebate = async () => {
     if (!userInput.trim() || !dailyDebate) return;
     
+    // Check if user is signed in first
+    if (!isSignedIn) {
+      openSignIn();
+      return;
+    }
+    
     setIsStarting(true);
     
-    // Use daily debate pairing or custom topic
-    const debateTopic = isCustomTopic ? userInput : dailyDebate.topic;
+    // Always use daily debate topic from homepage
+    const debateTopic = dailyDebate.topic;
     const firstArgument = userInput;
     const opponentStyle = dailyDebate.persona; // Always use today's persona
     
@@ -66,11 +57,15 @@ export default function Home() {
       });
       
       if (response.ok) {
-        router.push(`/debate/${debateId}?instant=true&firstArg=${encodeURIComponent(firstArgument)}`);
+        // Store first argument in sessionStorage instead of URL
+        sessionStorage.setItem('firstArgument', firstArgument);
+        sessionStorage.setItem('isInstantDebate', 'true');
+        router.push(`/debate/${debateId}`);
       } else {
         const error = await response.json();
         if (response.status === 401) {
-          alert('Please sign in to start a debate');
+          // This shouldn't happen now, but keep as fallback
+          openSignIn();
         } else {
           alert('Failed to start debate. Please try again.');
         }
@@ -105,15 +100,13 @@ export default function Home() {
           <div className="space-y-4">
             <textarea
               value={userInput}
-              onChange={(e) => handleInputChange(e.target.value)}
+              onChange={(e) => setUserInput(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
                   startDebate();
                 }
               }}
-              placeholder={isCustomTopic 
-                ? "Enter your own debate topic..." 
-                : "Type your position on this topic..."}
+              placeholder="Type your position on this topic..."
               className="w-full px-6 py-4 bg-slate-800 border border-slate-700 rounded-lg focus:border-indigo-500 focus:outline-none resize-none h-32 text-slate-100 placeholder-slate-500 transition-colors"
               autoFocus
             />
@@ -144,9 +137,7 @@ export default function Home() {
             {/* Helper Text */}
             <div className="text-center">
               <p className="text-slate-400 text-sm">
-                {isCustomTopic 
-                  ? "Writing your own topic" 
-                  : "Responding to the topic above"}
+                Responding to the topic above
               </p>
               <p className="text-slate-500 text-xs mt-1">
                 Press ⌘+Enter to start
