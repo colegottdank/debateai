@@ -20,6 +20,13 @@ If it's just a style description (e.g., "aggressive", "philosophical"), then deb
 
 Topic: "${topic}"
 
+CITATION RULES:
+1. Use web search ONLY when making specific factual claims that would benefit from verification (e.g., recent statistics, controversial facts, or claims central to your argument).
+2. Do NOT search for commonly known facts, general statements, or philosophical arguments.
+3. When you do search, add citation markers [1], [2], etc. inline where you reference the information.
+4. Quality over quantity - a strong logical argument is better than many weak citations.
+5. Use citations strategically to strengthen key points, not for every statement.
+
 Engage in this debate according to your described style or persona. Respond to arguments directly and substantively. Keep responses under 100 words. Be challenging but respectful.`;
 }
 

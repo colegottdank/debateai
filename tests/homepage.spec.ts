@@ -6,85 +6,57 @@ test.describe('Homepage', () => {
   });
 
   test('should load homepage with correct title', async ({ page }) => {
-    await expect(page).toHaveTitle(/MasterDebater\.ai/);
+    await expect(page).toHaveTitle(/DebateAI/);
+  });
+
+  test('should display today\'s debate topic', async ({ page }) => {
+    // Check for "Today's Debate" label
+    const todayLabel = page.locator('text="Today\'s Debate"');
+    await expect(todayLabel).toBeVisible();
     
-    // Check main title is visible
-    const mainTitle = page.locator('h1').filter({ hasText: 'MASTERDEBATER.AI' });
-    await expect(mainTitle).toBeVisible();
+    // Check that a topic is displayed
+    const topicHeading = page.locator('h2');
+    await expect(topicHeading).toBeVisible();
   });
 
-  test('should display all 5 character cards', async ({ page }) => {
-    // Check all characters are present
-    const characters = ['Cartman', 'Kyle', 'Stan', 'Butters', 'Clyde'];
-    
-    for (const character of characters) {
-      const card = page.locator('.character-card').filter({ hasText: character });
-      await expect(card).toBeVisible();
-    }
+  test('should show debate opponent', async ({ page }) => {
+    // Check for "Debating against:" text
+    const opponentText = page.locator('text=/Debating against:/');
+    await expect(opponentText).toBeVisible();
   });
 
-  test('should show character quotes on hover', async ({ page }) => {
-    // Hover over Cartman and check quote appears
-    const cartmanCard = page.locator('.character-card').filter({ hasText: 'Cartman' });
-    await cartmanCard.hover();
-    
-    const quote = page.locator('text="I\'m the MASTER debater!"');
-    await expect(quote).toBeVisible();
+  test('should have a text input area', async ({ page }) => {
+    // Check for textarea
+    const textarea = page.locator('textarea');
+    await expect(textarea).toBeVisible();
+    await expect(textarea).toHaveAttribute('placeholder', /Enter your argument|Type your opening/i);
   });
 
-  test('should display live banner', async ({ page }) => {
-    const banner = page.locator('.messy-banner');
-    await expect(banner).toBeVisible();
-    await expect(banner).toContainText('LIVE NOW');
-  });
-
-  test('should show sign in button when not authenticated', async ({ page }) => {
-    const signInButton = page.locator('button').filter({ hasText: 'Sign In' });
-    await expect(signInButton).toBeVisible();
-  });
-
-  test('should show start debating button', async ({ page }) => {
-    const startButton = page.locator('button').filter({ hasText: /START MASTER DEBATING|ENTER THE ARENA/ });
+  test('should have a start debate button', async ({ page }) => {
+    // Check for the start button
+    const startButton = page.locator('button').filter({ hasText: /Start Debate/i });
     await expect(startButton).toBeVisible();
   });
 
-  test('should display recent podcast drama section', async ({ page }) => {
-    const dramaSection = page.locator('text=/RECENT PODCAST DRAMA/');
-    await expect(dramaSection).toBeVisible();
+  test('should show navigation links', async ({ page }) => {
+    // Check for Advanced Setup link
+    const advancedLink = page.locator('a').filter({ hasText: 'Advanced Setup' });
+    await expect(advancedLink).toBeVisible();
     
-    // Check specific drama items
-    await expect(page.locator('text="Clyde\'s Show STOLEN"')).toBeVisible();
-    await expect(page.locator('text="Charlie Kirk Award"')).toBeVisible();
-    await expect(page.locator('text="Getting That Nut"')).toBeVisible();
+    // Check for Previous Debates link
+    const historyLink = page.locator('a').filter({ hasText: 'Previous Debates' });
+    await expect(historyLink).toBeVisible();
   });
 
-  test('should display Cartman stats', async ({ page }) => {
-    const statsSection = page.locator('text="CARTMAN\'S STOLEN STATS"');
-    await expect(statsSection).toBeVisible();
-    
-    // Check stats values
-    await expect(page.locator('text="Podcasts Stolen"')).toBeVisible();
-    await expect(page.locator('text="Weekly Nut Goal"')).toBeVisible();
-    await expect(page.locator('text="Charlie Kirk Awards"')).toBeVisible();
+  test('should navigate to debate setup page', async ({ page }) => {
+    const advancedLink = page.locator('a').filter({ hasText: 'Advanced Setup' });
+    await advancedLink.click();
+    await expect(page).toHaveURL('/debate');
   });
 
-  test('should have scattered decorative elements', async ({ page }) => {
-    // Check at least some decorative elements are present
-    const decorativeElements = page.locator('.absolute').filter({ 
-      hasText: /🧸|⚡|🌮|🎲|🍔|📺/ 
-    });
-    
-    const count = await decorativeElements.count();
-    expect(count).toBeGreaterThan(0);
-  });
-
-  test('should navigate to debate page when clicking start button', async ({ page }) => {
-    // For signed out users, it should open sign in modal
-    // For signed in users, it should navigate to /debate
-    const startButton = page.locator('button').filter({ hasText: /START MASTER DEBATING|ENTER THE ARENA/ }).first();
-    
-    // Check button exists and is clickable
-    await expect(startButton).toBeVisible();
-    await expect(startButton).toBeEnabled();
+  test('should navigate to history page', async ({ page }) => {
+    const historyLink = page.locator('a').filter({ hasText: 'Previous Debates' });
+    await historyLink.click();
+    await expect(page).toHaveURL('/history');
   });
 });

@@ -149,7 +149,7 @@ export default function UpgradeModal({
     }
     return {
       title: 'GET PREMIUM',
-      subtitle: 'Become the ultimate master debater!',
+      subtitle: 'Become a skilled debater!',
       emoji: '💰',
       stamp: 'UPGRADE',
       bgGradient: 'from-yellow-500 to-red-600'
@@ -176,7 +176,7 @@ export default function UpgradeModal({
         
         <div className="relative z-10 mt-6">
           {/* Header */}
-          <h2 className="text-2xl sm:text-3xl font-black text-white text-center mb-2 transform rotate-1 south-park-title">
+          <h2 className="text-2xl sm:text-3xl font-black text-white text-center mb-2 transform rotate-1">
             {config.title}
           </h2>
           <p className="text-lg text-yellow-300 font-bold text-center mb-4">
@@ -233,17 +233,17 @@ export default function UpgradeModal({
               </div>
               <div className="flex items-center">
                 <span className="text-sm mr-1">✅</span>
-                CHARLIE KIRK AWARD
+                PREMIUM MEMBER
               </div>
             </div>
           </div>
 
-          {/* Cartman Quote - Smaller */}
-          <div className="bg-white/90 rounded-lg p-2 mb-4 border-2 border-black transform rotate-1">
-            <p className="text-black font-bold italic text-xs text-center">
+          {/* Premium Message */}
+          <div className="bg-white/90 rounded-lg p-2 mb-4 border-2 border-black">
+            <p className="text-black font-semibold text-xs text-center">
               {isRateLimit 
-                ? "Respect my authoritah! Pay up or get out!"
-                : "Only premium members are real master debaters!"}
+                ? "Upgrade to continue your intellectual journey"
+                : "Unlock unlimited debates and challenge your thinking"}
             </p>
           </div>
 

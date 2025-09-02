@@ -6,10 +6,10 @@ import { getDebatePrompt, getDailyPersona } from "@/lib/prompts";
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
-  baseURL: 'https://anthropic.helicone.ai',
-  defaultHeaders: {
-    'Helicone-Auth': 'Bearer sk-helicone-mmaqxly-r2zeedy-vk7ojly-z2eymoa',
-  },
+  baseURL: process.env.HELICONE_BASE_URL || "https://anthropic.helicone.ai",
+  defaultHeaders: process.env.HELICONE_API_KEY ? {
+    "Helicone-Auth": `Bearer ${process.env.HELICONE_API_KEY}`,
+  } : {},
 });
 
 export async function POST(request: Request) {
@@ -29,14 +29,6 @@ export async function POST(request: Request) {
       previousMessages,
     } = await request.json();
 
-    // Debug logging
-    console.log('Debate API Request:', {
-      debateId,
-      character,
-      opponentStyle,
-      topic,
-      userArgument: userArgument?.substring(0, 50) + '...'
-    });
 
     if (!character || !topic || !userArgument) {
       return NextResponse.json(
@@ -106,7 +98,7 @@ export async function POST(request: Request) {
               {
                 type: "web_search_20250305",
                 name: "web_search",
-                max_uses: 5,
+                max_uses: 2,
               },
             ],
           });
@@ -116,7 +108,9 @@ export async function POST(request: Request) {
           let lastFlushTime = Date.now();
           const BUFFER_TIME = 20; // Reduced to 20ms for faster streaming
           const BUFFER_SIZE = 8; // Send 8 characters at a time for better speed
-          
+          let citations: any[] = [];
+          let citationCounter = 1;
+
           // Simple flush function for character streaming
           const flushBuffer = () => {
             if (buffer) {
@@ -134,19 +128,70 @@ export async function POST(request: Request) {
           };
 
           for await (const event of stream) {
-            if (event.type === "content_block_delta") {
+            if (event.type === "content_block_start") {
+              if (
+                event.content_block?.type === "server_tool_use" &&
+                event.content_block.name === "web_search"
+              ) {
+                // Web search is starting
+                if (buffer) {
+                  flushBuffer();
+                }
+
+                controller.enqueue(
+                  encoder.encode(
+                    `data: ${JSON.stringify({
+                      type: "search_start",
+                      query: "Searching the web...",
+                    })}\n\n`
+                  )
+                );
+              } else if (
+                event.content_block?.type === "web_search_tool_result"
+              ) {
+                // Web search results received
+                const results = (event.content_block as any).content || [];
+                const extractedCitations: any[] = [];
+
+                results.forEach((result: any) => {
+                  if (result.type === "web_search_result" && result.url) {
+                    extractedCitations.push({
+                      id: citationCounter++,
+                      url: result.url,
+                      title: result.title || new URL(result.url).hostname,
+                    });
+                  }
+                });
+
+                if (extractedCitations.length > 0) {
+                  citations.push(...extractedCitations);
+
+                  // Send citations to frontend immediately
+                  controller.enqueue(
+                    encoder.encode(
+                      `data: ${JSON.stringify({
+                        type: "citations",
+                        citations: extractedCitations,
+                      })}\n\n`
+                    )
+                  );
+                }
+              }
+            } else if (event.type === "content_block_delta") {
               if (event.delta.type === "text_delta") {
                 const chunk = event.delta.text;
                 accumulatedContent += chunk;
-                
+
                 // Add characters to buffer one by one
                 for (const char of chunk) {
                   buffer += char;
-                  
+
                   // Flush small chunks frequently
                   const now = Date.now();
-                  if (buffer.length >= BUFFER_SIZE || 
-                      (now - lastFlushTime >= BUFFER_TIME && buffer.length > 0)) {
+                  if (
+                    buffer.length >= BUFFER_SIZE ||
+                    (now - lastFlushTime >= BUFFER_TIME && buffer.length > 0)
+                  ) {
                     flushBuffer();
                   }
                 }
@@ -180,12 +225,13 @@ export async function POST(request: Request) {
                   existingMessages.push({
                     role: "ai",
                     content: accumulatedContent,
+                    ...(citations.length > 0 && { citations }),
                   });
 
                   await d1.saveDebate({
                     userId,
                     opponent: character,
-                    topic,
+                    topic: existingDebate.debate.topic || topic, // Preserve original topic
                     messages: existingMessages,
                     debateId,
                     opponentStyle,
@@ -193,13 +239,14 @@ export async function POST(request: Request) {
                 }
               }
 
-              // Send completion message
+              // Send completion message with citations
               controller.enqueue(
                 encoder.encode(
                   `data: ${JSON.stringify({
                     type: "complete",
                     content: accumulatedContent,
                     debateId: debateId,
+                    citations: citations.length > 0 ? citations : undefined,
                   })}\n\n`
                 )
               );

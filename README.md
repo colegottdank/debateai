@@ -1,6 +1,6 @@
-# MasterDebater.ai - South Park Debate Arena
+# DebateAI - Challenge Your Convictions
 
-A South Park-themed debate platform where users can debate AI characters inspired by the "Got a Nut" episode (S27E02).
+An intellectual debate platform where users can challenge their beliefs against AI trained to argue from every perspective.
 
 ## 🚀 Quick Start
 
@@ -44,27 +44,19 @@ Open [http://localhost:3000](http://localhost:3000) to see the app.
 
 ## 🎮 Features
 
-- **5 South Park Characters**: Cartman, Kyle, Stan, Butters, Randy
-- **AI-Powered Debates**: Each character has unique personality and debate style
-- **Custom Topics**: Debate preset topics or create your own
-- **Real-time Responses**: Streaming AI responses for natural conversation
+- **AI-Powered Debates**: Challenge AI with various debate styles and personas
+- **Dynamic Personas**: Daily rotating opponents or custom debate styles
+- **Custom Topics**: Debate any topic or use daily challenges
+- **Real-time Responses**: Streaming AI responses with web search citations
 - **Authentication**: Secure sign-in with Clerk
 
 ## 🛠 Tech Stack
 
 - **Frontend**: Next.js 14, TypeScript, Tailwind CSS
-- **AI**: Claude 3.5 Sonnet via Anthropic SDK
+- **AI**: Claude Sonnet via Anthropic SDK with web search
 - **Auth**: Clerk
 - **Hosting**: Vercel
-- **Database**: Cloudflare D1 (optional)
-
-## 📝 Character Personalities
-
-- **Cartman**: Overconfident, uses logical fallacies, claims to be the "master debater"
-- **Kyle**: Logical and moral, gets frustrated with bad arguments
-- **Stan**: Reasonable middle ground, often gives up when things get ridiculous
-- **Butters**: Naive but surprisingly insightful, always polite
-- **Randy**: Chaotic, goes off-topic, extreme reactions
+- **Database**: Cloudflare D1
 
 ## 🚀 Deployment
 
@@ -83,4 +75,4 @@ MIT
 
 ---
 
-*"I&apos;m not just debating - I&apos;m MASTER debating!" - Eric Cartman*
+*DebateAI - Challenge Your Convictions*

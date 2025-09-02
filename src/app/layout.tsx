@@ -15,15 +15,16 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "MasterDebater.ai - The Ultimate Debate Arena",
-  description: "Challenge AI master debaters inspired by South Park's greatest minds. Can you out-debate Cartman?",
+  title: "DebateAI - Challenge Your Convictions",
+  description: "Challenge your beliefs against AI trained to argue from every perspective. Sharpen your critical thinking through rigorous intellectual debate.",
   icons: {
     icon: [
-      { url: '/ai-favicon-v2.png', type: 'image/png' },
-      { url: '/favicon.ico', type: 'image/x-icon' }
+      { url: '/favicon.ico', type: 'image/x-icon' },
+      { url: '/favicon-32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/favicon-192.png', sizes: '192x192', type: 'image/png' },
     ],
     shortcut: '/favicon.ico',
-    apple: '/favicon.ico',
+    apple: '/favicon-512.png',
   },
 };
 
@@ -35,6 +36,23 @@ export default function RootLayout({
   return (
     <ClerkProvider>
       <html lang="en" suppressHydrationWarning>
+        <head>
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `
+                (function() {
+                  const theme = localStorage.getItem('theme');
+                  if (theme === 'light') {
+                    document.documentElement.classList.add('light');
+                  } else {
+                    // Default to dark if no preference or dark is set
+                    document.documentElement.classList.add('dark');
+                  }
+                })();
+              `,
+            }}
+          />
+        </head>
         <body
           className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         >

@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { OpponentType } from '@/lib/opponents';
-import { AIDebateScore } from '@/lib/ai-scoring';
 
 interface DebateState {
   // Core debate data
@@ -21,11 +20,8 @@ interface DebateState {
   isOwner: boolean;
   isAuthenticated: boolean;
   
-  // Scoring
+  // Debate status
   debateEnded: boolean;
-  debateScore: AIDebateScore | null;
-  isScoringDebate: boolean;
-  showScoreModal: boolean;
   
   // Rate limiting
   rateLimitError: {
@@ -45,12 +41,11 @@ interface UseDebateReturn {
   actions: {
     loadDebate: () => Promise<void>;
     sendMessage: () => Promise<void>;
-    endDebate: () => Promise<void>;
+    endDebate: () => void;
     setUserInput: (input: string) => void;
     copyShareLink: () => void;
     setShowShareToast: (show: boolean) => void;
     setDebateEnded: (ended: boolean) => void;
-    setShowScoreModal: (show: boolean) => void;
     clearRateLimitError: () => void;
   };
 }
@@ -78,11 +73,8 @@ export function useDebate(debateId: string): UseDebateReturn {
     isOwner: false,
     isAuthenticated: false,
     
-    // Scoring
+    // Debate status
     debateEnded: false,
-    debateScore: null,
-    isScoringDebate: false,
-    showScoreModal: false,
     
     // Rate limiting
     rateLimitError: null,
@@ -120,8 +112,6 @@ export function useDebate(debateId: string): UseDebateReturn {
             isLoadingDebate: false,
             // If debate is already scored, set the score but don't auto-show modal
             debateEnded: hasScore,
-            debateScore: hasScore ? data.debate.score_data : null,
-            showScoreModal: false, // Don't auto-show modal on page load
           }));
           
           // Log permission status
@@ -266,47 +256,10 @@ export function useDebate(debateId: string): UseDebateReturn {
     }
   }, [state.userInput, state.isLoading, state.character, state.topic, state.messages, debateId]);
 
-  // End debate and calculate score
-  const endDebate = useCallback(async () => {
-    // If already scoring, do nothing
-    if (state.isScoringDebate) return;
-    
-    // If we already have a score, just show it without recalculating
-    if (state.debateScore) {
-      setState(prev => ({ ...prev, debateEnded: true, showScoreModal: true }));
-      return;
-    }
-    
-    setState(prev => ({ ...prev, isScoringDebate: true }));
-    
-    try {
-      const characterName = characters.find(c => c.id === state.character)?.name || state.character;
-      const response = await fetch('/api/score-debate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          debateId: debateId,
-          characterName: characterName,
-          topic: state.topic,
-          messages: state.messages
-        })
-      });
-      
-      if (response.ok) {
-        const score = await response.json();
-        setState(prev => ({
-          ...prev,
-          debateScore: score,
-          debateEnded: true,
-          isScoringDebate: false,
-          showScoreModal: true
-        }));
-      }
-    } catch (error) {
-      console.error('Error scoring debate:', error);
-      setState(prev => ({ ...prev, isScoringDebate: false }));
-    }
-  }, [state.isScoringDebate, state.debateEnded, debateId, state.character, state.topic, state.messages]);
+  // End debate
+  const endDebate = useCallback(() => {
+    setState(prev => ({ ...prev, debateEnded: true }));
+  }, []);
 
   // Set user input
   const setUserInput = useCallback((input: string) => {
@@ -334,9 +287,6 @@ export function useDebate(debateId: string): UseDebateReturn {
   }, []);
 
   // Set show score modal state
-  const setShowScoreModal = useCallback((show: boolean) => {
-    setState(prev => ({ ...prev, showScoreModal: show }));
-  }, []);
 
   // Clear rate limit error
   const clearRateLimitError = useCallback(() => {
@@ -356,7 +306,6 @@ export function useDebate(debateId: string): UseDebateReturn {
       copyShareLink,
       setShowShareToast,
       setDebateEnded,
-      setShowScoreModal,
       clearRateLimitError,
     },
   };

@@ -83,7 +83,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col">
+    <div className="min-h-screen bg-background text-foreground flex flex-col">
       <Header />
 
       {/* Main Content */}
@@ -154,7 +154,7 @@ export default function Home() {
           </div>
 
           {/* Bottom Links */}
-          <div className="mt-16 flex justify-center gap-6">
+          <div className="mt-16 flex items-center justify-center gap-6">
             <a href="/debate" className="text-slate-500 hover:text-slate-100 text-sm transition-colors">
               Advanced Setup
             </a>

@@ -8,7 +8,7 @@ export default function ThemeToggle() {
   return (
     <button
       onClick={toggleTheme}
-      className="p-2 rounded-full bg-slate-800 hover:bg-slate-700 transition-all duration-200 hover:scale-110 border border-slate-700"
+      className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 transition-all duration-200 hover:scale-110 border border-slate-700 flex items-center justify-center"
       aria-label="Toggle theme"
     >
       <div className="relative w-5 h-5">

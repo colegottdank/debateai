@@ -173,8 +173,6 @@ button {
   /* Use contain only for paint, not layout to avoid conflicts */
   contain: paint;
   min-height: 1.5em; /* Prevent layout shift */
-  /* Disable pointer events during streaming to prevent lag */
-  pointer-events: none;
 }
 
 .streaming-message div {
@@ -185,10 +183,6 @@ button {
   -webkit-font-smoothing: subpixel-antialiased;
 }
 
-/* Re-enable pointer events after streaming completes */
-.message-ai:not(.streaming-message) {
-  pointer-events: auto;
-}
 
 /* Typewriter cursor animation */
 @keyframes blink-cursor {
@@ -208,6 +202,77 @@ button {
   margin-left: 2px;
   animation: blink-cursor 1s infinite;
   vertical-align: text-bottom;
+}
+
+/* Citation styles */
+.citation-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--foreground-secondary);
+  text-decoration: none;
+  transition: all 0.2s ease;
+  font-size: 0.75rem;
+  max-width: 100%;
+}
+
+.citation-link:hover {
+  background: var(--surface-hover);
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: translateX(2px);
+}
+
+.citation-number {
+  display: inline-block;
+  min-width: 16px;
+  height: 16px;
+  line-height: 16px;
+  text-align: center;
+  background: var(--accent-bg);
+  color: var(--accent);
+  border-radius: 50%;
+  font-weight: 600;
+  font-size: 0.65rem;
+}
+
+/* Inline citation styles */
+.citation-inline {
+  color: rgb(129, 140, 248);
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-left: 1px;
+  font-size: 0.75em;
+  vertical-align: super;
+}
+
+.citation-inline:hover {
+  color: rgb(165, 180, 252);
+  text-decoration: underline;
+}
+
+/* Citation highlight animation */
+.citation-highlight {
+  animation: citation-pulse 2s ease-out;
+}
+
+@keyframes citation-pulse {
+  0% {
+    background-color: rgba(212, 120, 90, 0.3);
+    transform: scale(1.05);
+  }
+  50% {
+    background-color: rgba(212, 120, 90, 0.2);
+  }
+  100% {
+    background-color: transparent;
+    transform: scale(1);
+  }
 }
 
 /* Optimized scrolling for chat container */

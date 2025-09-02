@@ -1,7 +1,6 @@
 import { ImageResponse } from "@vercel/og";
 import { NextRequest } from "next/server";
 import { d1 } from "@/lib/d1";
-import { characters } from "@/lib/characters";
 
 export const runtime = "edge";
 
@@ -20,12 +19,9 @@ export async function GET(request: NextRequest) {
         const result = await d1.getDebate(debateId);
         if (result.success && result.debate?.score_data) {
           score = result.debate.score_data as Record<string, unknown>;
-          const character = characters.find(
-            (c) => c.id === result.debate?.character
-          );
-          characterName =
-            character?.name || (result.debate?.character as string) || "AI";
-          topic = (result.debate.topic as string) || "Master Debate";
+          characterName = (result.debate?.opponentStyle as string) || 
+                         (result.debate?.character as string) || "AI";
+          topic = (result.debate.topic as string) || "Intellectual Debate";
         }
       } catch (error) {
         console.error("OG: Failed to fetch debate data:", error);
@@ -50,8 +46,8 @@ export async function GET(request: NextRequest) {
               color: "white",
             }}
           >
-            <div style={{ marginBottom: 20 }}>🥊</div>
-            <div>MasterDebater.ai</div>
+            <div style={{ marginBottom: 20 }}>🧠</div>
+            <div>DebateAI</div>
             <div style={{ fontSize: 32, marginTop: 20, opacity: 0.8 }}>
               Challenge AI Debaters
             </div>
@@ -153,7 +149,7 @@ export async function GET(request: NextRequest) {
               marginTop: "40px",
             }}
           >
-            MasterDebater.ai
+            DebateAI
           </div>
         </div>
       ),
@@ -178,7 +174,7 @@ export async function GET(request: NextRequest) {
             color: "white",
           }}
         >
-          <div>MasterDebater.ai</div>
+          <div>DebateAI</div>
         </div>
       ),
       { width: 1200, height: 630 }

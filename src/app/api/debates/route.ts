@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { getUserId } from '@/lib/auth-helper';
 import { d1 } from '@/lib/d1';
 
 export async function GET(request: Request) {
   try {
-    const { userId } = await auth();
+    const userId = await getUserId();
     
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -19,10 +19,11 @@ export async function GET(request: Request) {
     const result = await d1.query(
       `SELECT 
         id,
-        character,
+        opponent,
         topic,
         json_array_length(messages) as message_count,
-        created_at
+        created_at,
+        score_data
       FROM debates 
       WHERE user_id = ? 
       ORDER BY created_at DESC 
@@ -32,13 +33,27 @@ export async function GET(request: Request) {
 
     if (result.success && result.result) {
       // Format the debates for the frontend
-      const debates = result.result.map((debate: Record<string, unknown>) => ({
-        id: debate.id,
-        character: debate.character,
-        topic: debate.topic,
-        messageCount: debate.message_count || 0,
-        createdAt: debate.created_at,
-      }));
+      const debates = result.result.map((debate: Record<string, unknown>) => {
+        // Parse score_data to get opponentStyle if available
+        let opponentStyle = null;
+        if (debate.score_data && typeof debate.score_data === 'string') {
+          try {
+            const scoreData = JSON.parse(debate.score_data);
+            opponentStyle = scoreData.opponentStyle;
+          } catch (e) {
+            // Ignore parse errors
+          }
+        }
+        
+        return {
+          id: debate.id,
+          opponent: debate.opponent,
+          opponentStyle,
+          topic: debate.topic,
+          messageCount: debate.message_count || 0,
+          createdAt: debate.created_at,
+        };
+      });
 
       // Get total count for pagination
       const countResult = await d1.query(
