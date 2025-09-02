@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import { SignedOut, SignInButton } from '@clerk/nextjs';
 import { useUser } from '@/lib/useTestUser';
-import Link from 'next/link';
 
 interface UpgradeModalProps {
   isOpen: boolean;
@@ -23,33 +22,6 @@ export default function UpgradeModal({
 }: UpgradeModalProps) {
   const { user } = useUser();
   const [isUpgrading, setIsUpgrading] = useState(false);
-  const [price, setPrice] = useState<{
-    formatted: string;
-    interval: string;
-    isFallback: boolean;
-  }>({ formatted: '$20.00', interval: 'month', isFallback: true });
-  const [isLoadingPrice, setIsLoadingPrice] = useState(true);
-
-  useEffect(() => {
-    // Fetch current price from Stripe
-    const fetchPrice = async () => {
-      try {
-        const response = await fetch('/api/stripe/price');
-        if (response.ok) {
-          const data = await response.json();
-          setPrice(data);
-        }
-      } catch (error) {
-        console.error('Error fetching price:', error);
-      } finally {
-        setIsLoadingPrice(false);
-      }
-    };
-    
-    if (isOpen) {
-      fetchPrice();
-    }
-  }, [isOpen]);
 
   const handleUpgrade = async () => {
     try {
@@ -83,176 +55,100 @@ export default function UpgradeModal({
     }
   };
 
-  const handleManageSubscription = async () => {
-    try {
-      setIsUpgrading(true);
-      const response = await fetch('/api/stripe/manage', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          returnUrl: window.location.pathname + window.location.search
-        }),
-      });
-      
-      const data = await response.json();
-      
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        console.error('Portal error:', data);
-        alert('Failed to open billing portal. Please try again.');
-        setIsUpgrading(false);
-      }
-    } catch (error) {
-      console.error('Error opening billing portal:', error);
-      alert('Connection error. Please try again.');
-      setIsUpgrading(false);
-    }
-  };
-
   if (!isOpen) return null;
 
-  // Configure modal based on trigger
-  const isRateLimit = trigger?.startsWith('rate-limit');
-  const isDebateLimit = trigger === 'rate-limit-debate';
   const isMessageLimit = trigger === 'rate-limit-message';
-
-  const getModalConfig = () => {
-    if (isDebateLimit) {
-      return {
-        title: 'DEBATE LIMIT REACHED!',
-        subtitle: "You've used all your free debates!",
-        emoji: '🚫',
-        stamp: 'DEBATE LIMIT',
-        bgGradient: 'from-red-600 to-red-900'
-      };
-    }
-    if (isMessageLimit) {
-      return {
-        title: 'CONTINUE THIS DEBATE?',
-        subtitle: "You've used your 2 free messages!",
-        emoji: '🔒',
-        stamp: 'UPGRADE NOW',
-        bgGradient: 'from-indigo-600 to-purple-900'
-      };
-    }
-    if (trigger === 'feature') {
-      return {
-        title: 'PREMIUM FEATURE',
-        subtitle: 'Unlock all features!',
-        emoji: '👑',
-        stamp: 'PREMIUM',
-        bgGradient: 'from-yellow-500 to-red-600'
-      };
-    }
-    return {
-      title: 'GET PREMIUM',
-      subtitle: 'Become a skilled debater!',
-      emoji: '💰',
-      stamp: 'UPGRADE',
-      bgGradient: 'from-yellow-500 to-red-600'
-    };
-  };
-
-  const config = getModalConfig();
+  const isDebateLimit = trigger === 'rate-limit-debate';
 
   return (
-    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 animate-fade-in">
-      <div className={`bg-gradient-to-br ${config.bgGradient} p-4 sm:p-6 rounded-3xl border-4 border-black shadow-2xl max-w-md w-full transform -rotate-1 relative overflow-hidden animate-bounce-in`}>
-        {/* Close button */}
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 text-white hover:text-yellow-300 text-3xl font-black transform hover:rotate-12 transition-all z-20"
-        >
-          ×
-        </button>
-        
-        {/* Status stamp */}
-        <div className="absolute top-4 left-4 bg-red-600 text-white px-3 py-1 rounded-full transform -rotate-12 border-2 border-black font-black text-xs">
-          {config.stamp}
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+      <div className="bg-slate-900 rounded-2xl border border-slate-800 shadow-2xl max-w-md w-full overflow-hidden">
+        {/* Header */}
+        <div className="px-6 pt-6 pb-4 border-b border-slate-800">
+          <div className="flex items-start justify-between">
+            <div>
+              <h2 className="text-xl font-semibold text-slate-100">
+                {isMessageLimit ? 'Message limit reached' : isDebateLimit ? 'Debate limit reached' : 'Upgrade to Premium'}
+              </h2>
+              <p className="text-sm text-slate-400 mt-1">
+                {isMessageLimit 
+                  ? `You've used ${limitData?.current || 2} of ${limitData?.limit || 2} free messages in this debate`
+                  : isDebateLimit 
+                  ? `You've created ${limitData?.current || 3} of ${limitData?.limit || 3} free debates`
+                  : 'Unlock unlimited debates and messages'}
+              </p>
+            </div>
+            <button
+              onClick={onClose}
+              className="text-slate-400 hover:text-slate-200 transition-colors p-1"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
         </div>
-        
-        <div className="relative z-10 mt-6">
-          {/* Header */}
-          <h2 className="text-2xl sm:text-3xl font-black text-white text-center mb-2 transform rotate-1">
-            {config.title}
-          </h2>
-          <p className="text-lg text-yellow-300 font-bold text-center mb-4">
-            {config.subtitle}
-          </p>
 
-          {/* Show usage if rate limited */}
-          {isRateLimit && limitData && (
-            <div className="bg-black/30 rounded-lg p-3 mb-4">
-              <div className="grid grid-cols-2 gap-2 text-white text-sm">
+        {/* Content */}
+        <div className="px-6 py-5">
+          {/* Features */}
+          <div className="space-y-3 mb-6">
+            <h3 className="text-sm font-medium text-slate-300 mb-3">Premium includes:</h3>
+            <div className="space-y-2.5">
+              <div className="flex items-start gap-3">
+                <svg className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
                 <div>
-                  <span className="font-bold">Used:</span> {limitData.current}/{limitData.limit} {isDebateLimit ? 'debates' : 'messages'}
+                  <p className="text-sm text-slate-200 font-medium">Unlimited debates</p>
+                  <p className="text-xs text-slate-400">Create as many debates as you want</p>
                 </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <svg className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
                 <div>
-                  <span className="font-bold">Status:</span> LIMIT REACHED
+                  <p className="text-sm text-slate-200 font-medium">Unlimited messages</p>
+                  <p className="text-xs text-slate-400">No limits on debate length</p>
                 </div>
               </div>
-            </div>
-          )}
-
-          {/* Price - Smaller */}
-          <div className="text-center mb-4">
-            {isLoadingPrice ? (
-              <div className="text-4xl font-black text-white animate-pulse">...</div>
-            ) : (
-              <>
-                <div className="text-4xl font-black text-white mb-1">
-                  {price.formatted}
+              <div className="flex items-start gap-3">
+                <svg className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                <div>
+                  <p className="text-sm text-slate-200 font-medium">Web search & citations</p>
+                  <p className="text-xs text-slate-400">AI opponents use real-time web data</p>
                 </div>
-                <div className="text-lg text-yellow-300 font-bold">
-                  PER {price.interval.toUpperCase()}
+              </div>
+              <div className="flex items-start gap-3">
+                <svg className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                <div>
+                  <p className="text-sm text-slate-200 font-medium">Debate history</p>
+                  <p className="text-xs text-slate-400">Access and review all past debates</p>
                 </div>
-              </>
-            )}
-          </div>
-
-          {/* Features - Compact */}
-          <div className="bg-black/30 rounded-xl p-3 mb-4">
-            <h3 className="text-sm font-black text-yellow-300 mb-2">
-              {isMessageLimit ? 'CONTINUE WITH PREMIUM:' : isRateLimit ? 'UNLOCK WITH PREMIUM:' : 'PREMIUM FEATURES:'}
-            </h3>
-            <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-white text-xs font-bold">
-              <div className="flex items-center">
-                <span className="text-sm mr-1">✅</span>
-                {isMessageLimit ? 'FINISH THIS DEBATE' : 'UNLIMITED DEBATES'}
-              </div>
-              <div className="flex items-center">
-                <span className="text-sm mr-1">✅</span>
-                UNLIMITED MESSAGES
-              </div>
-              <div className="flex items-center">
-                <span className="text-sm mr-1">✅</span>
-                WEB CITATIONS
-              </div>
-              <div className="flex items-center">
-                <span className="text-sm mr-1">✅</span>
-                DEBATE HISTORY
               </div>
             </div>
           </div>
 
-          {/* Premium Message */}
-          <div className="bg-white/90 rounded-lg p-2 mb-4 border-2 border-black">
-            <p className="text-black font-semibold text-xs text-center">
-              {isRateLimit 
-                ? "Upgrade to continue your intellectual journey"
-                : "Unlock unlimited debates and challenge your thinking"}
-            </p>
+          {/* Pricing */}
+          <div className="bg-slate-800/50 rounded-lg p-4 mb-6 border border-slate-700">
+            <div className="flex items-baseline justify-center gap-1">
+              <span className="text-3xl font-semibold text-slate-100">$20</span>
+              <span className="text-sm text-slate-400">/ month</span>
+            </div>
+            <p className="text-xs text-slate-500 text-center mt-2">Cancel anytime</p>
           </div>
 
-          {/* Action Buttons - Smaller */}
-          <div className="flex gap-2 justify-center flex-wrap">
+          {/* Actions */}
+          <div className="space-y-3">
             <SignedOut>
               <SignInButton mode="modal">
-                <button className="bg-white text-red-600 font-black py-2 px-4 rounded-lg hover:scale-105 transition-all transform hover:rotate-2 shadow-xl border-2 border-black cursor-pointer text-sm">
-                  SIGN IN TO UPGRADE
+                <button className="w-full bg-indigo-500 text-white font-medium py-2.5 px-4 rounded-lg hover:bg-indigo-600 transition-colors">
+                  Sign in to upgrade
                 </button>
               </SignInButton>
             </SignedOut>
@@ -262,32 +158,24 @@ export default function UpgradeModal({
                 <button
                   onClick={handleUpgrade}
                   disabled={isUpgrading}
-                  className={`bg-yellow-500 text-black font-black py-2 px-4 rounded-lg ${!isUpgrading ? 'hover:scale-105 hover:bg-yellow-600' : ''} transition-all transform ${!isUpgrading ? 'hover:rotate-2' : ''} shadow-xl border-2 border-black ${isUpgrading ? 'opacity-50 cursor-wait' : 'cursor-pointer'} text-sm`}
+                  className={`w-full bg-indigo-500 text-white font-medium py-2.5 px-4 rounded-lg transition-colors ${
+                    isUpgrading 
+                      ? 'opacity-50 cursor-not-allowed' 
+                      : 'hover:bg-indigo-600'
+                  }`}
                 >
-                  {isUpgrading ? '⏳ LOADING...' : '💰 UPGRADE NOW'}
+                  {isUpgrading ? 'Loading...' : 'Upgrade to Premium'}
                 </button>
-                
-                {isRateLimit && (
-                  <Link href="/history">
-                    <button 
-                      onClick={onClose}
-                      className="bg-blue-500 hover:bg-blue-600 text-white font-black py-2 px-4 rounded-lg transform hover:rotate-2 transition-all hover:scale-105 cursor-pointer shadow-xl border-2 border-black text-sm"
-                    >
-                      📚 HISTORY
-                    </button>
-                  </Link>
-                )}
                 
                 <button
                   onClick={onClose}
-                  className="bg-gray-700 text-white font-black py-2 px-4 rounded-lg hover:scale-105 transition-all transform hover:rotate-2 shadow-xl border-2 border-black cursor-pointer text-sm"
+                  className="w-full bg-slate-800 text-slate-300 font-medium py-2.5 px-4 rounded-lg hover:bg-slate-700 transition-colors"
                 >
-                  {isRateLimit ? '✓ OK' : 'LATER'}
+                  Maybe later
                 </button>
               </>
             )}
           </div>
-
         </div>
       </div>
     </div>

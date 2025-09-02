@@ -6,6 +6,7 @@ import { useUser } from '@clerk/nextjs';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { opponents, getOpponentById } from '@/lib/opponents';
 import Header from '@/components/Header';
+import UpgradeModal from '@/components/UpgradeModal';
 
 // Memoized message component to prevent re-renders during streaming
 const Message = memo(({ msg, opponent, debate, isAILoading, isUserLoading, isNew, msgIndex }: { 
@@ -188,6 +189,8 @@ export default function DebatePage() {
   const [currentCitations, setCurrentCitations] = useState<Array<{id: number; url: string; title: string}>>([]);
   const [isAITakeover, setIsAITakeover] = useState(false);
   const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(true);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [rateLimitData, setRateLimitData] = useState<{ current: number; limit: number } | undefined>();
 
   // Track if we've already sent the first message
   const [hasAutoSent, setHasAutoSent] = useState(false);
@@ -308,6 +311,27 @@ export default function DebatePage() {
           stream: true
         })
       });
+
+      // Check for rate limit error before trying to read stream
+      if (!response.ok) {
+        if (response.status === 429) {
+          const error = await response.json();
+          // Remove the user message we just added
+          setMessages(prev => prev.slice(0, -1));
+          // Restore the user input
+          setUserInput(textToSend);
+          // Show upgrade modal
+          setRateLimitData({ 
+            current: error.current || 0, 
+            limit: error.limit || 3 
+          });
+          setShowUpgradeModal(true);
+          setIsLoading(false);
+          setIsAILoading(false);
+          return;
+        }
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
       if (!response.body) {
         throw new Error('No response body');
@@ -492,6 +516,24 @@ export default function DebatePage() {
           opponentStyle: debate?.opponentStyle,
         })
       });
+
+      // Check for rate limit error before trying to read stream
+      if (!response.ok) {
+        if (response.status === 429) {
+          const error = await response.json();
+          // Show upgrade modal
+          setRateLimitData({ 
+            current: error.current || 0, 
+            limit: error.limit || 3 
+          });
+          setShowUpgradeModal(true);
+          setIsAITakeover(false);
+          setIsLoading(false);
+          setIsUserLoading(false);
+          return;
+        }
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
       if (!response.body) {
         throw new Error('No response body');
@@ -911,6 +953,14 @@ export default function DebatePage() {
           </div>
         </div>
       </div>
+      
+      {/* Upgrade Modal */}
+      <UpgradeModal 
+        isOpen={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        trigger="rate-limit-message"
+        limitData={rateLimitData}
+      />
     </div>
   );
 }
