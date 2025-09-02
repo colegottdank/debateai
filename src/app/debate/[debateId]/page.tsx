@@ -830,7 +830,10 @@ export default function DebatePage() {
                   setUserInput(e.target.value);
                   // Auto-resize textarea
                   e.target.style.height = 'auto';
-                  e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px';
+                  const newHeight = Math.min(e.target.scrollHeight, 200);
+                  e.target.style.height = newHeight + 'px';
+                  // Only show scrollbar if content exceeds max height
+                  e.target.style.overflowY = e.target.scrollHeight > 200 ? 'auto' : 'hidden';
                 }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
@@ -839,15 +842,15 @@ export default function DebatePage() {
                   }
                 }}
                 placeholder="Type your argument... (Shift+Enter for new line)"
-                className="w-full px-4 py-3 pr-12 bg-slate-800 border border-slate-700 rounded-lg focus:border-indigo-500 focus:outline-none text-slate-100 placeholder-slate-500 resize-none overflow-y-auto"
-                style={{ minHeight: '48px', maxHeight: '200px' }}
+                className="w-full px-4 py-3 pr-12 bg-slate-800 border border-slate-700 rounded-lg focus:border-indigo-500 focus:outline-none text-slate-100 placeholder-slate-500 resize-none"
+                style={{ minHeight: '48px', maxHeight: '200px', overflowY: 'hidden' }}
                 rows={1}
                 disabled={isLoading}
               />
               <button
                 onClick={handleAITakeover}
                 disabled={isLoading || isAITakeover}
-                className={`absolute right-2 top-3 p-2 rounded-md transition-all group ${
+                className={`absolute right-2 top-2.5 p-2 rounded-md transition-all group ${
                   isLoading || isAITakeover
                     ? 'text-slate-600 cursor-not-allowed'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
