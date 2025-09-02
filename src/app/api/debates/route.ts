@@ -1,8 +1,13 @@
 import { NextResponse } from 'next/server';
 import { getUserId } from '@/lib/auth-helper';
 import { d1 } from '@/lib/d1';
+import { checkAppDisabled } from '@/lib/app-disabled';
 
 export async function GET(request: Request) {
+  // Check if app is disabled
+  const disabledResponse = checkAppDisabled();
+  if (disabledResponse) return disabledResponse;
+
   try {
     const userId = await getUserId();
     

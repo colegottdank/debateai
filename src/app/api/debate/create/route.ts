@@ -3,8 +3,13 @@ import { currentUser } from '@clerk/nextjs/server';
 import { d1 } from '@/lib/d1';
 import { OpponentType } from '@/lib/opponents';
 import { getUserId } from '@/lib/auth-helper';
+import { checkAppDisabled } from '@/lib/app-disabled';
 
 export async function POST(request: Request) {
+  // Check if app is disabled
+  const disabledResponse = checkAppDisabled();
+  if (disabledResponse) return disabledResponse;
+
   try {
     const userId = await getUserId();
     

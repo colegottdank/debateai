@@ -2,8 +2,13 @@ import { NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { d1 } from '@/lib/d1';
+import { checkAppDisabled } from '@/lib/app-disabled';
 
 export async function POST(request: Request) {
+  // Check if app is disabled
+  const disabledResponse = checkAppDisabled();
+  if (disabledResponse) return disabledResponse;
+
   try {
     const { userId } = await auth();
     
