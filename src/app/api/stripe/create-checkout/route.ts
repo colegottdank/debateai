@@ -28,7 +28,6 @@ export async function POST(request: Request) {
     
     // Check if user already has an active subscription
     if (dbUser?.subscription_status === 'active' && dbUser?.stripe_plan === 'premium') {
-      console.log('User already has active subscription:', userId);
       return NextResponse.json(
         { 
           error: 'You already have an active subscription', 
@@ -70,7 +69,6 @@ export async function POST(request: Request) {
       } as any);
       
       if (subscriptions.data.length > 0) {
-        console.log('Customer has active Stripe subscription:', customerId);
         // Update database if it's out of sync
         if (dbUser && dbUser.subscription_status !== 'active') {
           const activeSubscription = subscriptions.data[0];
@@ -100,8 +98,6 @@ export async function POST(request: Request) {
     }
 
     const { origin } = new URL(request.url);
-
-    console.log('Creating checkout session for userId:', userId);
     
     // Create checkout session
     const session = await stripe.checkout.sessions.create({
@@ -126,8 +122,6 @@ export async function POST(request: Request) {
         },
       },
     });
-    
-    console.log('Checkout session created:', session.id, 'with metadata:', session.metadata);
 
     return NextResponse.json({ url: session.url });
   } catch (error: any) {

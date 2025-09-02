@@ -26,7 +26,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Check localStorage and system preference on mount
     const stored = localStorage.getItem('theme');
-    console.log('Stored theme:', stored);
     if (stored === 'light' || stored === 'dark') {
       setTheme(stored);
       // Use add/remove instead of toggle for reliability
@@ -50,13 +49,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         document.documentElement.classList.add('light');
       }
     }
-    console.log('Initial HTML classes:', document.documentElement.className);
     setMounted(true);
   }, []);
 
   const toggleTheme = () => {
     const newTheme = theme === 'dark' ? 'light' : 'dark';
-    console.log('Toggling theme from', theme, 'to', newTheme);
     setTheme(newTheme);
     localStorage.setItem('theme', newTheme);
     // Use add/remove instead of toggle for reliability
@@ -67,7 +64,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       document.documentElement.classList.remove('dark');
       document.documentElement.classList.add('light');
     }
-    console.log('HTML classes:', document.documentElement.className);
   };
 
   // Always provide the context, but control the actual theme application

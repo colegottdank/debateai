@@ -90,12 +90,10 @@ export function useDebate(debateId: string): UseDebateReturn {
     if (state.isInitialized) return;
     
     try {
-      console.log('Loading debate from database:', debateId);
       const response = await fetch(`/api/debate/${debateId}`);
       
       if (response.ok) {
         const data = await response.json();
-        console.log('Debate data received:', data);
         
         if (data.debate) {
           // Check if debate already has a score
@@ -114,21 +112,11 @@ export function useDebate(debateId: string): UseDebateReturn {
             debateEnded: hasScore,
           }));
           
-          // Log permission status
-          if (!data.isAuthenticated) {
-            console.log('Viewing debate as unauthenticated user (read-only)');
-          } else if (!data.isOwner) {
-            console.log('Viewing debate as authenticated non-owner (read-only)');
-          } else {
-            console.log('Viewing debate as owner (full access)');
-          }
           return;
         }
       } else if (response.status === 404) {
-        console.log('Debate not found, redirecting to setup');
         router.push('/debate');
       } else {
-        console.error('Failed to load debate, status:', response.status);
         router.push('/debate');
       }
     } catch (error) {

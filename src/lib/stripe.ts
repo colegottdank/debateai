@@ -10,14 +10,6 @@ const stripeKey = process.env.STRIPE_SECRET_KEY;
 const isTestKey = stripeKey.startsWith("sk_test_");
 const keyType = isTestKey ? "TEST" : "LIVE";
 
-// Log configuration (sanitized)
-console.log("Stripe Configuration:", {
-  environment: process.env.NODE_ENV,
-  keyType,
-  keyPrefix: stripeKey.substring(0, 7),
-  priceId: process.env.STRIPE_PRICE_ID,
-});
-
 if (process.env.NODE_ENV === "production" && isTestKey) {
   console.error("CRITICAL: Using TEST Stripe keys in PRODUCTION environment!");
   console.error("Please set LIVE Stripe keys in Vercel environment variables");
