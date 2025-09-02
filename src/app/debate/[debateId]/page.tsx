@@ -170,6 +170,7 @@ export default function DebatePage() {
   const { user, isSignedIn } = useUser();
   const debateId = params.debateId as string;
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   
   // Check if this is an instant debate from homepage
   const isInstant = searchParams.get('instant') === 'true';
@@ -259,6 +260,10 @@ export default function DebatePage() {
     }
     setMessages(prev => [...prev, newUserMessage]);
     setUserInput('');
+    // Reset textarea height
+    if (textareaRef.current) {
+      textareaRef.current.style.height = '48px';
+    }
     setIsLoading(true);
     setIsAILoading(true);
 
@@ -816,21 +821,33 @@ export default function DebatePage() {
       {/* Input Area - Fixed */}
       <div className="border-t border-slate-700 bg-slate-900 flex-shrink-0">
         <div className="container mx-auto max-w-4xl px-4 py-4">
-          <div className="flex gap-3">
+          <div className="flex gap-3 items-end">
             <div className="flex-1 relative">
-              <input
-                type="text"
+              <textarea
+                ref={textareaRef}
                 value={userInput}
-                onChange={(e) => setUserInput(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-                placeholder="Type your argument..."
-                className="w-full px-4 py-3 pr-12 bg-slate-800 border border-slate-700 rounded-lg focus:border-indigo-500 focus:outline-none text-slate-100 placeholder-slate-500"
+                onChange={(e) => {
+                  setUserInput(e.target.value);
+                  // Auto-resize textarea
+                  e.target.style.height = 'auto';
+                  e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px';
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                  }
+                }}
+                placeholder="Type your argument... (Shift+Enter for new line)"
+                className="w-full px-4 py-3 pr-12 bg-slate-800 border border-slate-700 rounded-lg focus:border-indigo-500 focus:outline-none text-slate-100 placeholder-slate-500 resize-none overflow-y-auto"
+                style={{ minHeight: '48px', maxHeight: '200px' }}
+                rows={1}
                 disabled={isLoading}
               />
               <button
                 onClick={handleAITakeover}
                 disabled={isLoading || isAITakeover}
-                className={`absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-md transition-all group ${
+                className={`absolute right-2 top-3 p-2 rounded-md transition-all group ${
                   isLoading || isAITakeover
                     ? 'text-slate-600 cursor-not-allowed'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
