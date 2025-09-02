@@ -8,11 +8,12 @@ import { opponents, getOpponentById } from '@/lib/opponents';
 import Header from '@/components/Header';
 
 // Memoized message component to prevent re-renders during streaming
-const Message = memo(({ msg, opponent, debate, isAILoading, isNew }: { 
+const Message = memo(({ msg, opponent, debate, isAILoading, isUserLoading, isNew }: { 
   msg: { role: string; content: string; aiAssisted?: boolean; citations?: Array<{id: number; url: string; title: string}> }, 
   opponent: any,
   debate: any,
   isAILoading: boolean,
+  isUserLoading?: boolean,
   isNew?: boolean 
 }) => {
   const [isSourcesExpanded, setIsSourcesExpanded] = useState(false);
@@ -80,7 +81,7 @@ const Message = memo(({ msg, opponent, debate, isAILoading, isNew }: {
             ? msg.aiAssisted ? 'message-user border-dashed' : 'message-user'
             : 'message-ai'
         }`}>
-          {msg.role === 'ai' && msg.content === '' && isAILoading ? (
+          {(msg.role === 'ai' && msg.content === '' && isAILoading) || (msg.role === 'user' && msg.content === '' && isUserLoading) ? (
             <div className="inline-flex gap-1">
               <span className="dot-bounce"></span>
               <span className="dot-bounce"></span>
@@ -92,7 +93,7 @@ const Message = memo(({ msg, opponent, debate, isAILoading, isNew }: {
                 <span dangerouslySetInnerHTML={{ 
                   __html: msg.citations ? parseContentWithCitations(msg.content || '', msg.citations) : (msg.content || '')
                 }} />
-                {msg.role === 'ai' && isAILoading && msg.content !== '' && (
+                {((msg.role === 'ai' && isAILoading) || (msg.role === 'user' && isUserLoading)) && msg.content !== '' && msg.content !== '🔍 Searching the web...' && (
                   <span className="typewriter-cursor" />
                 )}
               </div>
@@ -167,6 +168,7 @@ export default function DebatePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingDebate, setIsLoadingDebate] = useState(true);
   const [isAILoading, setIsAILoading] = useState(false);
+  const [isUserLoading, setIsUserLoading] = useState(false);
   const [newMessageIndex, setNewMessageIndex] = useState<number | null>(null);
   const [currentCitations, setCurrentCitations] = useState<Array<{id: number; url: string; title: string}>>([]);
   const [isAITakeover, setIsAITakeover] = useState(false);
@@ -408,6 +410,7 @@ export default function DebatePage() {
     
     setIsAITakeover(true);
     setIsLoading(true);
+    setIsUserLoading(true);
 
     try {
       const response = await fetch('/api/debate/takeover', {
@@ -427,8 +430,46 @@ export default function DebatePage() {
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
-      let aiArgument = '';
-      let aiCitations: any[] = [];
+      
+      // Add the user message immediately with empty content
+      const userMessageIndex = messages.length;
+      setMessages(prev => [...prev, { role: 'user', content: '', aiAssisted: true }]);
+      
+      let accumulatedAiArgument = '';
+      const charQueue: string[] = [];
+      let isProcessing = false;
+      const CHAR_DELAY = 10; // Same delay as opponent responses
+      
+      const processCharQueue = async () => {
+        if (isProcessing || charQueue.length === 0) return;
+        isProcessing = true;
+        
+        while (charQueue.length > 0) {
+          const chars = charQueue.splice(0, 3); // Process 3 chars at a time
+          const charBatch = chars.join('');
+          accumulatedAiArgument += charBatch;
+          
+          setMessages(prev => {
+            const newMessages = [...prev];
+            newMessages[userMessageIndex] = { 
+              ...newMessages[userMessageIndex],
+              role: 'user', 
+              content: accumulatedAiArgument,
+              aiAssisted: true
+            };
+            return newMessages;
+          });
+          
+          if (charQueue.length > 0) {
+            await new Promise(resolve => setTimeout(resolve, CHAR_DELAY));
+          }
+        }
+        
+        isProcessing = false;
+        if (charQueue.length > 0) {
+          processCharQueue();
+        }
+      };
 
       while (true) {
         const { done, value } = await reader.read();
@@ -441,17 +482,16 @@ export default function DebatePage() {
           if (line.startsWith('data: ')) {
             const data = line.slice(6);
             if (data === '[DONE]') {
-              // AI takeover complete, send the message with citations
-              if (aiArgument.trim()) {
-                const messageWithCitations: any = { 
-                  role: 'user', 
-                  content: aiArgument,
-                  aiAssisted: true
-                };
-                if (aiCitations.length > 0) {
-                  messageWithCitations.citations = aiCitations;
-                }
-                setMessages(prev => [...prev, messageWithCitations]);
+              // Wait for all characters to be processed
+              while (charQueue.length > 0 || isProcessing) {
+                await new Promise(resolve => setTimeout(resolve, 50));
+              }
+              
+              // Turn off user loading once streaming is complete
+              setIsUserLoading(false);
+              
+              // AI takeover complete, now trigger opponent response
+              if (accumulatedAiArgument.trim()) {
                 setUserInput('');
                 
                 // Now trigger the opponent's response
@@ -467,8 +507,9 @@ export default function DebatePage() {
                     character: debate?.opponent || debate?.character || 'custom',
                     opponentStyle: debate?.opponentStyle,
                     topic: debate?.topic,
-                    userArgument: aiArgument,
+                    userArgument: accumulatedAiArgument,
                     previousMessages: messages,
+                    isAIAssisted: true,  // Mark this as AI-assisted since it was generated by takeover
                     stream: true
                   })
                 });
@@ -580,9 +621,48 @@ export default function DebatePage() {
               try {
                 const parsed = JSON.parse(data);
                 if (parsed.type === 'chunk' && parsed.content) {
-                  aiArgument += parsed.content;
+                  // Clear search message immediately when first content arrives
+                  if (accumulatedAiArgument === '') {
+                    setMessages(prev => {
+                      const newMessages = [...prev];
+                      if (newMessages[userMessageIndex]?.content === '🔍 Searching the web...') {
+                        newMessages[userMessageIndex] = { 
+                          ...newMessages[userMessageIndex],
+                          content: ''
+                        };
+                      }
+                      return newMessages;
+                    });
+                    setIsUserLoading(true); // Re-enable loading state for cursor
+                  }
+                  // Add characters to the queue for streaming
+                  for (const char of parsed.content) {
+                    charQueue.push(char);
+                  }
+                  if (!isProcessing) {
+                    processCharQueue();
+                  }
+                } else if (parsed.type === 'search_start') {
+                  // Show search indicator (will be replaced when content arrives)
+                  setMessages(prev => {
+                    const newMessages = [...prev];
+                    newMessages[userMessageIndex] = { 
+                      ...newMessages[userMessageIndex],
+                      content: '🔍 Searching the web...'
+                    };
+                    return newMessages;
+                  });
+                  // Keep loading state true so cursor shows when content arrives
                 } else if (parsed.type === 'citations' && parsed.citations) {
-                  aiCitations = parsed.citations;
+                  // Update citations on the message
+                  setMessages(prev => {
+                    const newMessages = [...prev];
+                    newMessages[userMessageIndex] = { 
+                      ...newMessages[userMessageIndex],
+                      citations: parsed.citations
+                    };
+                    return newMessages;
+                  });
                 }
               } catch (e) {
                 // Ignore parse errors
@@ -595,9 +675,11 @@ export default function DebatePage() {
       console.error('AI takeover error:', error);
       alert('Failed to generate AI argument. Please try again.');
       setIsAILoading(false);
+      setIsUserLoading(false);
     } finally {
       setIsAITakeover(false);
       setIsLoading(false);
+      setIsUserLoading(false);
     }
   };
 
@@ -671,6 +753,7 @@ export default function DebatePage() {
                 opponent={opponent}
                 debate={debate}
                 isAILoading={isAILoading && idx === messages.length - 1}
+                isUserLoading={isUserLoading && idx === messages.length - 1}
               />
             ))}
             

@@ -34,6 +34,7 @@ export async function POST(request: Request) {
       topic,
       userArgument,
       previousMessages,
+      isAIAssisted, // Flag to indicate if this was an AI-assisted message
     } = await request.json();
 
     if (!character || !topic || !userArgument) {
@@ -85,6 +86,9 @@ export async function POST(request: Request) {
 
     // Always use streaming response
     const encoder = new TextEncoder();
+    // eslint-disable-next-line prefer-const
+    let controllerClosed = false; // Track if controller is closed
+
     const streamResponse = new ReadableStream({
       async start(controller) {
         try {
@@ -95,7 +99,7 @@ export async function POST(request: Request) {
 
           const stream = await anthropic.messages.create({
             model: "claude-sonnet-4-20250514",
-            max_tokens: 800,
+            max_tokens: 1000,
             temperature: 0.7,
             system: systemPrompt,
             messages: messages,
@@ -104,7 +108,7 @@ export async function POST(request: Request) {
               {
                 type: "web_search_20250305",
                 name: "web_search",
-                max_uses: 2,
+                max_uses: 3,
               },
             ],
           });
@@ -119,7 +123,7 @@ export async function POST(request: Request) {
 
           // Simple flush function for character streaming
           const flushBuffer = () => {
-            if (buffer) {
+            if (buffer && !controllerClosed) {
               controller.enqueue(
                 encoder.encode(
                   `data: ${JSON.stringify({
@@ -144,14 +148,16 @@ export async function POST(request: Request) {
                   flushBuffer();
                 }
 
-                controller.enqueue(
-                  encoder.encode(
-                    `data: ${JSON.stringify({
-                      type: "search_start",
-                      query: "Searching the web...",
-                    })}\n\n`
-                  )
-                );
+                if (!controllerClosed) {
+                  controller.enqueue(
+                    encoder.encode(
+                      `data: ${JSON.stringify({
+                        type: "search_start",
+                        query: "Searching the web...",
+                      })}\n\n`
+                    )
+                  );
+                }
               } else if (
                 event.content_block?.type === "web_search_tool_result"
               ) {
@@ -173,14 +179,16 @@ export async function POST(request: Request) {
                   citations.push(...extractedCitations);
 
                   // Send citations to frontend immediately
-                  controller.enqueue(
-                    encoder.encode(
-                      `data: ${JSON.stringify({
-                        type: "citations",
-                        citations: extractedCitations,
-                      })}\n\n`
-                    )
-                  );
+                  if (!controllerClosed) {
+                    controller.enqueue(
+                      encoder.encode(
+                        `data: ${JSON.stringify({
+                          type: "citations",
+                          citations: extractedCitations,
+                        })}\n\n`
+                      )
+                    );
+                  }
                 }
               }
             } else if (event.type === "content_block_delta") {
@@ -204,7 +212,7 @@ export async function POST(request: Request) {
               }
             } else if (event.type === "message_stop") {
               // Flush any remaining buffer
-              if (buffer) {
+              if (buffer && !controllerClosed) {
                 controller.enqueue(
                   encoder.encode(
                     `data: ${JSON.stringify({
@@ -227,6 +235,7 @@ export async function POST(request: Request) {
                   existingMessages.push({
                     role: "user",
                     content: userArgument,
+                    ...(isAIAssisted && { aiAssisted: true }),
                   });
                   existingMessages.push({
                     role: "ai",
@@ -246,29 +255,34 @@ export async function POST(request: Request) {
               }
 
               // Send completion message with citations
-              controller.enqueue(
-                encoder.encode(
-                  `data: ${JSON.stringify({
-                    type: "complete",
-                    content: accumulatedContent,
-                    debateId: debateId,
-                    citations: citations.length > 0 ? citations : undefined,
-                  })}\n\n`
-                )
-              );
+              if (!controllerClosed) {
+                controller.enqueue(
+                  encoder.encode(
+                    `data: ${JSON.stringify({
+                      type: "complete",
+                      content: accumulatedContent,
+                      debateId: debateId,
+                      citations: citations.length > 0 ? citations : undefined,
+                    })}\n\n`
+                  )
+                );
+              }
             }
           }
         } catch (error) {
           console.error("Streaming error:", error);
-          controller.enqueue(
-            encoder.encode(
-              `data: ${JSON.stringify({
-                type: "error",
-                error: "Failed to generate response",
-              })}\n\n`
-            )
-          );
+          if (!controllerClosed) {
+            controller.enqueue(
+              encoder.encode(
+                `data: ${JSON.stringify({
+                  type: "error",
+                  error: "Failed to generate response",
+                })}\n\n`
+              )
+            );
+          }
         } finally {
+          controllerClosed = true;
           controller.close();
         }
       },

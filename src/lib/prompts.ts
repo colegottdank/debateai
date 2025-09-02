@@ -27,7 +27,7 @@ CITATION RULES:
 4. Quality over quantity - a strong logical argument is better than many weak citations.
 5. Use citations strategically to strengthen key points, not for every statement.
 
-Engage in this debate according to your described style or persona. Respond to arguments directly and substantively. Keep responses under 100 words. Be challenging but respectful.`;
+Engage in this debate according to your described style or persona. Respond to arguments directly and substantively. Keep responses concise but thorough - aim for 150-200 words (about 2-3 short paragraphs). Be challenging but respectful.`;
 }
 
 // ============================================

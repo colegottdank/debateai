@@ -83,7 +83,14 @@ Generate ONE strong, compelling argument that:
 2. Addresses the opponent's latest points
 3. Uses evidence and logic
 4. Maintains consistency with their previous arguments
-5. Is concise and impactful (2-3 paragraphs max)
+5. Is concise and impactful - aim for 150-200 words (about 2-3 short paragraphs)
+
+Citation Guidelines:
+1. Use web search ONLY when making specific factual claims that would benefit from verification (e.g., recent statistics, controversial facts, or claims central to your argument).
+2. Do NOT search for commonly known facts, general statements, or philosophical arguments.
+3. When you do search, add citation markers [1], [2], etc. inline where you reference the information.
+4. Quality over quantity - a strong logical argument is better than many weak citations.
+5. Use citations strategically to strengthen key points, not for every statement.
 
 Previous debate context:
 ${conversationHistory}
@@ -105,6 +112,9 @@ Now generate the next argument FROM THE HUMAN'S PERSPECTIVE. Do not switch sides
       : `Generate my opening argument for this debate on "${topic}".`;
 
     // Generate the AI takeover response
+    // eslint-disable-next-line prefer-const
+    let controllerClosed = false; // Track if controller is closed
+
     const stream = new ReadableStream({
       async start(controller) {
         const encoder = new TextEncoder();
@@ -112,7 +122,7 @@ Now generate the next argument FROM THE HUMAN'S PERSPECTIVE. Do not switch sides
         try {
           const response = await anthropic.messages.create({
             model: "claude-sonnet-4-20250514",
-            max_tokens: 800,
+            max_tokens: 1000,
             temperature: 0.7,
             system: systemPrompt,
             messages: [
@@ -126,7 +136,7 @@ Now generate the next argument FROM THE HUMAN'S PERSPECTIVE. Do not switch sides
               {
                 type: "web_search_20250305",
                 name: "web_search",
-                max_uses: 2,
+                max_uses: 3,
               },
             ],
           });
@@ -139,7 +149,7 @@ Now generate the next argument FROM THE HUMAN'S PERSPECTIVE. Do not switch sides
           let citationCounter = 1;
 
           const flushBuffer = () => {
-            if (buffer) {
+            if (buffer && !controllerClosed) {
               controller.enqueue(
                 encoder.encode(
                   `data: ${JSON.stringify({
@@ -164,14 +174,16 @@ Now generate the next argument FROM THE HUMAN'S PERSPECTIVE. Do not switch sides
                   flushBuffer();
                 }
 
-                controller.enqueue(
-                  encoder.encode(
-                    `data: ${JSON.stringify({
-                      type: "search_start",
-                      query: "Searching the web...",
-                    })}\n\n`
-                  )
-                );
+                if (!controllerClosed) {
+                  controller.enqueue(
+                    encoder.encode(
+                      `data: ${JSON.stringify({
+                        type: "search_start",
+                        query: "Searching the web...",
+                      })}\n\n`
+                    )
+                  );
+                }
               } else if (
                 event.content_block?.type === "web_search_tool_result"
               ) {
@@ -193,20 +205,22 @@ Now generate the next argument FROM THE HUMAN'S PERSPECTIVE. Do not switch sides
                   citations.push(...extractedCitations);
 
                   // Send citations to frontend immediately
-                  controller.enqueue(
-                    encoder.encode(
-                      `data: ${JSON.stringify({
-                        type: "citations",
-                        citations: extractedCitations,
-                      })}\n\n`
-                    )
-                  );
+                  if (!controllerClosed) {
+                    controller.enqueue(
+                      encoder.encode(
+                        `data: ${JSON.stringify({
+                          type: "citations",
+                          citations: extractedCitations,
+                        })}\n\n`
+                      )
+                    );
+                  }
                 }
               }
             } else if (event.type === "content_block_delta") {
               if (event.delta.type === "text_delta") {
                 const chunk = event.delta.text;
-                
+
                 // Add characters to buffer one by one
                 for (const char of chunk) {
                   buffer += char;
@@ -229,17 +243,22 @@ Now generate the next argument FROM THE HUMAN'S PERSPECTIVE. Do not switch sides
             flushBuffer();
           }
 
-          controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
+          if (!controllerClosed) {
+            controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
+          }
         } catch (error) {
           console.error("AI Takeover error:", error);
-          controller.enqueue(
-            encoder.encode(
-              `data: ${JSON.stringify({
-                error: "Failed to generate AI argument",
-              })}\n\n`
-            )
-          );
+          if (!controllerClosed) {
+            controller.enqueue(
+              encoder.encode(
+                `data: ${JSON.stringify({
+                  error: "Failed to generate AI argument",
+                })}\n\n`
+              )
+            );
+          }
         } finally {
+          controllerClosed = true;
           controller.close();
         }
       },
