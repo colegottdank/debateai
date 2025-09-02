@@ -9,7 +9,7 @@ import Header from '@/components/Header';
 
 // Memoized message component to prevent re-renders during streaming
 const Message = memo(({ msg, opponent, debate, isAILoading, isUserLoading, isNew }: { 
-  msg: { role: string; content: string; aiAssisted?: boolean; citations?: Array<{id: number; url: string; title: string}> }, 
+  msg: { role: string; content: string; aiAssisted?: boolean; citations?: Array<{id: number; url: string; title: string}>; isSearching?: boolean }, 
   opponent: any,
   debate: any,
   isAILoading: boolean,
@@ -90,11 +90,24 @@ const Message = memo(({ msg, opponent, debate, isAILoading, isUserLoading, isNew
           ) : (
             <>
               <div className="text-slate-100 whitespace-pre-wrap" onClick={handleCitationClick}>
-                <span dangerouslySetInnerHTML={{ 
-                  __html: msg.citations ? parseContentWithCitations(msg.content || '', msg.citations) : (msg.content || '')
-                }} />
-                {((msg.role === 'ai' && isAILoading) || (msg.role === 'user' && isUserLoading)) && msg.content !== '' && msg.content !== '🔍 Searching the web...' && (
-                  <span className="typewriter-cursor" />
+                {msg.isSearching ? (
+                  <>
+                    <span>{msg.content}</span>
+                    <span className="inline-flex gap-1 ml-1">
+                      <span className="dot-bounce"></span>
+                      <span className="dot-bounce"></span>
+                      <span className="dot-bounce"></span>
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span dangerouslySetInnerHTML={{ 
+                      __html: msg.citations ? parseContentWithCitations(msg.content || '', msg.citations) : (msg.content || '')
+                    }} />
+                    {((msg.role === 'ai' && isAILoading) || (msg.role === 'user' && isUserLoading)) && msg.content !== '' && msg.content !== '🔍 Searching the web' && (
+                      <span className="typewriter-cursor" />
+                    )}
+                  </>
                 )}
               </div>
               {msg.citations && msg.citations.length > 0 && (
@@ -163,7 +176,7 @@ export default function DebatePage() {
   const firstArg = searchParams.get('firstArg') || '';
   
   const [debate, setDebate] = useState<any>(null);
-  const [messages, setMessages] = useState<Array<{ role: string; content: string; aiAssisted?: boolean; citations?: Array<{id: number; url: string; title: string}> }>>([]);
+  const [messages, setMessages] = useState<Array<{ role: string; content: string; aiAssisted?: boolean; citations?: Array<{id: number; url: string; title: string}>; isSearching?: boolean }>>([]);
   const [userInput, setUserInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingDebate, setIsLoadingDebate] = useState(true);
@@ -333,6 +346,21 @@ export default function DebatePage() {
                   setIsAILoading(false);
                 }
                 
+                // Clear search indicator if showing
+                if (accumulatedContent === '') {
+                  setMessages(prev => {
+                    const newMessages = [...prev];
+                    if (newMessages[aiMessageIndex]?.isSearching) {
+                      newMessages[aiMessageIndex] = { 
+                        ...newMessages[aiMessageIndex],
+                        content: '',
+                        isSearching: false
+                      };
+                    }
+                    return newMessages;
+                  });
+                }
+                
                 // Add characters to queue
                 for (const char of data.content) {
                   charQueue.push(char);
@@ -351,8 +379,10 @@ export default function DebatePage() {
                     setMessages(prev => {
                       const newMessages = [...prev];
                       newMessages[aiMessageIndex] = { 
+                        ...newMessages[aiMessageIndex],
                         role: 'ai', 
-                        content: accumulatedContent || '🔍 Searching the web...'
+                        content: accumulatedContent || '🔍 Searching the web',
+                        isSearching: !accumulatedContent  // Only show dots if no content yet
                       };
                       return newMessages;
                     });
@@ -625,10 +655,11 @@ export default function DebatePage() {
                   if (accumulatedAiArgument === '') {
                     setMessages(prev => {
                       const newMessages = [...prev];
-                      if (newMessages[userMessageIndex]?.content === '🔍 Searching the web...') {
+                      if (newMessages[userMessageIndex]?.isSearching) {
                         newMessages[userMessageIndex] = { 
                           ...newMessages[userMessageIndex],
-                          content: ''
+                          content: '',
+                          isSearching: false  // Clear searching flag
                         };
                       }
                       return newMessages;
@@ -648,7 +679,8 @@ export default function DebatePage() {
                     const newMessages = [...prev];
                     newMessages[userMessageIndex] = { 
                       ...newMessages[userMessageIndex],
-                      content: '🔍 Searching the web...'
+                      content: '🔍 Searching the web',
+                      isSearching: true  // Add flag to trigger dots animation
                     };
                     return newMessages;
                   });
