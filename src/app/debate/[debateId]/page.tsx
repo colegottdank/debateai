@@ -817,28 +817,39 @@ export default function DebatePage() {
       <div className="border-t border-slate-700 bg-slate-900 flex-shrink-0">
         <div className="container mx-auto max-w-4xl px-4 py-4">
           <div className="flex gap-3">
-            <input
-              type="text"
-              value={userInput}
-              onChange={(e) => setUserInput(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-              placeholder="Type your argument..."
-              className="flex-1 px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg focus:border-indigo-500 focus:outline-none text-slate-100 placeholder-slate-500"
-              disabled={isLoading}
-            />
-            <button
-              onClick={handleAITakeover}
-              disabled={isLoading || isAITakeover}
-              className={`px-4 py-3 rounded-lg font-medium transition-colors flex items-center gap-2 ${
-                isLoading || isAITakeover
-                  ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                  : 'bg-slate-700 text-slate-100 hover:bg-slate-600'
-              }`}
-              title="Let AI argue for you"
-            >
-              <span className="text-lg">🤖</span>
-              {isAITakeover ? 'Thinking...' : 'AI Argue'}
-            </button>
+            <div className="flex-1 relative">
+              <input
+                type="text"
+                value={userInput}
+                onChange={(e) => setUserInput(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+                placeholder="Type your argument..."
+                className="w-full px-4 py-3 pr-12 bg-slate-800 border border-slate-700 rounded-lg focus:border-indigo-500 focus:outline-none text-slate-100 placeholder-slate-500"
+                disabled={isLoading}
+              />
+              <button
+                onClick={handleAITakeover}
+                disabled={isLoading || isAITakeover}
+                className={`absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-md transition-all group ${
+                  isLoading || isAITakeover
+                    ? 'text-slate-600 cursor-not-allowed'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
+                }`}
+                title="Let AI argue for you"
+              >
+                {/* Tooltip */}
+                <span className="absolute bottom-full right-0 mb-2 px-2 py-1 text-xs text-slate-200 bg-slate-800 rounded border border-slate-700 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                  AI will argue for you
+                </span>
+                {isAITakeover ? (
+                  <div className="w-5 h-5 border-2 border-slate-600 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                )}
+              </button>
+            </div>
             <button
               onClick={() => sendMessage()}
               disabled={isLoading || !userInput.trim()}
