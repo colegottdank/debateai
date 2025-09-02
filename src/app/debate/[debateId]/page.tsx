@@ -255,7 +255,7 @@ export default function DebatePage() {
       setMessages(prev => [...prev, { role: 'ai', content: '' }]);
 
       let accumulatedContent = '';
-      let charQueue: string[] = [];
+      const charQueue: string[] = [];
       let isProcessing = false;
       const CHAR_DELAY = 10; // Reduced to 10ms for faster typing
 

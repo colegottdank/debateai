@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { getDailyDebate } from '@/lib/daily-debates';
 import Header from '@/components/Header';
 
@@ -155,13 +156,13 @@ export default function Home() {
 
           {/* Bottom Links */}
           <div className="mt-16 flex items-center justify-center gap-6">
-            <a href="/debate" className="text-slate-500 hover:text-slate-100 text-sm transition-colors">
+            <Link href="/debate" className="text-slate-500 hover:text-slate-100 text-sm transition-colors">
               Advanced Setup
-            </a>
+            </Link>
             <span className="text-slate-600">•</span>
-            <a href="/history" className="text-slate-500 hover:text-slate-100 text-sm transition-colors">
+            <Link href="/history" className="text-slate-500 hover:text-slate-100 text-sm transition-colors">
               Previous Debates
-            </a>
+            </Link>
           </div>
         </div>
       </main>

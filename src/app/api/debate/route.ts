@@ -113,7 +113,7 @@ export async function POST(request: Request) {
           let lastFlushTime = Date.now();
           const BUFFER_TIME = 20; // Reduced to 20ms for faster streaming
           const BUFFER_SIZE = 8; // Send 8 characters at a time for better speed
-          let citations: any[] = [];
+          const citations: any[] = [];
           let citationCounter = 1;
 
           // Simple flush function for character streaming
