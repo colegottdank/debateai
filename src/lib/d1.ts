@@ -89,7 +89,10 @@ class D1Client {
         is_premium BOOLEAN DEFAULT FALSE,
         stripe_customer_id TEXT,
         stripe_subscription_id TEXT,
+        stripe_plan TEXT,
         subscription_status TEXT,
+        current_period_end DATETIME,
+        cancel_at_period_end BOOLEAN DEFAULT FALSE,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
@@ -235,7 +238,7 @@ class D1Client {
   async getUser(clerkUserId: string) {
     try {
       const result = await this.query(
-        `SELECT * FROM users WHERE clerk_user_id = ? LIMIT 1`,
+        `SELECT * FROM users WHERE user_id = ? LIMIT 1`,
         [clerkUserId]
       );
 
@@ -269,7 +272,7 @@ class D1Client {
       // Use INSERT OR REPLACE to handle both cases atomically
       const result = await this.query(
         `INSERT INTO users (
-          clerk_user_id, 
+          user_id, 
           stripe_customer_id, 
           stripe_subscription_id, 
           stripe_plan, 
@@ -278,7 +281,7 @@ class D1Client {
           cancel_at_period_end,
           created_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-        ON CONFLICT(clerk_user_id) DO UPDATE SET
+        ON CONFLICT(user_id) DO UPDATE SET
           stripe_customer_id = CASE WHEN excluded.stripe_customer_id IS NOT NULL THEN excluded.stripe_customer_id ELSE stripe_customer_id END,
           stripe_subscription_id = CASE WHEN excluded.stripe_subscription_id IS NOT NULL THEN excluded.stripe_subscription_id ELSE stripe_subscription_id END,
           stripe_plan = CASE WHEN excluded.stripe_plan IS NOT NULL THEN excluded.stripe_plan ELSE stripe_plan END,
