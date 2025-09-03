@@ -25,6 +25,68 @@ export default function Home() {
     setDailyDebate(debate);
   }, []);
 
+  // Check for pending debate after sign-in
+  useEffect(() => {
+    if (!isSignedIn || !dailyDebate) return;
+    
+    const pendingDebateStr = sessionStorage.getItem('pendingDebate');
+    if (!pendingDebateStr) return;
+    
+    try {
+      const pendingDebate = JSON.parse(pendingDebateStr);
+      if (pendingDebate.fromLandingPage) {
+        // Clear the pending debate data
+        sessionStorage.removeItem('pendingDebate');
+        
+        // Set the user input and start the debate
+        setUserInput(pendingDebate.userInput);
+        setIsStarting(true);
+        
+        // Create the debate immediately
+        const createPendingDebate = async () => {
+          const debateId = crypto.randomUUID();
+          
+          try {
+            const response = await fetch('/api/debate/create', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                character: 'custom',
+                opponentStyle: pendingDebate.persona,
+                topic: pendingDebate.topic,
+                debateId
+              })
+            });
+            
+            if (response.ok) {
+              // Store first argument for the debate page to use
+              sessionStorage.setItem('firstArgument', pendingDebate.userInput);
+              sessionStorage.setItem('isInstantDebate', 'true');
+              router.push(`/debate/${debateId}`);
+            } else {
+              const error = await response.json();
+              if (response.status === 429 && error.error === 'debate_limit_exceeded') {
+                setShowUpgradeModal(true);
+              } else {
+                alert('Failed to start debate. Please try again.');
+              }
+              setIsStarting(false);
+            }
+          } catch (error) {
+            console.error('Error creating pending debate:', error);
+            alert('Failed to start debate. Please try again.');
+            setIsStarting(false);
+          }
+        };
+        
+        createPendingDebate();
+      }
+    } catch (error) {
+      console.error('Error parsing pending debate:', error);
+      sessionStorage.removeItem('pendingDebate');
+    }
+  }, [isSignedIn, dailyDebate, router]);
+
   const resetToDaily = () => {
     setUserInput('');
   };
@@ -42,7 +104,8 @@ export default function Home() {
         persona: dailyDebate.persona,
         fromLandingPage: true
       }));
-      openSignIn();
+      // Use afterSignInUrl to return to landing page
+      openSignIn({ afterSignInUrl: '/' });
       return;
     }
     

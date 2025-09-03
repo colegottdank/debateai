@@ -146,11 +146,7 @@ button {
   background: var(--foreground-muted);
 }
 
-/* Focus styles */
-:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
+/* Focus styles - removed to prevent orange outline on Clerk modals */
 
 /* Message styles for debate interface */
 .message-user {

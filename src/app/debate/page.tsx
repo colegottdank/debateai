@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useUser, useClerk } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -29,69 +29,6 @@ export default function DebatePage() {
     isOpen: false,
     trigger: 'button'
   });
-
-  // Check for pending debate from landing page after sign-in
-  useEffect(() => {
-    if (!isSignedIn) return;
-    
-    const pendingDebateStr = sessionStorage.getItem('pendingDebate');
-    if (!pendingDebateStr) return;
-    
-    try {
-      const pendingDebate = JSON.parse(pendingDebateStr);
-      if (pendingDebate.fromLandingPage) {
-        // Clear the pending debate data
-        sessionStorage.removeItem('pendingDebate');
-        
-        // Create the debate immediately
-        const createPendingDebate = async () => {
-          const debateId = crypto.randomUUID();
-          
-          try {
-            const response = await fetch('/api/debate/create', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                character: 'custom',
-                opponentStyle: pendingDebate.persona,
-                topic: pendingDebate.topic,
-                debateId
-              })
-            });
-            
-            if (response.ok) {
-              // Store first argument for the debate page to use
-              sessionStorage.setItem('firstArgument', pendingDebate.userInput);
-              sessionStorage.setItem('isInstantDebate', 'true');
-              router.push(`/debate/${debateId}`);
-            } else {
-              const error = await response.json();
-              if (response.status === 429 && error.error === 'debate_limit_exceeded') {
-                setUpgradeModal({
-                  isOpen: true,
-                  trigger: 'rate-limit-debate',
-                  limitData: {
-                    current: error.current,
-                    limit: error.limit
-                  }
-                });
-              } else {
-                alert('Failed to start debate. Please try again.');
-              }
-            }
-          } catch (error) {
-            console.error('Error creating pending debate:', error);
-            alert('Failed to start debate. Please try again.');
-          }
-        };
-        
-        createPendingDebate();
-      }
-    } catch (error) {
-      console.error('Error parsing pending debate:', error);
-      sessionStorage.removeItem('pendingDebate');
-    }
-  }, [isSignedIn, router]);
 
   const startDebate = async () => {
     if (!opponentStyle.trim() || !topic.trim()) {
