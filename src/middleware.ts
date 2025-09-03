@@ -4,9 +4,8 @@ const isPublicRoute = createRouteMatcher([
   '/',
   '/sign-in(.*)',
   '/sign-up(.*)',
-  '/api/webhook(.*)',
-  '/api/stripe/price',   // Allow public price check
-  '/api/stripe/test',    // Allow public test endpoint
+  '/api/stripe/webhook',  // Allow Stripe webhooks
+  '/api/stripe/price',    // Allow public price check
   '/debate',  // Allow access to debate setup page (will handle auth client-side)
   '/debate/(.*)',  // Allow debate pages to load and handle auth client-side
   '/history',  // Allow history page to load and handle auth client-side
