@@ -6,14 +6,18 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getDailyDebate } from '@/lib/daily-debates';
 import Header from '@/components/Header';
+import UpgradeModal from '@/components/UpgradeModal';
+import { useSubscription } from '@/lib/useSubscription';
 
 export default function Home() {
   const router = useRouter();
   const { isSignedIn } = useUser();
   const { openSignIn } = useClerk();
+  const { isPremium, debatesUsed, debatesLimit } = useSubscription();
   const [dailyDebate, setDailyDebate] = useState<{ persona: string; topic: string; description?: string } | null>(null);
   const [userInput, setUserInput] = useState('');
   const [isStarting, setIsStarting] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   // Load daily debate pairing on mount
   useEffect(() => {
@@ -155,8 +159,29 @@ export default function Home() {
               Previous Debates
             </Link>
           </div>
+
+          {/* Subtle Premium Link for Free Users */}
+          {isSignedIn && !isPremium && debatesUsed !== undefined && debatesUsed >= 2 && (
+            <div className="mt-12 text-center">
+              <button
+                onClick={() => setShowUpgradeModal(true)}
+                className="text-sm text-slate-500 hover:text-slate-300 transition-colors"
+              >
+                {debatesLimit && debatesUsed >= debatesLimit 
+                  ? 'Debate limit reached • Upgrade for unlimited'
+                  : `${debatesLimit - debatesUsed} free debate${debatesLimit - debatesUsed === 1 ? '' : 's'} remaining • Upgrade`}
+              </button>
+            </div>
+          )}
         </div>
       </main>
+
+      {/* Upgrade Modal */}
+      <UpgradeModal 
+        isOpen={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        trigger="button"
+      />
 
       {/* Minimal Footer */}
       <footer className="border-t border-slate-800 py-6">

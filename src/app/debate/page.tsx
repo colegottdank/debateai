@@ -6,11 +6,13 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import UpgradeModal from '@/components/UpgradeModal';
 import Header from '@/components/Header';
+import { useSubscription } from '@/lib/useSubscription';
 
 export default function DebatePage() {
   const { user, isSignedIn } = useUser();
   const { openSignIn } = useClerk();
   const router = useRouter();
+  const { isPremium, debatesUsed, debatesLimit } = useSubscription();
   const [opponentStyle, setOpponentStyle] = useState('');
   const [topic, setTopic] = useState('');
   const [isStarting, setIsStarting] = useState(false);
@@ -105,6 +107,23 @@ export default function DebatePage() {
           <div className="text-center mb-12">
             <h1 className="text-3xl font-bold text-slate-100 mb-2">Debate Setup</h1>
             <p className="text-slate-400">Configure your debate opponent and topic</p>
+            
+            {/* Limits Display for Free Users */}
+            {!isPremium && debatesUsed !== undefined && debatesLimit !== undefined && (
+              <div className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 bg-slate-800 rounded-full text-xs">
+                <span className="text-slate-400">Free debates:</span>
+                <span className={`font-medium ${debatesUsed >= debatesLimit ? 'text-red-400' : 'text-green-400'}`}>
+                  {debatesLimit - debatesUsed} remaining
+                </span>
+                <span className="text-slate-600">•</span>
+                <button 
+                  onClick={() => setUpgradeModal({ isOpen: true, trigger: 'button', limitData: { current: debatesUsed, limit: debatesLimit }})}
+                  className="text-indigo-400 hover:text-indigo-300 transition-colors"
+                >
+                  Upgrade
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Configuration Form */}

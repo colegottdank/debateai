@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useUser, useClerk } from '@clerk/nextjs';
 import Link from 'next/link';
 import Header from '@/components/Header';
+import UpgradeModal from '@/components/UpgradeModal';
+import { useSubscription } from '@/lib/useSubscription';
 
 interface Debate {
   id: string;
@@ -19,9 +21,11 @@ export default function HistoryPage() {
   const router = useRouter();
   const { isSignedIn } = useUser();
   const { openSignIn } = useClerk();
+  const { isPremium, debatesUsed, debatesLimit } = useSubscription();
   const [debates, setDebates] = useState<Debate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   // Check authentication and prompt sign-in if needed
   useEffect(() => {
@@ -92,6 +96,25 @@ export default function HistoryPage() {
             <h1 className="text-2xl font-medium text-slate-100 mb-2">Debate History</h1>
             <p className="text-slate-400 text-sm">Continue your intellectual discussions</p>
           </div>
+
+          {/* Subtle upgrade notice for users approaching limit */}
+          {!isPremium && debatesUsed !== undefined && debatesUsed >= 2 && (
+            <div className="mb-6 p-3 bg-slate-900 border border-slate-800 rounded-lg">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-slate-400">
+                  {debatesUsed >= debatesLimit 
+                    ? `Debate limit reached (${debatesUsed}/${debatesLimit})`
+                    : `${debatesLimit - debatesUsed} free debate${debatesLimit - debatesUsed === 1 ? '' : 's'} remaining`}
+                </p>
+                <button
+                  onClick={() => setShowUpgradeModal(true)}
+                  className="text-sm text-indigo-400 hover:text-indigo-300 transition-colors"
+                >
+                  Upgrade for unlimited
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Search Bar */}
           <div className="mb-6">
@@ -184,6 +207,14 @@ export default function HistoryPage() {
           )}
         </div>
       </main>
+
+      {/* Upgrade Modal */}
+      <UpgradeModal 
+        isOpen={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        trigger="rate-limit-debate"
+        limitData={{ current: debatesUsed || 0, limit: debatesLimit || 3 }}
+      />
     </div>
   );
 }
