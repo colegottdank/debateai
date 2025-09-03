@@ -102,9 +102,9 @@ export default function HistoryPage() {
             <div className="mb-6 p-3 bg-slate-900 border border-slate-800 rounded-lg">
               <div className="flex items-center justify-between">
                 <p className="text-sm text-slate-400">
-                  {debatesUsed >= debatesLimit 
+                  {debatesLimit && debatesUsed >= debatesLimit 
                     ? `Debate limit reached (${debatesUsed}/${debatesLimit})`
-                    : `${debatesLimit - debatesUsed} free debate${debatesLimit - debatesUsed === 1 ? '' : 's'} remaining`}
+                    : `${debatesLimit ? debatesLimit - debatesUsed : 0} free debate${debatesLimit && debatesLimit - debatesUsed === 1 ? '' : 's'} remaining`}
                 </p>
                 <button
                   onClick={() => setShowUpgradeModal(true)}

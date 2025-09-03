@@ -35,6 +35,13 @@ export default function Home() {
     
     // Check if user is signed in first
     if (!isSignedIn) {
+      // Store debate data before opening sign-in
+      sessionStorage.setItem('pendingDebate', JSON.stringify({
+        userInput,
+        topic: dailyDebate.topic,
+        persona: dailyDebate.persona,
+        fromLandingPage: true
+      }));
       openSignIn();
       return;
     }
@@ -169,7 +176,7 @@ export default function Home() {
               >
                 {debatesLimit && debatesUsed >= debatesLimit 
                   ? 'Debate limit reached • Upgrade for unlimited'
-                  : `${debatesLimit - debatesUsed} free debate${debatesLimit - debatesUsed === 1 ? '' : 's'} remaining • Upgrade`}
+                  : `${debatesLimit ? debatesLimit - debatesUsed : 0} free debate${debatesLimit && debatesLimit - debatesUsed === 1 ? '' : 's'} remaining • Upgrade`}
               </button>
             </div>
           )}
