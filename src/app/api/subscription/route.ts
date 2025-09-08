@@ -20,6 +20,7 @@ export async function GET() {
     if (!user) {
       // No user record means free tier
       return NextResponse.json({
+        isPremium: false,
         isSubscribed: false,
         stripePlan: null,
         subscriptionStatus: null,
@@ -28,6 +29,7 @@ export async function GET() {
     }
 
     return NextResponse.json({
+      isPremium: user.subscription_status === 'active' && user.stripe_plan === 'premium',
       isSubscribed: user.subscription_status === 'active' && user.stripe_plan === 'premium',
       stripePlan: user.stripe_plan,
       subscriptionStatus: user.subscription_status,
