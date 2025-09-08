@@ -12,13 +12,13 @@ export interface DailyDebate {
 export const DAILY_DEBATES: DailyDebate[] = [
   {
     persona: "Elon Musk",
-    topic: "Should humanity become a multi-planetary species?",
-    description: "Space exploration and Mars colonization"
+    topic: "Did Elon ruin Twitter/X?",
+    description: "Social media platform changes"
   },
   {
     persona: "Donald Trump",
-    topic: "Should we build a wall on the southern border?",
-    description: "Immigration and border security"
+    topic: "Was the 2020 election stolen?",
+    description: "Election integrity claims"
   },
   {
     persona: "Greta Thunberg",
@@ -32,8 +32,8 @@ export const DAILY_DEBATES: DailyDebate[] = [
   },
   {
     persona: "Alexandria Ocasio-Cortez",
-    topic: "Should we implement a Green New Deal?",
-    description: "Climate policy and economic reform"
+    topic: "Should billionaires be abolished through taxation?",
+    description: "Wealth inequality and tax policy"
   },
   {
     persona: "Joe Rogan",
@@ -62,8 +62,8 @@ export const DAILY_DEBATES: DailyDebate[] = [
   },
   {
     persona: "Andrew Tate",
-    topic: "Is the modern education system making men weak?",
-    description: "Masculinity and education"
+    topic: "Is the matrix real?",
+    description: "Society, control, and masculinity"
   },
   {
     persona: "Bill Gates",
@@ -77,33 +77,33 @@ export const DAILY_DEBATES: DailyDebate[] = [
   },
   {
     persona: "Oprah Winfrey",
-    topic: "Can positive thinking change your life?",
-    description: "Self-help and personal development"
+    topic: "Is the self-help industry a scam?",
+    description: "Personal development industry critique"
   },
   {
     persona: "Stephen Colbert",
-    topic: "Should political comedy shows be considered news?",
-    description: "Media and political satire"
+    topic: "Is late-night TV just liberal propaganda?",
+    description: "Media bias in entertainment"
   },
   {
     persona: "Barack Obama",
-    topic: "Should we have universal healthcare?",
-    description: "Healthcare policy"
+    topic: "Is America more divided now than ever?",
+    description: "National unity and polarization"
   },
   {
     persona: "Joe Biden",
-    topic: "Should we forgive student loan debt?",
-    description: "Education and economic policy"
+    topic: "Is Biden too old to be president?",
+    description: "Age and leadership capability"
   },
   {
     persona: "Kamala Harris",
-    topic: "Should we defund the police?",
-    description: "Criminal justice reform"
+    topic: "Should the border be completely closed?",
+    description: "Immigration and border security"
   },
   {
     persona: "Ron DeSantis",
-    topic: "Should schools teach critical race theory?",
-    description: "Education and cultural issues"
+    topic: "Should drag shows be banned near children?",
+    description: "LGBTQ rights and parental concerns"
   },
   {
     persona: "Elizabeth Warren",
@@ -122,8 +122,8 @@ export const DAILY_DEBATES: DailyDebate[] = [
   },
   {
     persona: "Rachel Maddow",
-    topic: "Was the 2020 election the most secure in history?",
-    description: "Election integrity and democracy"
+    topic: "Should Trump be imprisoned?",
+    description: "Political accountability and justice"
   },
   {
     persona: "Sean Hannity",
@@ -142,8 +142,8 @@ export const DAILY_DEBATES: DailyDebate[] = [
   },
   {
     persona: "Taylor Swift",
-    topic: "Should artists own their master recordings?",
-    description: "Music industry and artist rights"
+    topic: "Should celebrities stay out of politics?",
+    description: "Celebrity political influence"
   },
   {
     persona: "Kanye West",
@@ -167,8 +167,8 @@ export const DAILY_DEBATES: DailyDebate[] = [
   },
   {
     persona: "Robert F. Kennedy Jr.",
-    topic: "Should vaccine mandates be required for public schools?",
-    description: "Public health and personal freedom"
+    topic: "Are vaccines causing autism?",
+    description: "Vaccine safety controversy"
   },
   {
     persona: "Noam Chomsky",
@@ -197,8 +197,8 @@ export const DAILY_DEBATES: DailyDebate[] = [
   },
   {
     persona: "Candace Owens",
-    topic: "Is systemic racism a myth?",
-    description: "Race relations and policy"
+    topic: "Is George Floyd a hero or a criminal?",
+    description: "BLM and police brutality debates"
   },
   {
     persona: "Ibram X. Kendi",
@@ -207,13 +207,13 @@ export const DAILY_DEBATES: DailyDebate[] = [
   },
   {
     persona: "Malcolm Gladwell",
-    topic: "Is the 10,000 hour rule real?",
-    description: "Expertise and practice"
+    topic: "Is meritocracy a myth?",
+    description: "Success and privilege"
   },
   {
     persona: "Steven Pinker",
-    topic: "Is the world actually getting better?",
-    description: "Progress and pessimism"
+    topic: "Are we on the brink of World War 3?",
+    description: "Global conflict and tensions"
   },
   {
     persona: "Yuval Noah Harari",
@@ -237,28 +237,28 @@ export const DAILY_DEBATES: DailyDebate[] = [
   },
   {
     persona: "Tim Ferriss",
-    topic: "Is the 4-hour work week realistic?",
-    description: "Productivity and work-life balance"
+    topic: "Should the 4-day work week be mandatory?",
+    description: "Labor reform and productivity"
   },
   {
     persona: "Seth Godin",
-    topic: "Is traditional marketing dead?",
-    description: "Marketing evolution"
+    topic: "Should targeted advertising be banned?",
+    description: "Privacy and marketing ethics"
   },
   {
     persona: "Simon Sinek",
-    topic: "Do millennials have unrealistic workplace expectations?",
-    description: "Generational differences"
+    topic: "Should remote work be a human right?",
+    description: "Future of work debates"
   },
   {
     persona: "Brené Brown",
-    topic: "Is vulnerability weakness or strength?",
-    description: "Leadership and emotions"
+    topic: "Is therapy culture making us weaker?",
+    description: "Mental health and resilience"
   },
   {
     persona: "Tony Robbins",
-    topic: "Can anyone become successful?",
-    description: "Success and mindset"
+    topic: "Is the American Dream dead?",
+    description: "Economic mobility and opportunity"
   },
   {
     persona: "Ray Dalio",
@@ -372,18 +372,18 @@ export const DAILY_DEBATES: DailyDebate[] = [
   },
   {
     persona: "Douglas Murray",
-    topic: "Is Western civilization in decline?",
-    description: "Cultural pessimism"
+    topic: "Is mass immigration destroying Europe?",
+    description: "Immigration and cultural change"
   },
   {
     persona: "Matt Walsh",
-    topic: "What is a woman?",
-    description: "Gender and biology"
+    topic: "Should trans athletes compete in women's sports?",
+    description: "Gender identity in athletics"
   },
   {
     persona: "Contrapoints",
-    topic: "Is cancel culture real?",
-    description: "Online accountability"
+    topic: "Are trans women real women?",
+    description: "Gender identity debates"
   },
   {
     persona: "Hasan Piker",
@@ -392,8 +392,8 @@ export const DAILY_DEBATES: DailyDebate[] = [
   },
   {
     persona: "Destiny",
-    topic: "Should online debates change minds?",
-    description: "Digital discourse"
+    topic: "Is political violence ever justified?",
+    description: "Extremism and self-defense"
   },
   {
     persona: "Vaush",
@@ -402,18 +402,18 @@ export const DAILY_DEBATES: DailyDebate[] = [
   },
   {
     persona: "Tim Pool",
-    topic: "Is civil war coming to America?",
-    description: "Political polarization"
+    topic: "Will the 2024 election cause a civil war?",
+    description: "Political violence predictions"
   },
   {
     persona: "Jimmy Dore",
-    topic: "Are both parties the same?",
-    description: "Political parties"
+    topic: "Should we abolish political parties?",
+    description: "Political system reform"
   },
   {
     persona: "Kyle Kulinski",
-    topic: "Should we have Medicare for All?",
-    description: "Healthcare reform"
+    topic: "Is healthcare a human right?",
+    description: "Healthcare access debate"
   },
   {
     persona: "David Pakman",
@@ -422,13 +422,13 @@ export const DAILY_DEBATES: DailyDebate[] = [
   },
   {
     persona: "Steven Crowder",
-    topic: "Is hate speech free speech?",
-    description: "First Amendment limits"
+    topic: "Should social media ban hate speech?",
+    description: "Online speech regulation"
   },
   {
     persona: "Ana Kasparian",
-    topic: "Should we abolish the electoral college?",
-    description: "Democratic reform"
+    topic: "Is American democracy failing?",
+    description: "Democratic crisis debates"
   },
   {
     persona: "Cenk Uygur",
@@ -522,8 +522,8 @@ export const DAILY_DEBATES: DailyDebate[] = [
   },
   {
     persona: "Howard Stern",
-    topic: "Has radio become irrelevant?",
-    description: "Media evolution"
+    topic: "Should Joe Rogan be censored?",
+    description: "Platform responsibility and speech"
   },
   {
     persona: "Bill O'Reilly",
@@ -537,8 +537,8 @@ export const DAILY_DEBATES: DailyDebate[] = [
   },
   {
     persona: "Chris Hayes",
-    topic: "Is American democracy in crisis?",
-    description: "Democratic institutions"
+    topic: "Will there be another January 6th?",
+    description: "Political violence and extremism"
   },
   {
     persona: "Lawrence O'Donnell",
@@ -547,13 +547,13 @@ export const DAILY_DEBATES: DailyDebate[] = [
   },
   {
     persona: "Joy Reid",
-    topic: "Is America fundamentally racist?",
-    description: "Systemic racism"
+    topic: "Should white people pay reparations?",
+    description: "Racial justice and compensation"
   },
   {
     persona: "Don Lemon",
-    topic: "Are we in a cold civil war?",
-    description: "National division"
+    topic: "Should America split into two countries?",
+    description: "National divorce debate"
   },
   {
     persona: "Chris Cuomo",
@@ -562,8 +562,8 @@ export const DAILY_DEBATES: DailyDebate[] = [
   },
   {
     persona: "Megyn Kelly",
-    topic: "Has MeToo gone too far?",
-    description: "Social movements"
+    topic: "Should we automatically believe all women?",
+    description: "Due process and accusations"
   },
   {
     persona: "Piers Morgan",
@@ -587,43 +587,43 @@ export const DAILY_DEBATES: DailyDebate[] = [
   },
   {
     persona: "Amy Schumer",
-    topic: "Is comedy still a boys' club?",
-    description: "Gender in entertainment"
+    topic: "Are men under attack in society?",
+    description: "Gender wars and masculinity"
   },
   {
     persona: "Sarah Silverman",
-    topic: "Can offensive jokes be funny?",
-    description: "Humor boundaries"
+    topic: "Should offensive art be censored?",
+    description: "Free expression versus harm"
   },
   {
     persona: "John Mulaney",
-    topic: "Is stand-up comedy dying?",
-    description: "Entertainment evolution"
+    topic: "Should comedians apologize for offensive jokes?",
+    description: "Comedy and accountability"
   },
   {
     persona: "Hannah Gadsby",
-    topic: "Should comedy always be funny?",
-    description: "Art and activism"
+    topic: "Is cancel culture justice or mob rule?",
+    description: "Social accountability debates"
   },
   {
     persona: "Bo Burnham",
-    topic: "Is the internet ruining our brains?",
-    description: "Digital mental health"
+    topic: "Should smartphones be banned for kids under 16?",
+    description: "Youth and technology"
   },
   {
     persona: "Hank Green",
-    topic: "Can influencers be trusted?",
-    description: "Social media authenticity"
+    topic: "Is TikTok a Chinese surveillance tool?",
+    description: "Social media and national security"
   },
   {
     persona: "John Green",
-    topic: "Is YA literature real literature?",
-    description: "Literary gatekeeping"
+    topic: "Should books be banned from schools?",
+    description: "Censorship and education"
   },
   {
     persona: "Casey Neistat",
-    topic: "Is vlogging narcissistic?",
-    description: "Content creation ethics"
+    topic: "Should children be allowed on social media?",
+    description: "Child safety online"
   },
   {
     persona: "MrBeast",
@@ -642,8 +642,8 @@ export const DAILY_DEBATES: DailyDebate[] = [
   },
   {
     persona: "Dr Disrespect",
-    topic: "Are parasocial relationships unhealthy?",
-    description: "Fan psychology"
+    topic: "Is pornography destroying young men?",
+    description: "Digital addiction and masculinity"
   },
   {
     persona: "Ninja",
@@ -652,8 +652,8 @@ export const DAILY_DEBATES: DailyDebate[] = [
   },
   {
     persona: "Shroud",
-    topic: "Is gaming addiction real?",
-    description: "Digital wellness"
+    topic: "Do violent video games create killers?",
+    description: "Gaming and violence debate"
   }
 ];
 
