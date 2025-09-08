@@ -142,8 +142,8 @@ export const DAILY_DEBATES: DailyDebate[] = [
   },
   {
     persona: "Taylor Swift",
-    topic: "Should celebrities stay out of politics?",
-    description: "Celebrity political influence"
+    topic: "Should artists be canceled for their political views?",
+    description: "Cancel culture in entertainment"
   },
   {
     persona: "Kanye West",
@@ -617,8 +617,8 @@ export const DAILY_DEBATES: DailyDebate[] = [
   },
   {
     persona: "John Green",
-    topic: "Should books be banned from schools?",
-    description: "Censorship and education"
+    topic: "Should parents control what teenagers read?",
+    description: "Parental rights vs teen autonomy"
   },
   {
     persona: "Casey Neistat",
