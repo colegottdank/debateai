@@ -72,10 +72,10 @@ export async function POST(request: NextRequest) {
             stripeSubscriptionId: subscription.id,
             stripePlan: 'premium',
             subscriptionStatus: 'active',
-            currentPeriodEnd: subscription.current_period_end 
-              ? new Date(subscription.current_period_end * 1000).toISOString()
+            currentPeriodEnd: (subscription as any).current_period_end 
+              ? new Date((subscription as any).current_period_end * 1000).toISOString()
               : undefined,
-            cancelAtPeriodEnd: subscription.cancel_at_period_end,
+            cancelAtPeriodEnd: (subscription as any).cancel_at_period_end || false,
           });
           
           console.log('✅ D1 upsert result:', updateResult);
@@ -98,15 +98,15 @@ export async function POST(request: NextRequest) {
         const clerkUserId = subscription.metadata?.clerkUserId;
         
         if (clerkUserId) {
-          const periodEnd = subscription.current_period_end 
-            ? new Date(subscription.current_period_end * 1000).toISOString()
+          const periodEnd = (subscription as any).current_period_end 
+            ? new Date((subscription as any).current_period_end * 1000).toISOString()
             : undefined;
             
           await d1.upsertUser({
             clerkUserId,
             subscriptionStatus: subscription.status,
             currentPeriodEnd: periodEnd,
-            cancelAtPeriodEnd: subscription.cancel_at_period_end,
+            cancelAtPeriodEnd: (subscription as any).cancel_at_period_end || false,
             stripePlan: subscription.status === 'active' ? 'premium' : undefined,
           });
         }
