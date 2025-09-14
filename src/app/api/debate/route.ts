@@ -188,10 +188,7 @@ export async function POST(request: Request) {
                 // Process citations but don't increment counter yet
               }
             } else if (event.type === "content_block_delta") {
-              if (event.delta.type === "text_delta") {
-                const chunk = event.delta.text;
-                accumulatedContent += chunk;
-              } else if (event.delta.type === "citations_delta") {
+              if (event.delta.type === "citations_delta") {
                 // Handle new citation format
                 const citation = (event.delta as any).citation;
                 if (citation && citation.type === "web_search_result_location") {
