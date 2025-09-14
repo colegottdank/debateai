@@ -162,7 +162,7 @@ export async function POST(request: Request) {
               } else if (
                 event.content_block?.type === "web_search_tool_result"
               ) {
-                // Web search results received
+                // Web search results received (old format - kept for compatibility)
                 const results = (event.content_block as any).content || [];
                 const extractedCitations: any[] = [];
 
@@ -178,11 +178,47 @@ export async function POST(request: Request) {
 
                 if (extractedCitations.length > 0) {
                   citations.push(...extractedCitations);
-                  // Don't send citations immediately - wait to filter them
                 }
+              } else if (
+                // Handle new citation format with embedded citations
+                event.content_block?.type === "text" &&
+                (event.content_block as any).citations
+              ) {
+                // Text block with citations - new format
+                const blockCitations = (event.content_block as any).citations || [];
+                // Process citations but don't increment counter yet
               }
             } else if (event.type === "content_block_delta") {
-              if (event.delta.type === "text_delta") {
+              if (event.delta.type === "citations_delta") {
+                // Handle new citation format
+                const citation = (event.delta as any).citation;
+                if (citation && citation.type === "web_search_result_location") {
+                  // Extract citation and add [N] marker
+                  const citationData = {
+                    id: citationCounter,
+                    url: citation.url,
+                    title: citation.title || new URL(citation.url).hostname,
+                    cited_text: citation.cited_text
+                  };
+
+                  // Check if this citation already exists
+                  const exists = citations.find((c: any) => c.url === citation.url);
+                  if (!exists) {
+                    citations.push(citationData);
+                    citationCounter++;
+
+                    // Add citation marker to accumulated content
+                    accumulatedContent += ` [${citationData.id}]`;
+
+                    // Also add to buffer for streaming
+                    buffer += ` [${citationData.id}]`;
+                  } else {
+                    // Use existing citation number
+                    accumulatedContent += ` [${exists.id}]`;
+                    buffer += ` [${exists.id}]`;
+                  }
+                }
+              } else if (event.delta.type === "text_delta") {
                 const chunk = event.delta.text;
                 accumulatedContent += chunk; // Accumulate for citation filtering
 
@@ -208,28 +244,16 @@ export async function POST(request: Request) {
             flushBuffer();
           }
 
-          // Filter citations to only include those actually used in the response
-          const usedCitations: any[] = [];
-          if (citations.length > 0) {
-            // Check which citation numbers appear in the accumulated content
-            for (const citation of citations) {
-              const citationPattern = new RegExp(`\\[${citation.id}\\]`, 'g');
-              if (citationPattern.test(accumulatedContent)) {
-                usedCitations.push(citation);
-              }
-            }
-            
-            // Send only used citations to frontend
-            if (usedCitations.length > 0 && !controllerClosed) {
-              controller.enqueue(
-                encoder.encode(
-                  `data: ${JSON.stringify({
-                    type: "citations",
-                    citations: usedCitations,
-                  })}\n\n`
-                )
-              );
-            }
+          // Send all citations since we now add markers when they're received
+          if (citations.length > 0 && !controllerClosed) {
+            controller.enqueue(
+              encoder.encode(
+                `data: ${JSON.stringify({
+                  type: "citations",
+                  citations: citations,
+                })}\n\n`
+              )
+            );
           }
 
           if (!controllerClosed) {
