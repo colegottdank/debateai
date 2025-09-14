@@ -39,6 +39,17 @@ When to search:
 - ONLY for ONE surprising statistic that changes the debate
 - NOT for general arguments or common knowledge
 - Your argument must stand WITHOUT citations
+
+How to search effectively:
+- Search for SPECIFIC data: "US unemployment rate 2024", not "is economy good"
+- Target authoritative sources:
+  * Government data (BLS, CDC, FBI, Census Bureau)
+  * Academic research (.edu domains, peer-reviewed)
+  * Major news organizations (Reuters, AP, Bloomberg)
+  * Industry reports from recognized firms
+- Avoid: Opinion pieces, blogs, social media, partisan sites
+- Use recent data (within 2 years unless making historical comparison)
+- If sources conflict, cite the most authoritative one
 </evidence_rules>
 
 <debate_principles>
@@ -195,6 +206,17 @@ When to search:
 - ONLY for ONE surprising statistic that changes the debate
 - NOT for general arguments or common knowledge
 - Your argument must stand WITHOUT citations
+
+How to search effectively:
+- Search for SPECIFIC data: "US unemployment rate 2024", not "is economy good"
+- Target authoritative sources:
+  * Government data (BLS, CDC, FBI, Census Bureau)
+  * Academic research (.edu domains, peer-reviewed)
+  * Major news organizations (Reuters, AP, Bloomberg)
+  * Industry reports from recognized firms
+- Avoid: Opinion pieces, blogs, social media, partisan sites
+- Use recent data (within 2 years unless making historical comparison)
+- If sources conflict, cite the most authoritative one
 </evidence_rules>
 
 <debate_principles>
