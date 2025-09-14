@@ -46,7 +46,10 @@ export async function POST(request: Request) {
 
     // Check message limit
     const isTestMode = process.env.NEXT_PUBLIC_TEST_MODE === "true";
-    if (debateId && !isTestMode) {
+    const isLocalDev =
+      process.env.NODE_ENV === "development" ||
+      process.env.LOCAL_DEV_BYPASS === "true";
+    if (debateId && !isTestMode && !isLocalDev) {
       const messageLimit = await d1.checkDebateMessageLimit(debateId);
       if (!messageLimit.allowed) {
         return NextResponse.json(
@@ -181,7 +184,8 @@ export async function POST(request: Request) {
                 (event.content_block as any).citations
               ) {
                 // Text block with citations - new format
-                const blockCitations = (event.content_block as any).citations || [];
+                const blockCitations =
+                  (event.content_block as any).citations || [];
                 // Process citations but don't increment counter yet
               }
             } else if (event.type === "content_block_delta") {
@@ -198,9 +202,14 @@ export async function POST(request: Request) {
               if (event.delta.type === "citations_delta") {
                 // Just collect citations for the citation list - don't inject markers
                 const citation = (event.delta as any).citation;
-                if (citation && citation.type === "web_search_result_location") {
+                if (
+                  citation &&
+                  citation.type === "web_search_result_location"
+                ) {
                   // Check if we already have this citation
-                  const existingCitation = citations.find(c => c.url === citation.url && c.title === citation.title);
+                  const existingCitation = citations.find(
+                    (c) => c.url === citation.url && c.title === citation.title
+                  );
 
                   if (!existingCitation) {
                     // Create new citation for the list
@@ -208,7 +217,7 @@ export async function POST(request: Request) {
                       id: citationCounter++,
                       url: citation.url,
                       title: citation.title || new URL(citation.url).hostname,
-                      cited_text: citation.cited_text
+                      cited_text: citation.cited_text,
                     };
                     citations.push(citationData);
                   }
@@ -300,6 +309,8 @@ export async function POST(request: Request) {
                     })}\n\n`
                   )
                 );
+                // Send [DONE] signal to ensure frontend knows streaming is complete
+                controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
               }
             }
           }

@@ -10,9 +10,21 @@ export async function GET() {
 
   try {
     const { userId } = await auth();
-    
+
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // LOCAL DEVELOPMENT BYPASS - always return premium for local testing
+    if (process.env.NODE_ENV === 'development' || process.env.LOCAL_DEV_BYPASS === 'true') {
+      return NextResponse.json({
+        isPremium: true,
+        isSubscribed: true,
+        stripePlan: 'premium',
+        subscriptionStatus: 'active',
+        currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        cancelAtPeriodEnd: false,
+      });
     }
 
     const user = await d1.getUser(userId);

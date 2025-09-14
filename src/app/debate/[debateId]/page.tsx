@@ -173,7 +173,8 @@ export default function DebatePage() {
   const debateId = params.debateId as string;
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  
+  const currentCitationsRef = useRef<any[]>([]);
+
   // Check if this is an instant debate from homepage (using sessionStorage)
   const [isInstant, setIsInstant] = useState(false);
   const [firstArg, setFirstArg] = useState('');
@@ -344,6 +345,9 @@ export default function DebatePage() {
       const aiMessageIndex = messages.length + 1;
       setMessages(prev => [...prev, { role: 'ai', content: '' }]);
 
+      // Clear citations ref for new message
+      currentCitationsRef.current = [];
+
       let accumulatedContent = '';
       const charQueue: string[] = [];
       let isProcessing = false;
@@ -367,9 +371,10 @@ export default function DebatePage() {
           requestAnimationFrame(() => {
             setMessages(prev => {
               const newMessages = [...prev];
-              newMessages[aiMessageIndex] = { 
-                role: 'ai', 
-                content: accumulatedContent
+              newMessages[aiMessageIndex] = {
+                ...newMessages[aiMessageIndex],
+                content: accumulatedContent,
+                ...(currentCitationsRef.current.length > 0 && { citations: currentCitationsRef.current })
               };
               return newMessages;
             });
@@ -385,36 +390,42 @@ export default function DebatePage() {
         processNextChar();
       };
 
+      let lastActivityTime = Date.now();
+      let streamComplete = false;
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) {
-          // Wait for all characters to be processed
-          while (charQueue.length > 0 || isProcessing) {
-            await new Promise(resolve => setTimeout(resolve, 50));
-          }
+          streamComplete = true;
           break;
         }
 
+        lastActivityTime = Date.now();
         const chunk = decoder.decode(value);
         const lines = chunk.split('\n');
 
         for (const line of lines) {
           if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            if (data === '[DONE]') {
+              streamComplete = true;
+              break;
+            }
             try {
-              const data = JSON.parse(line.substring(6));
+              const parsed = JSON.parse(data);
               
-              if (data.type === 'chunk') {
+              if (parsed.type === 'chunk') {
                 // Clear loading state on first chunk
                 if (isAILoading) {
                   setIsAILoading(false);
                 }
-                
+
                 // Clear search indicator if showing
                 if (accumulatedContent === '') {
                   setMessages(prev => {
                     const newMessages = [...prev];
                     if (newMessages[aiMessageIndex]?.isSearching) {
-                      newMessages[aiMessageIndex] = { 
+                      newMessages[aiMessageIndex] = {
                         ...newMessages[aiMessageIndex],
                         content: '',
                         isSearching: false
@@ -423,17 +434,17 @@ export default function DebatePage() {
                     return newMessages;
                   });
                 }
-                
+
                 // Add characters to queue
-                for (const char of data.content) {
+                for (const char of parsed.content) {
                   charQueue.push(char);
                 }
-                
+
                 // Start processing if not already running
                 if (!isProcessing) {
                   processCharQueue();
                 }
-              } else if (data.type === 'search_start') {
+              } else if (parsed.type === 'search_start') {
                 // Show search indicator
                 const waitForQueue = () => {
                   if (charQueue.length > 0) {
@@ -452,47 +463,55 @@ export default function DebatePage() {
                   }
                 };
                 waitForQueue();
-              } else if (data.type === 'citations') {
-                // Store citations to be added to the message
+              } else if (parsed.type === 'citations') {
+                // Store citations in ref and update message
+                currentCitationsRef.current = parsed.citations;
                 setMessages(prev => {
                   const newMessages = [...prev];
                   const currentMessage = newMessages[aiMessageIndex];
-                  newMessages[aiMessageIndex] = { 
+                  newMessages[aiMessageIndex] = {
                     ...currentMessage,
-                    citations: data.citations
+                    citations: parsed.citations
                   };
                   return newMessages;
                 });
-              } else if (data.type === 'complete') {
-                // Final message - remove cursor and add citations
-                const waitForCompletion = () => {
-                  if (charQueue.length > 0 || isProcessing) {
-                    setTimeout(waitForCompletion, 50);
-                  } else {
-                    setMessages(prev => {
-                      const newMessages = [...prev];
-                      newMessages[aiMessageIndex] = { 
-                        role: 'ai', 
-                        content: data.content || accumulatedContent,
-                        citations: data.citations 
-                      };
-                      return newMessages;
-                    });
-                  }
-                };
-                waitForCompletion();
+              } else if (parsed.type === 'complete') {
+                // Update citations immediately if provided
+                if (parsed.citations) {
+                  currentCitationsRef.current = parsed.citations;
+                  setMessages(prev => {
+                    const newMessages = [...prev];
+                    newMessages[aiMessageIndex] = {
+                      ...newMessages[aiMessageIndex],
+                      citations: parsed.citations
+                    };
+                    return newMessages;
+                  });
+                }
+                streamComplete = true;
               }
             } catch (e) {
               // Skip invalid JSON
             }
           }
         }
+        if (streamComplete) break;
       }
+
+      // Wait for queue to finish with timeout
+      const maxWaitTime = 2000; // 2 second max wait
+      const startWait = Date.now();
+      while ((charQueue.length > 0 || isProcessing) && (Date.now() - startWait < maxWaitTime)) {
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+
+      // Clear loading state only after everything is done
+      setIsAILoading(false);
+      setIsLoading(false);
     } catch (error) {
       console.error('Error:', error);
       setMessages(prev => [...prev, { role: 'ai', content: 'Error: Could not generate response. Try again!' }]);
       setIsAILoading(false);
-    } finally {
       setIsLoading(false);
     }
   };
@@ -551,35 +570,41 @@ export default function DebatePage() {
       let isProcessing = false;
       const CHAR_DELAY = 10; // Same delay as opponent responses
       
-      const processCharQueue = async () => {
+      const processCharQueue = () => {
         if (isProcessing || charQueue.length === 0) return;
+
         isProcessing = true;
-        
-        while (charQueue.length > 0) {
-          const chars = charQueue.splice(0, 3); // Process 3 chars at a time
-          const charBatch = chars.join('');
-          accumulatedAiArgument += charBatch;
-          
-          setMessages(prev => {
-            const newMessages = [...prev];
-            newMessages[userMessageIndex] = { 
-              ...newMessages[userMessageIndex],
-              role: 'user', 
-              content: accumulatedAiArgument,
-              aiAssisted: true
-            };
-            return newMessages;
-          });
-          
-          if (charQueue.length > 0) {
-            await new Promise(resolve => setTimeout(resolve, CHAR_DELAY));
+
+        const processNextChar = () => {
+          if (charQueue.length === 0) {
+            isProcessing = false;
+            return;
           }
-        }
-        
-        isProcessing = false;
-        if (charQueue.length > 0) {
-          processCharQueue();
-        }
+
+          const char = charQueue.shift()!;
+          accumulatedAiArgument += char;
+
+          requestAnimationFrame(() => {
+            setMessages(prev => {
+              const newMessages = [...prev];
+              newMessages[userMessageIndex] = {
+                ...newMessages[userMessageIndex],
+                role: 'user',
+                content: accumulatedAiArgument,
+                aiAssisted: true
+              };
+              return newMessages;
+            });
+          });
+
+          if (charQueue.length > 0) {
+            setTimeout(processNextChar, CHAR_DELAY);
+          } else {
+            isProcessing = false;
+          }
+        };
+
+        processNextChar();
       };
 
       while (true) {
@@ -641,47 +666,48 @@ export default function DebatePage() {
                 let isProcessing = false;
                 const CHAR_DELAY = 10;
 
-                const processCharQueue = async () => {
+                const processCharQueue = () => {
                   if (isProcessing || charQueue.length === 0) return;
+
                   isProcessing = true;
-                  
-                  while (charQueue.length > 0) {
-                    const chars = charQueue.splice(0, 3);
-                    const charBatch = chars.join('');
-                    accumulatedContent += charBatch;
-                    
-                    setMessages(prev => {
-                      const newMessages = [...prev];
-                      newMessages[aiMessageIndex] = { 
-                        ...newMessages[aiMessageIndex],
-                        role: 'ai', 
-                        content: accumulatedContent 
-                      };
-                      return newMessages;
-                    });
-                    
-                    if (charQueue.length > 0) {
-                      await new Promise(resolve => setTimeout(resolve, CHAR_DELAY));
+
+                  const processNextChar = () => {
+                    if (charQueue.length === 0) {
+                      isProcessing = false;
+                      return;
                     }
-                  }
-                  
-                  isProcessing = false;
-                  if (charQueue.length > 0) {
-                    processCharQueue();
-                  }
+
+                    const char = charQueue.shift()!;
+                    accumulatedContent += char;
+
+                    requestAnimationFrame(() => {
+                      setMessages(prev => {
+                        const newMessages = [...prev];
+                        newMessages[aiMessageIndex] = {
+                          ...newMessages[aiMessageIndex],
+                          role: 'ai',
+                          content: accumulatedContent
+                        };
+                        return newMessages;
+                      });
+                    });
+
+                    if (charQueue.length > 0) {
+                      setTimeout(processNextChar, CHAR_DELAY);
+                    } else {
+                      isProcessing = false;
+                    }
+                  };
+
+                  processNextChar();
                 };
 
-                const waitForCompletion = async () => {
-                  while (charQueue.length > 0 || isProcessing) {
-                    await new Promise(resolve => setTimeout(resolve, 50));
-                  }
-                  setIsAILoading(false);
-                };
+                let opponentStreamComplete = false;
 
                 while (true) {
                   const { done: opponentDone, value: opponentValue } = await opponentReader.read();
                   if (opponentDone) {
-                    await waitForCompletion();
+                    opponentStreamComplete = true;
                     break;
                   }
 
@@ -692,41 +718,62 @@ export default function DebatePage() {
                     if (line.startsWith('data: ')) {
                       const data = line.slice(6);
                       if (data === '[DONE]') {
-                        await waitForCompletion();
-                      } else {
-                        try {
-                          const parsed = JSON.parse(data);
-                          if (parsed.type === 'chunk' && parsed.content) {
-                            for (const char of parsed.content) {
-                              charQueue.push(char);
-                            }
-                            if (!isProcessing) {
-                              processCharQueue();
-                            }
-                          } else if (parsed.type === 'citations' && parsed.citations) {
+                        opponentStreamComplete = true;
+                        break;
+                      }
+                      try {
+                        const parsed = JSON.parse(data);
+                        if (parsed.type === 'chunk' && parsed.content) {
+                          if (isAILoading) {
+                            setIsAILoading(false);
+                          }
+                          for (const char of parsed.content) {
+                            charQueue.push(char);
+                          }
+                          if (!isProcessing) {
+                            processCharQueue();
+                          }
+                        } else if (parsed.type === 'citations' && parsed.citations) {
+                          setMessages(prev => {
+                            const newMessages = [...prev];
+                            const currentMessage = newMessages[aiMessageIndex];
+                            newMessages[aiMessageIndex] = {
+                              ...currentMessage,
+                              citations: parsed.citations
+                            };
+                            return newMessages;
+                          });
+                        } else if (parsed.type === 'search_start') {
+                          // Keep search indicator if no content yet
+                        } else if (parsed.type === 'complete') {
+                          // Update citations immediately if provided
+                          if (parsed.citations) {
                             setMessages(prev => {
                               const newMessages = [...prev];
-                              const currentMessage = newMessages[aiMessageIndex];
-                              newMessages[aiMessageIndex] = { 
-                                ...currentMessage,
+                              newMessages[aiMessageIndex] = {
+                                ...newMessages[aiMessageIndex],
                                 citations: parsed.citations
                               };
                               return newMessages;
                             });
-                          } else if (parsed.type === 'search_start') {
-                            if (isAILoading) {
-                              setIsAILoading(false);
-                            }
-                          } else if (parsed.type === 'completed') {
-                            waitForCompletion();
                           }
-                        } catch (e) {
-                          // Skip invalid JSON
+                          opponentStreamComplete = true;
                         }
+                      } catch (e) {
+                        // Skip invalid JSON
                       }
                     }
                   }
+                  if (opponentStreamComplete) break;
                 }
+
+                // Wait for queue to finish with timeout
+                const maxWaitTime = 2000;
+                const startWait = Date.now();
+                while ((charQueue.length > 0 || isProcessing) && (Date.now() - startWait < maxWaitTime)) {
+                  await new Promise(resolve => setTimeout(resolve, 50));
+                }
+                setIsAILoading(false);
               }
             } else {
               try {
@@ -890,7 +937,7 @@ export default function DebatePage() {
       {/* Input Area - Fixed */}
       <div className="border-t border-slate-700 bg-slate-900 flex-shrink-0">
         <div className="container mx-auto max-w-4xl px-4 py-4">
-          <div className="flex gap-3 items-end">
+          <div className="flex gap-3 items-start">
             <div className="flex-1 relative">
               <textarea
                 ref={textareaRef}
@@ -919,11 +966,12 @@ export default function DebatePage() {
               <button
                 onClick={handleAITakeover}
                 disabled={isLoading || isAITakeover}
-                className={`absolute right-3 top-1/2 -translate-y-1/2 h-8 w-8 flex items-center justify-center rounded-md transition-all group ${
+                className={`absolute right-3 h-8 w-8 flex items-center justify-center rounded-md transition-all group ${
                   isLoading || isAITakeover
                     ? 'text-slate-600 cursor-not-allowed'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
                 }`}
+                style={{ top: '24px', transform: 'translateY(-50%)' }}
                 title="Let AI argue for you"
               >
                 {/* Tooltip */}
@@ -934,7 +982,7 @@ export default function DebatePage() {
                   <div className="w-5 h-5 border-2 border-slate-600 border-t-transparent rounded-full animate-spin" />
                 ) : (
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                   </svg>
                 )}
               </button>
@@ -942,7 +990,7 @@ export default function DebatePage() {
             <button
               onClick={() => sendMessage()}
               disabled={isLoading || !userInput.trim()}
-              className={`px-6 py-3 rounded-lg font-medium transition-colors ${
+              className={`px-6 h-12 rounded-lg font-medium transition-colors flex items-center justify-center ${
                 isLoading || !userInput.trim()
                   ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
                   : 'bg-indigo-500 text-white hover:bg-indigo-600'
