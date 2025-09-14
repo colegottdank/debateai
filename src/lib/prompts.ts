@@ -7,7 +7,11 @@
 // MAIN DEBATE PROMPT (Used for all debates)
 // ============================================
 export function getDebatePrompt(persona: string, topic: string): string {
-  return `You are a debate opponent who must OPPOSE and COUNTER the user's arguments on the topic: "${topic}"
+  return `CRITICAL: When you cite web search results, you MUST add [1], [2], etc. inline in your text.
+Example: "Climate deaths reached 3,700 last year [1]"
+WITHOUT these [1] markers, your citations will NOT appear to users.
+
+You are a debate opponent who must OPPOSE and COUNTER the user's arguments on the topic: "${topic}"
 
 CRITICAL DEBATE RULE: You must ALWAYS argue AGAINST the user's position:
 - If they argue FOR something, you argue AGAINST it
@@ -56,7 +60,7 @@ Engage authentically as your persona. Be intellectually rigorous but conversatio
 // ============================================
 const DAILY_PERSONAS = [
   "Donald Trump",
-  "Barack Obama", 
+  "Barack Obama",
   "Jordan Peterson",
   "Alexandria Ocasio-Cortez",
   "Elon Musk",
@@ -85,7 +89,7 @@ const DAILY_PERSONAS = [
   "Megyn Kelly",
   "Chris Cuomo",
   "Don Lemon",
-  "Piers Morgan"
+  "Piers Morgan",
 ];
 
 /**
@@ -94,7 +98,9 @@ const DAILY_PERSONAS = [
  */
 export function getDailyPersona(): string {
   const today = new Date();
-  const dayOfYear = Math.floor((today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) / 86400000);
+  const dayOfYear = Math.floor(
+    (today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) / 86400000
+  );
   const index = dayOfYear % DAILY_PERSONAS.length;
   return DAILY_PERSONAS[index];
 }
@@ -103,19 +109,29 @@ export function getDailyPersona(): string {
 // AI TAKEOVER PROMPT (When AI argues for the user)
 // ============================================
 export function getTakeoverPrompt(
-  topic: string, 
+  topic: string,
   opponentStyle: string | undefined,
   conversationHistory: string,
   userArguments: string
 ): string {
-  return `You are an AI assistant helping a human in a debate about "${topic}".
+  return `CRITICAL: When citing web search results, ALWAYS add [1], [2] inline in your text.
+Example: "The data shows 45% increase [1]"
+Citations WILL NOT work without these [1] markers in your response.
+
+You are an AI assistant helping a human in a debate about "${topic}".
 
 DEBATE CONTEXT:
 - The human is arguing their position on the topic
-- The opponent${opponentStyle ? ` (${opponentStyle})` : ""} is arguing AGAINST the human's position
+- The opponent${
+    opponentStyle ? ` (${opponentStyle})` : ""
+  } is arguing AGAINST the human's position
 - Your job: Continue arguing FROM THE HUMAN'S SIDE against the opponent
 
-${opponentStyle ? `The opponent is ${opponentStyle}. They are opposing your arguments with their characteristic style. Counter them effectively while maintaining your position.` : ""}
+${
+  opponentStyle
+    ? `The opponent is ${opponentStyle}. They are opposing your arguments with their characteristic style. Counter them effectively while maintaining your position.`
+    : ""
+}
 
 Based on the human's previous arguments, you need to continue arguing from THEIR perspective and position AGAINST the opponent.
 
@@ -153,11 +169,15 @@ The human's position (based on their arguments): ${
   }
 
 Now generate the next argument FROM THE HUMAN'S PERSPECTIVE. Do not switch sides or argue against their position.
-${opponentStyle ? "\nWrite naturally and conversationally - this is a debate, not an essay. Show confidence and conviction." : ""}`;
+${
+  opponentStyle
+    ? "\nWrite naturally and conversationally - this is a debate, not an essay. Show confidence and conviction."
+    : ""
+}`;
 }
 
 // ============================================
-// TOPIC-BASED STYLE SUGGESTIONS  
+// TOPIC-BASED STYLE SUGGESTIONS
 // (For when user doesn't specify a persona)
 // ============================================
 export function suggestStyleForTopic(topic: string): string {
