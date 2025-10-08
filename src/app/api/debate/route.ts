@@ -7,7 +7,7 @@ import { checkAppDisabled } from "@/lib/app-disabled";
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
-  baseURL: process.env.HELICONE_BASE_URL || "https://anthropic.helicone.ai",
+  baseURL: "https://ai-gateway.helicone.ai",
   defaultHeaders: process.env.HELICONE_API_KEY
     ? {
         "Helicone-Auth": `Bearer ${process.env.HELICONE_API_KEY}`,
@@ -101,7 +101,7 @@ export async function POST(request: Request) {
           );
 
           const stream = await anthropic.messages.create({
-            model: "claude-sonnet-4-20250514",
+            model: "claude-sonnet-4:online",
             max_tokens: 600, // Further reduced to enforce brevity
             temperature: 0.7,
             system: systemPrompt,
