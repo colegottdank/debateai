@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
 import { getUserId } from "@/lib/auth-helper";
 import { d1 } from "@/lib/d1";
 import { getDebatePrompt, getDailyPersona } from "@/lib/prompts";
@@ -7,7 +6,7 @@ import { checkAppDisabled } from "@/lib/app-disabled";
 import OpenAI from "openai";
 
 const openai = new OpenAI({
-  apiKey: `Bearer ${process.env.HELICONE_API_KEY}`,
+  apiKey: `${process.env.HELICONE_API_KEY}`,
   baseURL: "https://ai-gateway.helicone.ai",
 });
 
@@ -75,6 +74,9 @@ export async function POST(request: Request) {
     // Add previous messages if they exist
     if (previousMessages && previousMessages.length > 0) {
       for (const msg of previousMessages) {
+        // Skip empty messages - Anthropic API requires non-empty content
+        if (!msg.content || msg.content.trim() === "") continue;
+
         if (msg.role === "user") {
           messages.push({ role: "user", content: msg.content });
         } else if (msg.role === "ai") {
@@ -100,7 +102,7 @@ export async function POST(request: Request) {
           );
 
           const stream = await openai.chat.completions.create({
-            model: "claude-sonnet-4:online",
+            model: "claude-sonnet-4:online/anthropic",
             max_tokens: 600,
             temperature: 0.7,
             messages: messages,
