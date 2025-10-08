@@ -4,15 +4,11 @@ import { getUserId } from "@/lib/auth-helper";
 import { d1 } from "@/lib/d1";
 import { getDebatePrompt, getDailyPersona } from "@/lib/prompts";
 import { checkAppDisabled } from "@/lib/app-disabled";
+import OpenAI from "openai";
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY!,
+const openai = new OpenAI({
+  apiKey: `Bearer ${process.env.HELICONE_API_KEY}`,
   baseURL: "https://ai-gateway.helicone.ai",
-  defaultHeaders: process.env.HELICONE_API_KEY
-    ? {
-        "Helicone-Auth": `Bearer ${process.env.HELICONE_API_KEY}`,
-      }
-    : {},
 });
 
 export async function POST(request: Request) {
@@ -70,8 +66,11 @@ export async function POST(request: Request) {
     const persona = opponentStyle || getDailyPersona();
     const systemPrompt = getDebatePrompt(persona, topic);
 
-    // Build conversation history for Claude
-    const messages: Anthropic.MessageParam[] = [];
+    // Build conversation history for OpenAI SDK format
+    const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [];
+
+    // Add system prompt as first message
+    messages.push({ role: "system", content: systemPrompt });
 
     // Add previous messages if they exist
     if (previousMessages && previousMessages.length > 0) {
@@ -100,20 +99,12 @@ export async function POST(request: Request) {
             encoder.encode(`data: ${JSON.stringify({ type: "start" })}\n\n`)
           );
 
-          const stream = await anthropic.messages.create({
+          const stream = await openai.chat.completions.create({
             model: "claude-sonnet-4:online",
-            max_tokens: 600, // Further reduced to enforce brevity
+            max_tokens: 600,
             temperature: 0.7,
-            system: systemPrompt,
             messages: messages,
             stream: true,
-            tools: [
-              {
-                type: "web_search_20250305",
-                name: "web_search",
-                max_uses: 1,
-              },
-            ],
           });
 
           let accumulatedContent = "";
