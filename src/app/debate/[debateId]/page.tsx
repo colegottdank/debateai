@@ -196,6 +196,22 @@ export default function DebatePage() {
   // Track if we've already sent the first message
   const [hasAutoSent, setHasAutoSent] = useState(false);
 
+  // Track tab visibility for streaming optimization
+  const [isTabVisible, setIsTabVisible] = useState(true);
+
+  // Listen to tab visibility changes
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      setIsTabVisible(!document.hidden);
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
   // Redirect to landing page if not authenticated
   useEffect(() => {
     if (isSignedIn === false) {
@@ -356,18 +372,40 @@ export default function DebatePage() {
       // Function to process character queue with typewriter effect
       const processCharQueue = () => {
         if (isProcessing || charQueue.length === 0) return;
-        
+
         isProcessing = true;
-        
+
         const processNextChar = () => {
           if (charQueue.length === 0) {
             isProcessing = false;
             return;
           }
-          
+
+          // If tab is hidden, batch process all characters at once
+          if (!isTabVisible) {
+            while (charQueue.length > 0) {
+              accumulatedContent += charQueue.shift()!;
+            }
+
+            requestAnimationFrame(() => {
+              setMessages(prev => {
+                const newMessages = [...prev];
+                newMessages[aiMessageIndex] = {
+                  ...newMessages[aiMessageIndex],
+                  content: accumulatedContent,
+                  ...(currentCitationsRef.current.length > 0 && { citations: currentCitationsRef.current })
+                };
+                return newMessages;
+              });
+            });
+
+            isProcessing = false;
+            return;
+          }
+
           const char = charQueue.shift()!;
           accumulatedContent += char;
-          
+
           requestAnimationFrame(() => {
             setMessages(prev => {
               const newMessages = [...prev];
@@ -379,14 +417,14 @@ export default function DebatePage() {
               return newMessages;
             });
           });
-          
+
           if (charQueue.length > 0) {
             setTimeout(processNextChar, CHAR_DELAY);
           } else {
             isProcessing = false;
           }
         };
-        
+
         processNextChar();
       };
 
@@ -569,7 +607,7 @@ export default function DebatePage() {
       const charQueue: string[] = [];
       let isProcessing = false;
       const CHAR_DELAY = 10; // Same delay as opponent responses
-      
+
       const processCharQueue = () => {
         if (isProcessing || charQueue.length === 0) return;
 
@@ -577,6 +615,29 @@ export default function DebatePage() {
 
         const processNextChar = () => {
           if (charQueue.length === 0) {
+            isProcessing = false;
+            return;
+          }
+
+          // If tab is hidden, batch process all characters at once
+          if (!isTabVisible) {
+            while (charQueue.length > 0) {
+              accumulatedAiArgument += charQueue.shift()!;
+            }
+
+            requestAnimationFrame(() => {
+              setMessages(prev => {
+                const newMessages = [...prev];
+                newMessages[userMessageIndex] = {
+                  ...newMessages[userMessageIndex],
+                  role: 'user',
+                  content: accumulatedAiArgument,
+                  aiAssisted: true
+                };
+                return newMessages;
+              });
+            });
+
             isProcessing = false;
             return;
           }
@@ -673,6 +734,28 @@ export default function DebatePage() {
 
                   const processNextChar = () => {
                     if (charQueue.length === 0) {
+                      isProcessing = false;
+                      return;
+                    }
+
+                    // If tab is hidden, batch process all characters at once
+                    if (!isTabVisible) {
+                      while (charQueue.length > 0) {
+                        accumulatedContent += charQueue.shift()!;
+                      }
+
+                      requestAnimationFrame(() => {
+                        setMessages(prev => {
+                          const newMessages = [...prev];
+                          newMessages[aiMessageIndex] = {
+                            ...newMessages[aiMessageIndex],
+                            role: 'ai',
+                            content: accumulatedContent
+                          };
+                          return newMessages;
+                        });
+                      });
+
                       isProcessing = false;
                       return;
                     }

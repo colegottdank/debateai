@@ -34,6 +34,9 @@ CRITICAL: If you use web search, you MUST add citation markers [1], [2] etc.
 - Users CANNOT see your sources without these markers
 - Example: "unemployment is 3.4%" ❌ WRONG - no citation visible
 - Example: "unemployment is 3.4% [1]" ✅ CORRECT - citation visible
+- DO NOT add a bibliography or reference list at the end of your response
+- The platform automatically displays clickable sources for each citation
+- Just use inline markers [1], [2] in your text and stop
 
 When to search:
 - ONLY for ONE surprising statistic that changes the debate
@@ -201,6 +204,9 @@ CRITICAL: If you use web search, you MUST add citation markers [1], [2] etc.
 - Users CANNOT see your sources without these markers
 - Example: "unemployment is 3.4%" ❌ WRONG - no citation visible
 - Example: "unemployment is 3.4% [1]" ✅ CORRECT - citation visible
+- DO NOT add a bibliography or reference list at the end of your response
+- The platform automatically displays clickable sources for each citation
+- Just use inline markers [1], [2] in your text and stop
 
 When to search:
 - ONLY for ONE surprising statistic that changes the debate

@@ -1,18 +1,13 @@
 import { NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 import { getUserId } from "@/lib/auth-helper";
 import { d1 } from "@/lib/d1";
 import { checkAppDisabled } from "@/lib/app-disabled";
 import { getTakeoverPrompt } from "@/lib/prompts";
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY!,
-  baseURL: process.env.HELICONE_BASE_URL || "https://anthropic.helicone.ai",
-  defaultHeaders: process.env.HELICONE_API_KEY
-    ? {
-        "Helicone-Auth": `Bearer ${process.env.HELICONE_API_KEY}`,
-      }
-    : {},
+const openai = new OpenAI({
+  apiKey: `${process.env.HELICONE_API_KEY}`,
+  baseURL: "https://ai-gateway.helicone.ai",
 });
 
 export async function POST(request: Request) {
@@ -93,6 +88,11 @@ export async function POST(request: Request) {
       ? `The opponent just said: "${lastOpponentMessage}"\n\nGenerate my response arguing for my position.`
       : `Generate my opening argument for this debate on "${topic}".`;
 
+    // Build messages for OpenAI SDK format
+    const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [];
+    messages.push({ role: "system", content: systemPrompt });
+    messages.push({ role: "user", content: userPrompt });
+
     // Generate the AI takeover response
     // eslint-disable-next-line prefer-const
     let controllerClosed = false; // Track if controller is closed
@@ -102,29 +102,16 @@ export async function POST(request: Request) {
         const encoder = new TextEncoder();
 
         try {
-          const response = await anthropic.messages.create({
-            model: "claude-sonnet-4-20250514",
+          const response = await openai.chat.completions.create({
+            model: "claude-sonnet-4:online/anthropic",
             max_tokens: 400, // Strictly enforce brevity for takeover
             temperature: 0.7,
-            system: systemPrompt,
-            messages: [
-              {
-                role: "user",
-                content: userPrompt,
-              },
-            ],
+            messages: messages,
             stream: true,
-            tools: [
-              {
-                type: "web_search_20250305",
-                name: "web_search",
-                max_uses: 1,
-              },
-            ],
           });
 
           let buffer = "";
-          let accumulatedContent = ""; // Track full content for citation filtering
+          let accumulatedContent = "";
           let lastFlushTime = Date.now();
           const BUFFER_TIME = 50; // Slower for more human-like streaming
           const BUFFER_SIZE = 5; // Smaller chunks for smoother flow
@@ -146,85 +133,65 @@ export async function POST(request: Request) {
             }
           };
 
-          for await (const event of response) {
-            if (event.type === "content_block_start") {
-              if (
-                event.content_block?.type === "server_tool_use" &&
-                event.content_block.name === "web_search"
-              ) {
-                // Web search is starting
+          for await (const chunk of response) {
+            const content = chunk.choices[0]?.delta?.content;
+            const annotations = chunk.choices[0]?.delta?.annotations;
+
+            // Process annotations (citations from web search)
+            if (annotations && Array.isArray(annotations)) {
+              for (const annotation of annotations) {
+                if (annotation.type === "url_citation" && annotation.url_citation) {
+                  const urlCitation = annotation.url_citation;
+
+                  // Check if we already have this citation (deduplicate by URL)
+                  const existingCitation = citations.find(
+                    c => c.url === urlCitation.url
+                  );
+
+                  if (!existingCitation) {
+                    // Create new citation
+                    const citationData = {
+                      id: citationCounter++,
+                      url: urlCitation.url,
+                      title: urlCitation.title || new URL(urlCitation.url).hostname,
+                    };
+                    citations.push(citationData);
+                  }
+                }
+              }
+
+              // Send citations update to frontend
+              if (citations.length > 0 && !controllerClosed) {
+                // Flush any pending content first
                 if (buffer) {
                   flushBuffer();
                 }
 
-                if (!controllerClosed) {
-                  controller.enqueue(
-                    encoder.encode(
-                      `data: ${JSON.stringify({
-                        type: "search_start",
-                        query: "Searching the web...",
-                      })}\n\n`
-                    )
-                  );
-                }
-              } else if (
-                event.content_block?.type === "web_search_tool_result"
-              ) {
-                // Web search results received - we'll map these to citations when referenced
-                // Store the results but don't create citations yet
-                const results = (event.content_block as any).content || [];
-              } else if (
-                // Handle new citation format with embedded citations
-                event.content_block?.type === "text" &&
-                (event.content_block as any).citations
-              ) {
-                // Text block with citations - new format
-                const blockCitations =
-                  (event.content_block as any).citations || [];
-                // Process citations but don't increment counter yet
+                controller.enqueue(
+                  encoder.encode(
+                    `data: ${JSON.stringify({
+                      type: "citations",
+                      citations: citations,
+                    })}\n\n`
+                  )
+                );
               }
-            } else if (event.type === "content_block_delta") {
-              if (event.delta.type === "citations_delta") {
-                // Just collect citations for the citation list - don't inject markers
-                const citation = (event.delta as any).citation;
+            }
+
+            if (content) {
+              accumulatedContent += content;
+
+              // Add characters to buffer one by one
+              for (const char of content) {
+                buffer += char;
+
+                // Flush small chunks frequently
+                const now = Date.now();
                 if (
-                  citation &&
-                  citation.type === "web_search_result_location"
+                  buffer.length >= BUFFER_SIZE ||
+                  (now - lastFlushTime >= BUFFER_TIME && buffer.length > 0)
                 ) {
-                  // Check if we already have this citation
-                  const existingCitation = citations.find(
-                    (c: any) =>
-                      c.url === citation.url && c.title === citation.title
-                  );
-
-                  if (!existingCitation) {
-                    // Create new citation for the list
-                    const citationData = {
-                      id: citationCounter++,
-                      url: citation.url,
-                      title: citation.title || new URL(citation.url).hostname,
-                      cited_text: citation.cited_text,
-                    };
-                    citations.push(citationData);
-                  }
-                  // Don't send any markers - Claude should add them in the text
-                }
-              } else if (event.delta.type === "text_delta") {
-                const chunk = event.delta.text;
-                accumulatedContent += chunk; // Accumulate for citation filtering
-
-                // Add characters to buffer one by one
-                for (const char of chunk) {
-                  buffer += char;
-
-                  // Flush small chunks frequently
-                  const now = Date.now();
-                  if (
-                    buffer.length >= BUFFER_SIZE ||
-                    (now - lastFlushTime >= BUFFER_TIME && buffer.length > 0)
-                  ) {
-                    flushBuffer();
-                  }
+                  flushBuffer();
                 }
               }
             }
@@ -233,18 +200,6 @@ export async function POST(request: Request) {
           // Flush any remaining buffer
           if (buffer) {
             flushBuffer();
-          }
-
-          // Send all citations since we now add markers when they're received
-          if (citations.length > 0 && !controllerClosed) {
-            controller.enqueue(
-              encoder.encode(
-                `data: ${JSON.stringify({
-                  type: "citations",
-                  citations: citations,
-                })}\n\n`
-              )
-            );
           }
 
           if (!controllerClosed) {

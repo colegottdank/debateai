@@ -114,6 +114,8 @@ export async function POST(request: Request) {
           let lastFlushTime = Date.now();
           const BUFFER_TIME = 20; // Reduced to 20ms for faster streaming
           const BUFFER_SIZE = 8; // Send 8 characters at a time for better speed
+          const citations: any[] = [];
+          let citationCounter = 1;
 
           // Simple flush function for character streaming
           const flushBuffer = () => {
@@ -133,6 +135,48 @@ export async function POST(request: Request) {
 
           for await (const chunk of stream) {
             const content = chunk.choices[0]?.delta?.content;
+            const annotations = chunk.choices[0]?.delta?.annotations;
+
+            // Process annotations (citations from web search)
+            if (annotations && Array.isArray(annotations)) {
+              for (const annotation of annotations) {
+                if (annotation.type === "url_citation" && annotation.url_citation) {
+                  const urlCitation = annotation.url_citation;
+
+                  // Check if we already have this citation (deduplicate by URL)
+                  const existingCitation = citations.find(
+                    c => c.url === urlCitation.url
+                  );
+
+                  if (!existingCitation) {
+                    // Create new citation
+                    const citationData = {
+                      id: citationCounter++,
+                      url: urlCitation.url,
+                      title: urlCitation.title || new URL(urlCitation.url).hostname,
+                    };
+                    citations.push(citationData);
+                  }
+                }
+              }
+
+              // Send citations update to frontend
+              if (citations.length > 0 && !controllerClosed) {
+                // Flush any pending content first
+                if (buffer) {
+                  flushBuffer();
+                }
+
+                controller.enqueue(
+                  encoder.encode(
+                    `data: ${JSON.stringify({
+                      type: "citations",
+                      citations: citations,
+                    })}\n\n`
+                  )
+                );
+              }
+            }
 
             if (content) {
               accumulatedContent += content;
@@ -183,6 +227,7 @@ export async function POST(request: Request) {
               existingMessages.push({
                 role: "ai",
                 content: accumulatedContent,
+                ...(citations.length > 0 && { citations }),
               });
 
               await d1.saveDebate({
@@ -204,6 +249,7 @@ export async function POST(request: Request) {
                   type: "complete",
                   content: accumulatedContent,
                   debateId: debateId,
+                  ...(citations.length > 0 && { citations }),
                 })}\n\n`
               )
             );
