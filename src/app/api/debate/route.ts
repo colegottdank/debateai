@@ -135,17 +135,21 @@ export async function POST(request: Request) {
 
           for await (const chunk of stream) {
             const content = chunk.choices[0]?.delta?.content;
-            const annotations = chunk.choices[0]?.delta?.annotations;
+            const delta = chunk.choices[0]?.delta as any;
+            const annotations = delta?.annotations;
 
             // Process annotations (citations from web search)
             if (annotations && Array.isArray(annotations)) {
               for (const annotation of annotations) {
-                if (annotation.type === "url_citation" && annotation.url_citation) {
+                if (
+                  annotation.type === "url_citation" &&
+                  annotation.url_citation
+                ) {
                   const urlCitation = annotation.url_citation;
 
                   // Check if we already have this citation (deduplicate by URL)
                   const existingCitation = citations.find(
-                    c => c.url === urlCitation.url
+                    (c) => c.url === urlCitation.url
                   );
 
                   if (!existingCitation) {
@@ -153,7 +157,8 @@ export async function POST(request: Request) {
                     const citationData = {
                       id: citationCounter++,
                       url: urlCitation.url,
-                      title: urlCitation.title || new URL(urlCitation.url).hostname,
+                      title:
+                        urlCitation.title || new URL(urlCitation.url).hostname,
                     };
                     citations.push(citationData);
                   }
