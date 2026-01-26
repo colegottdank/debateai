@@ -43,3 +43,7 @@ next-env.d.ts
 # development tools
 .claude/
 .playwright-mcp/
+
+# clerk configuration (can include secrets)
+/.clerk/
+.env.local
