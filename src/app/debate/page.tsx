@@ -9,16 +9,18 @@ import Header from '@/components/Header';
 import { useSubscription } from '@/lib/useSubscription';
 import { TOPIC_CATEGORIES, getTopicSuggestions, type Topic } from '@/lib/topics';
 import { PERSONAS, PERSONA_CATEGORIES, type Persona, type PersonaCategory } from '@/lib/personas';
+import { useTrending, type TrendingTopic } from '@/lib/useTrending';
 
-type Tab = 'quick' | 'topics' | 'personas' | 'custom';
+type Tab = 'trending' | 'quick' | 'topics' | 'personas' | 'custom';
 
 export default function DebatePage() {
   const { isSignedIn } = useUser();
   const { openSignIn } = useClerk();
   const router = useRouter();
   const { isPremium, debatesUsed, debatesLimit } = useSubscription();
+  const { topics: trendingTopics, loading: trendingLoading } = useTrending();
   
-  const [activeTab, setActiveTab] = useState<Tab>('quick');
+  const [activeTab, setActiveTab] = useState<Tab>('trending');
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
   const [selectedPersona, setSelectedPersona] = useState<Persona | null>(null);
   const [selectedTopicCategory, setSelectedTopicCategory] = useState<string | null>(null);
@@ -116,6 +118,7 @@ export default function DebatePage() {
         {/* Tabs */}
         <div className="flex justify-center gap-2 mb-8 flex-wrap">
           {[
+            { id: 'trending', label: '🔥 Trending Now' },
             { id: 'quick', label: '⚡ Quick Start' },
             { id: 'topics', label: '📚 Topics' },
             { id: 'personas', label: '🎭 Opponents' },
@@ -130,6 +133,51 @@ export default function DebatePage() {
 
         {/* Tab Content */}
         <div className="mb-8">
+          {activeTab === 'trending' && (
+            <div className="space-y-6">
+              <p className="text-center text-slate-400 text-sm">
+                {trendingLoading ? 'Loading what the world is arguing about...' : 'Fresh debates from today\'s news'}
+              </p>
+              {trendingLoading ? (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {[1,2,3].map(i => (
+                    <div key={i} className="p-4 rounded-xl border border-slate-700 bg-slate-800/50 animate-pulse">
+                      <div className="h-4 bg-slate-700 rounded w-1/3 mb-3"></div>
+                      <div className="h-5 bg-slate-700 rounded w-full mb-2"></div>
+                      <div className="h-3 bg-slate-700 rounded w-2/3"></div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {trendingTopics.map((topic) => (
+                    <button key={topic.id} onClick={() => { 
+                      setSelectedTopic({ id: topic.id, question: topic.question, spicyLevel: topic.heat }); 
+                      setCustomTopic(''); 
+                    }}
+                      className={`p-4 rounded-xl border text-left transition-all ${selectedTopic?.id === topic.id ? 'border-indigo-500 bg-indigo-500/10' : 'border-slate-700 bg-slate-800/50 hover:border-slate-600'}`}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${
+                          topic.category === 'politics' ? 'bg-red-500/20 text-red-400' :
+                          topic.category === 'tech' ? 'bg-blue-500/20 text-blue-400' :
+                          topic.category === 'culture' ? 'bg-purple-500/20 text-purple-400' :
+                          topic.category === 'business' ? 'bg-green-500/20 text-green-400' :
+                          'bg-slate-500/20 text-slate-400'
+                        }`}>{topic.category}</span>
+                        <div className="flex">{[...Array(topic.heat)].map((_, i) => <span key={i} className="text-xs">🔥</span>)}</div>
+                      </div>
+                      <p className="text-slate-100 font-medium mb-2">{topic.question}</p>
+                      <p className="text-xs text-slate-500">{topic.context}</p>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {!trendingLoading && trendingTopics.length === 0 && (
+                <p className="text-center text-slate-500">No trending topics available. Try Quick Start!</p>
+              )}
+            </div>
+          )}
+
           {activeTab === 'quick' && (
             <div className="space-y-6">
               <p className="text-center text-slate-400 text-sm">Click a combination to select it</p>
