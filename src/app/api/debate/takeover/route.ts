@@ -94,7 +94,6 @@ export async function POST(request: Request) {
     messages.push({ role: "user", content: userPrompt });
 
     // Generate the AI takeover response
-    // eslint-disable-next-line prefer-const
     let controllerClosed = false; // Track if controller is closed
 
     const stream = new ReadableStream({
@@ -111,7 +110,6 @@ export async function POST(request: Request) {
           });
 
           let buffer = "";
-          let accumulatedContent = "";
           let lastFlushTime = Date.now();
           const BUFFER_TIME = 50; // Slower for more human-like streaming
           const BUFFER_SIZE = 5; // Smaller chunks for smoother flow
@@ -135,7 +133,6 @@ export async function POST(request: Request) {
 
           for await (const chunk of response) {
             const content = chunk.choices[0]?.delta?.content;
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const annotations = (chunk.choices[0]?.delta as any)?.annotations;
 
             // Process annotations (citations from web search)
@@ -180,8 +177,6 @@ export async function POST(request: Request) {
             }
 
             if (content) {
-              accumulatedContent += content;
-
               // Add characters to buffer one by one
               for (const char of content) {
                 buffer += char;
