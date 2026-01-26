@@ -135,7 +135,8 @@ export async function POST(request: Request) {
 
           for await (const chunk of response) {
             const content = chunk.choices[0]?.delta?.content;
-            const annotations = chunk.choices[0]?.delta?.annotations;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const annotations = (chunk.choices[0]?.delta as any)?.annotations;
 
             // Process annotations (citations from web search)
             if (annotations && Array.isArray(annotations)) {
