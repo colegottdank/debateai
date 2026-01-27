@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DebateAI - Redesign Preview</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg-primary: #0C0C0D;
+      --bg-secondary: #141416;
+      --bg-tertiary: #1A1A1D;
+      --bg-elevated: #202024;
+      
+      --border-subtle: rgba(255, 255, 255, 0.06);
+      --border-default: rgba(255, 255, 255, 0.1);
+      --border-hover: rgba(255, 255, 255, 0.15);
+      
+      --text-primary: #FAFAFA;
+      --text-secondary: rgba(250, 250, 250, 0.7);
+      --text-tertiary: rgba(250, 250, 250, 0.5);
+      --text-muted: rgba(250, 250, 250, 0.35);
+      
+      --accent: #6366F1;
+      --accent-hover: #818CF8;
+      --accent-muted: rgba(99, 102, 241, 0.15);
+    }
+
+    html.light {
+      --bg-primary: #FAFAFA;
+      --bg-secondary: #FFFFFF;
+      --bg-tertiary: #F4F4F5;
+      --bg-elevated: #FFFFFF;
+      
+      --border-subtle: rgba(0, 0, 0, 0.04);
+      --border-default: rgba(0, 0, 0, 0.08);
+      --border-hover: rgba(0, 0, 0, 0.12);
+      
+      --text-primary: #09090B;
+      --text-secondary: rgba(9, 9, 11, 0.7);
+      --text-tertiary: rgba(9, 9, 11, 0.5);
+      --text-muted: rgba(9, 9, 11, 0.35);
+      
+      --accent: #4F46E5;
+      --accent-hover: #6366F1;
+      --accent-muted: rgba(79, 70, 229, 0.1);
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .app { min-height: 100vh; display: flex; flex-direction: column; }
+
+    .header {
+      padding: 0.75rem 1.5rem;
+      border-bottom: 1px solid var(--border-subtle);
+      background: var(--bg-secondary);
+      position: sticky; top: 0; z-index: 100;
+    }
+
+    .header-inner { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+
+    .logo { display: flex; align-items: center; gap: 0.75rem; text-decoration: none; color: var(--text-primary); }
+
+    .logo-icon {
+      width: 32px; height: 32px;
+      background: linear-gradient(135deg, var(--accent) 0%, #8B5CF6 100%);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .logo-icon svg { width: 18px; height: 18px; color: white; }
+    .logo-text { font-weight: 600; font-size: 1.125rem; letter-spacing: -0.02em; }
+
+    .nav { display: flex; align-items: center; gap: 1.5rem; }
+
+    .nav-link {
+      font-size: 0.875rem; font-weight: 500;
+      color: var(--text-tertiary);
+      text-decoration: none; transition: color 0.2s ease;
+      cursor: pointer; background: none; border: none;
+    }
+    .nav-link:hover { color: var(--text-primary); }
+
+    .theme-toggle {
+      width: 36px; height: 36px; border-radius: 10px;
+      border: 1px solid var(--border-default);
+      background: var(--bg-tertiary);
+      color: var(--text-secondary);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: all 0.2s ease;
+    }
+    .theme-toggle:hover { border-color: var(--border-hover); color: var(--text-primary); }
+
+    .main { flex: 1; display: flex; align-items: center; justify-content: center; padding: 3rem 1.5rem; }
+    .content { max-width: 680px; width: 100%; }
+
+    .topic-section { text-align: center; margin-bottom: 3rem; animation: fadeInUp 0.6s ease-out; }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .topic-label {
+      font-size: 0.75rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.1em;
+      color: var(--accent); margin-bottom: 1rem;
+    }
+
+    .topic-title {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: clamp(1.75rem, 4vw, 2.5rem);
+      font-weight: 600; line-height: 1.25;
+      color: var(--text-primary);
+      margin-bottom: 1.25rem; letter-spacing: -0.02em;
+    }
+
+    .opponent-info { font-size: 1rem; color: var(--text-secondary); }
+    .opponent-name { color: var(--text-primary); font-weight: 500; }
+
+    .input-section { animation: fadeInUp 0.6s ease-out 0.1s backwards; }
+
+    .textarea {
+      width: 100%; min-height: 140px;
+      padding: 1.25rem; font-family: inherit;
+      font-size: 1rem; line-height: 1.6;
+      color: var(--text-primary);
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-default);
+      border-radius: 16px; resize: none;
+      transition: all 0.2s ease;
+    }
+    .textarea::placeholder { color: var(--text-muted); }
+    .textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-muted); }
+    .textarea:hover:not(:focus) { border-color: var(--border-hover); }
+
+    .button-group { display: flex; gap: 0.75rem; margin-top: 1rem; }
+
+    .btn {
+      padding: 0.875rem 1.5rem; font-family: inherit;
+      font-size: 0.9375rem; font-weight: 500;
+      border-radius: 12px; border: none;
+      cursor: pointer; transition: all 0.2s ease;
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+
+    .btn-primary { flex: 1; background: var(--accent); color: white; }
+    .btn-primary:hover:not(:disabled) { background: var(--accent-hover); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25); }
+    .btn-primary:disabled { background: var(--bg-elevated); color: var(--text-muted); cursor: not-allowed; }
+
+    .btn-secondary { background: transparent; color: var(--text-secondary); border: 1px solid var(--border-default); }
+    .btn-secondary:hover { background: var(--bg-tertiary); border-color: var(--border-hover); color: var(--text-primary); }
+
+    .helper-text { text-align: center; margin-top: 1.25rem; }
+    .helper-primary { font-size: 0.875rem; color: var(--text-secondary); }
+    .helper-secondary { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.375rem; }
+
+    .kbd {
+      display: inline-flex; align-items: center;
+      padding: 0.125rem 0.375rem;
+      font-family: 'SF Mono', monospace; font-size: 0.7rem;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-default);
+      border-radius: 4px; margin: 0 0.125rem;
+    }
+
+    .links { display: flex; align-items: center; justify-content: center; gap: 2rem; margin-top: 3rem; animation: fadeInUp 0.6s ease-out 0.2s backwards; }
+    .link { font-size: 0.875rem; color: var(--text-tertiary); text-decoration: none; transition: color 0.2s ease; }
+    .link:hover { color: var(--text-primary); }
+
+    .footer { padding: 1.5rem; border-top: 1px solid var(--border-subtle); text-align: center; }
+    .footer-text { font-size: 0.75rem; color: var(--text-muted); }
+
+    /* Chat */
+    .chat-preview { display: none; flex-direction: column; height: 100vh; }
+    .chat-preview.active { display: flex; }
+    .app.chat-mode > *:not(.chat-preview) { display: none; }
+
+    .chat-header { padding: 0.75rem 1.5rem; border-bottom: 1px solid var(--border-subtle); background: var(--bg-secondary); }
+    .chat-topic { max-width: 900px; margin: 0 auto; display: flex; align-items: center; gap: 0.75rem; font-size: 0.875rem; flex-wrap: wrap; }
+    .chat-topic-label { color: var(--text-tertiary); }
+    .chat-topic-text { color: var(--text-primary); font-weight: 500; }
+
+    .chat-messages { flex: 1; overflow-y: auto; padding: 1.5rem; }
+    .chat-messages-inner { max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; gap: 1.5rem; }
+
+    .message { display: flex; flex-direction: column; max-width: 75%; }
+    .message.user { align-self: flex-end; }
+    .message.ai { align-self: flex-start; }
+
+    .message-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.375rem; font-size: 0.8125rem; color: var(--text-tertiary); }
+    .message-avatar { width: 20px; height: 20px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; }
+    .message.ai .message-avatar { background: var(--accent-muted); }
+
+    .message-content { padding: 1rem 1.25rem; border-radius: 16px; font-size: 0.9375rem; line-height: 1.65; }
+    .message.user .message-content { background: var(--accent); color: white; border-bottom-right-radius: 4px; }
+    .message.ai .message-content { background: var(--bg-secondary); border: 1px solid var(--border-default); color: var(--text-primary); border-bottom-left-radius: 4px; }
+
+    .chat-input { padding: 1rem 1.5rem 1.5rem; border-top: 1px solid var(--border-subtle); background: var(--bg-primary); }
+    .chat-input-inner { max-width: 900px; margin: 0 auto; display: flex; gap: 0.75rem; align-items: flex-end; }
+
+    .chat-textarea-wrapper { flex: 1; position: relative; }
+    .chat-textarea {
+      width: 100%; min-height: 52px; max-height: 200px;
+      padding: 0.875rem 3rem 0.875rem 1rem;
+      font-family: inherit; font-size: 0.9375rem; line-height: 1.5;
+      color: var(--text-primary); background: var(--bg-secondary);
+      border: 1px solid var(--border-default); border-radius: 14px;
+      resize: none; transition: all 0.2s ease;
+    }
+    .chat-textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-muted); }
+
+    .ai-takeover-btn {
+      position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%);
+      width: 32px; height: 32px; border: none; background: transparent;
+      color: var(--text-muted); cursor: pointer; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;
+    }
+    .ai-takeover-btn:hover { background: var(--bg-tertiary); color: var(--accent); }
+
+    .send-btn {
+      width: 52px; height: 52px; border-radius: 14px; border: none;
+      background: var(--accent); color: white; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;
+    }
+    .send-btn:hover:not(:disabled) { background: var(--accent-hover); transform: translateY(-1px); }
+    .send-btn:disabled { background: var(--bg-elevated); color: var(--text-muted); cursor: not-allowed; }
+
+    .view-toggle {
+      position: fixed; bottom: 1.5rem; right: 1.5rem;
+      display: flex; gap: 0.5rem; padding: 0.5rem;
+      background: var(--bg-secondary); border: 1px solid var(--border-default);
+      border-radius: 12px; z-index: 1000;
+    }
+    .view-btn {
+      padding: 0.5rem 1rem; font-size: 0.8125rem; font-weight: 500;
+      border: none; border-radius: 8px; cursor: pointer;
+      transition: all 0.2s ease; background: transparent; color: var(--text-tertiary);
+    }
+    .view-btn.active { background: var(--accent); color: white; }
+  </style>
+</head>
+<body>
+  <div class="app" id="app">
+    <header class="header">
+      <div class="header-inner">
+        <a href="#" class="logo">
+          <div class="logo-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+          </div>
+          <span class="logo-text">DebateAI</span>
+        </a>
+        <nav class="nav">
+          <button class="nav-link">Upgrade</button>
+          <button class="nav-link">Sign In</button>
+          <button class="theme-toggle" onclick="toggleTheme()" id="themeToggle">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="themeIcon">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+          </button>
+        </nav>
+      </div>
+    </header>
+
+    <main class="main">
+      <div class="content">
+        <div class="topic-section">
+          <div class="topic-label">Today's Debate</div>
+          <h1 class="topic-title">Should AI systems be required to explain their decision-making processes?</h1>
+          <p class="opponent-info">Debating against <span class="opponent-name">Devil's Advocate</span></p>
+        </div>
+
+        <div class="input-section">
+          <textarea class="textarea" placeholder="Share your position on this topic..." id="userInput"></textarea>
+          <div class="button-group">
+            <button class="btn btn-primary" id="startBtn" disabled>Begin Debate</button>
+            <button class="btn btn-secondary">Reset</button>
+          </div>
+          <div class="helper-text">
+            <p class="helper-primary">Your argument will kickstart the conversation</p>
+            <p class="helper-secondary">Press <span class="kbd">⌘</span><span class="kbd">↵</span> to start</p>
+          </div>
+        </div>
+
+        <div class="links">
+          <a href="#" class="link">Advanced Setup</a>
+          <a href="#" class="link">Past Debates</a>
+        </div>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <p class="footer-text">Sharpen your critical thinking through AI-powered debate</p>
+    </footer>
+
+    <div class="chat-preview" id="chatPreview">
+      <header class="header">
+        <div class="header-inner">
+          <a href="#" class="logo" onclick="switchView('home')">
+            <div class="logo-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              </svg>
+            </div>
+            <span class="logo-text">DebateAI</span>
+          </a>
+          <nav class="nav">
+            <button class="nav-link">End Debate</button>
+            <button class="theme-toggle" onclick="toggleTheme()">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+              </svg>
+            </button>
+          </nav>
+        </div>
+      </header>
+
+      <div class="chat-header">
+        <div class="chat-topic">
+          <span class="chat-topic-label">Topic:</span>
+          <span class="chat-topic-text">Should AI systems be required to explain their decision-making processes?</span>
+          <span style="color: var(--text-muted)">•</span>
+          <span class="chat-topic-label">vs</span>
+          <span class="chat-topic-text">Devil's Advocate</span>
+        </div>
+      </div>
+
+      <div class="chat-messages">
+        <div class="chat-messages-inner">
+          <div class="message user">
+            <div class="message-header" style="justify-content: flex-end;"><span>You</span></div>
+            <div class="message-content">
+              Yes, I believe AI transparency is essential. When algorithms make decisions that affect people's lives—whether in healthcare, finance, or criminal justice—those affected deserve to understand why. Explainability builds trust and allows us to identify and correct biases.
+            </div>
+          </div>
+
+          <div class="message ai">
+            <div class="message-header">
+              <div class="message-avatar">😈</div>
+              <span>Devil's Advocate</span>
+            </div>
+            <div class="message-content">
+              An interesting position, but let me push back. Requiring explainability could significantly hamper AI innovation. The most powerful models—deep neural networks—are inherently complex. Demanding explanations might force us to use simpler, less accurate models. Would you accept a 20% drop in cancer detection accuracy just to have an explanation?
+              <br><br>
+              Moreover, "explainability" is often an illusion. Humans make intuitive decisions they can't fully explain either. We post-hoc rationalize. Why hold AI to a higher standard than we hold ourselves?
+            </div>
+          </div>
+
+          <div class="message user">
+            <div class="message-header" style="justify-content: flex-end;"><span>You</span></div>
+            <div class="message-content">
+              That's a false dichotomy. Explainable AI research has made significant strides—techniques like LIME and SHAP can provide insights into complex models without sacrificing much performance. We don't need to choose between accuracy and transparency.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="chat-input">
+        <div class="chat-input-inner">
+          <div class="chat-textarea-wrapper">
+            <textarea class="chat-textarea" placeholder="Continue your argument..." rows="1"></textarea>
+            <button class="ai-takeover-btn" title="Let AI argue for you">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+              </svg>
+            </button>
+          </div>
+          <button class="send-btn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="22" y1="2" x2="11" y2="13"/>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="view-toggle">
+    <button class="view-btn active" onclick="switchView('home')" id="homeBtn">Home</button>
+    <button class="view-btn" onclick="switchView('chat')" id="chatBtn">Chat</button>
+  </div>
+
+  <script>
+    function toggleTheme() {
+      const html = document.documentElement;
+      const icon = document.getElementById('themeIcon');
+      if (html.classList.contains('dark')) {
+        html.classList.remove('dark');
+        html.classList.add('light');
+        icon.innerHTML = '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>';
+      } else {
+        html.classList.remove('light');
+        html.classList.add('dark');
+        icon.innerHTML = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+      }
+    }
+
+    function switchView(view) {
+      const app = document.getElementById('app');
+      const homeBtn = document.getElementById('homeBtn');
+      const chatBtn = document.getElementById('chatBtn');
+      const chatPreview = document.getElementById('chatPreview');
+      
+      if (view === 'chat') {
+        app.classList.add('chat-mode');
+        chatPreview.classList.add('active');
+        chatBtn.classList.add('active');
+        homeBtn.classList.remove('active');
+      } else {
+        app.classList.remove('chat-mode');
+        chatPreview.classList.remove('active');
+        homeBtn.classList.add('active');
+        chatBtn.classList.remove('active');
+      }
+    }
+
+    const input = document.getElementById('userInput');
+    const btn = document.getElementById('startBtn');
+    input.addEventListener('input', function() { btn.disabled = !this.value.trim(); });
+    btn.addEventListener('click', function() { if (!btn.disabled) switchView('chat'); });
+  </script>
+</body>
+</html>

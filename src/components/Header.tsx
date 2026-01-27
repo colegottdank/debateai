@@ -13,16 +13,19 @@ export default function Header() {
 
   return (
     <>
-      <header className="border-b border-slate-700 bg-slate-900 flex-shrink-0">
-        <div className="container mx-auto px-4 py-4">
+      <header className="border-b flex-shrink-0 sticky top-0 z-50 backdrop-blur-xl" style={{ 
+        borderColor: 'var(--border-subtle)',
+        background: 'var(--bg-secondary)'
+      }}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
           <div className="flex justify-between items-center">
-            <Link href="/" className="flex items-center gap-2.5">
-              <img 
-                src="/favicon-512.png" 
-                alt="DebateAI" 
-                className="w-[34px] h-[34px]"
-              />
-              <span className="text-lg font-medium text-slate-100">
+            <Link href="/" className="flex items-center gap-2.5 group">
+              <div className="logo-icon">
+                <svg className="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                </svg>
+              </div>
+              <span className="text-lg font-semibold tracking-tight" style={{ color: 'var(--text-primary)' }}>
                 DebateAI
               </span>
             </Link>
@@ -33,7 +36,8 @@ export default function Header() {
                 {!isLoading && !isPremium && (
                   <button
                     onClick={() => setShowUpgradeModal(true)}
-                    className="text-sm text-slate-400 hover:text-slate-100 transition-colors"
+                    className="text-sm font-medium transition-colors"
+                    style={{ color: 'var(--text-tertiary)' }}
                   >
                     Upgrade
                   </button>
@@ -42,11 +46,20 @@ export default function Header() {
 
               {/* Auth */}
               <SignedIn>
-                <UserButton />
+                <UserButton 
+                  appearance={{
+                    elements: {
+                      avatarBox: 'w-8 h-8'
+                    }
+                  }}
+                />
               </SignedIn>
               <SignedOut>
                 <SignInButton mode="modal">
-                  <button className="text-slate-100 hover:text-slate-200 transition-colors text-sm">
+                  <button 
+                    className="text-sm font-medium transition-colors"
+                    style={{ color: 'var(--text-primary)' }}
+                  >
                     Sign In
                   </button>
                 </SignInButton>
