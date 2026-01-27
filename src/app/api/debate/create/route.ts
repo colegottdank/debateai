@@ -27,11 +27,6 @@ export async function POST(request: Request) {
     
     // Use custom style if provided, otherwise use the character type
     const effectiveOpponent = opponent || 'custom';
-    // Note: effectiveStyle intentionally unused - may be used in future for display
-    void (opponentStyle || opponent);
-
-    // Get user info - currently unused but available for future features
-    void currentUser();
 
     // Create initial debate with welcome message
     const initialMessages = [{
