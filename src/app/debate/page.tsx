@@ -21,8 +21,8 @@ export default function DebatePage() {
   const { isPremium, debatesUsed, debatesLimit } = useSubscription();
   const { topics: trendingTopics, loading: trendingLoading } = useTrending();
   
-  // Topic state
-  const [topicMode, setTopicMode] = useState<TopicMode>('trending');
+  // Topic state - default to 'browse' since trending requires API and may fail
+  const [topicMode, setTopicMode] = useState<TopicMode>('browse');
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
   const [selectedTrendingTopic, setSelectedTrendingTopic] = useState<TrendingTopic | null>(null);
   const [selectedTopicCategory, setSelectedTopicCategory] = useState<string | null>(null);
