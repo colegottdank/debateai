@@ -59,7 +59,7 @@ const Message = memo(({ msg, opponent, debate, isAILoading, isUserLoading, isNew
   };
   return (
     <div className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} ${isNew ? 'animate-slide-up' : ''}`}>
-      <div className={`max-w-[85%] md:max-w-[75%] ${msg.role === 'user' ? 'order-2' : 'order-1'}`}>
+      <div className={`max-w-[70%] ${msg.role === 'user' ? 'order-2' : 'order-1'}`}>
         {msg.role === 'ai' && (
           <div className="flex items-center gap-2 mb-1">
             <span className="text-sm">{opponent?.avatar || '🤖'}</span>
@@ -950,19 +950,25 @@ export default function DebatePage() {
     <div className="h-screen bg-background flex flex-col overflow-hidden animate-fade-in">
       <Header />
       
-      {/* Topic Display - Compact */}
+      {/* Topic Display */}
       {debate && (
-        <div className="border-b border-slate-700/50 bg-slate-800/50 px-4 py-2">
-          <div className="container mx-auto max-w-4xl flex items-center justify-between">
-            <p className="text-sm text-slate-300 truncate flex-1 mr-4">
-              <span className="font-medium">{debate.topic}</span>
-            </p>
-            {(debate.opponentStyle || opponent) && (
-              <div className="flex items-center gap-2 text-sm text-slate-400 flex-shrink-0">
-                <span>vs</span>
-                <span className="font-medium text-slate-200">{debate.opponentStyle || opponent?.name}</span>
+        <div className="border-b border-slate-700 bg-slate-800 px-4 py-3 animate-slide-down">
+          <div className="container mx-auto max-w-4xl">
+            <div className="flex items-center gap-3 text-sm">
+              <div className="text-slate-100">
+                <span className="text-slate-400 mr-2">Topic:</span>
+                <span className="font-medium">{debate.topic}</span>
               </div>
-            )}
+              {(debate.opponentStyle || opponent) && (
+                <>
+                  <span className="text-slate-600">•</span>
+                  <div className="text-slate-100">
+                    <span className="text-slate-400 mr-2">Opponent:</span>
+                    <span className="font-medium">{debate.opponentStyle || opponent?.name}</span>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -1012,70 +1018,68 @@ export default function DebatePage() {
     </div>
 
       {/* Input Area - Fixed */}
-      <div className="border-t border-slate-700 bg-slate-900/95 backdrop-blur flex-shrink-0">
-        <div className="container mx-auto max-w-4xl px-4 py-3">
-          <div className="flex gap-2 items-end">
-            {/* AI Takeover Button */}
-            <button
-              onClick={handleAITakeover}
-              disabled={isLoading || isAITakeover}
-              className={`h-11 w-11 flex items-center justify-center rounded-lg transition-all flex-shrink-0 ${
-                isLoading || isAITakeover
-                  ? 'bg-slate-800 text-slate-600 cursor-not-allowed'
-                  : 'bg-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-700'
-              }`}
-              title="Let AI argue for you"
-            >
-              {isAITakeover ? (
-                <div className="w-5 h-5 border-2 border-slate-600 border-t-slate-400 rounded-full animate-spin" />
-              ) : (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                </svg>
-              )}
-            </button>
-            
-            {/* Textarea */}
-            <textarea
-              ref={textareaRef}
-              value={userInput}
-              onChange={(e) => {
-                setUserInput(e.target.value);
-                e.target.style.height = 'auto';
-                const newHeight = Math.min(e.target.scrollHeight, 160);
-                e.target.style.height = newHeight + 'px';
-                e.target.style.overflowY = e.target.scrollHeight > 160 ? 'auto' : 'hidden';
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  sendMessage();
-                }
-              }}
-              placeholder="Your argument..."
-              className="flex-1 px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg focus:border-indigo-500 focus:outline-none text-slate-100 placeholder-slate-500 resize-none leading-6"
-              style={{ minHeight: '44px', maxHeight: '160px', overflowY: 'hidden' }}
-              rows={1}
-              disabled={isLoading}
-            />
-            
-            {/* Send Button */}
+      <div className="border-t border-slate-700 bg-slate-900 flex-shrink-0">
+        <div className="container mx-auto max-w-4xl px-4 py-4">
+          <div className="flex gap-3 items-start">
+            <div className="flex-1 relative">
+              <textarea
+                ref={textareaRef}
+                value={userInput}
+                onChange={(e) => {
+                  setUserInput(e.target.value);
+                  // Auto-resize textarea
+                  e.target.style.height = 'auto';
+                  const newHeight = Math.min(e.target.scrollHeight, 200);
+                  e.target.style.height = newHeight + 'px';
+                  // Only show scrollbar if content exceeds max height
+                  e.target.style.overflowY = e.target.scrollHeight > 200 ? 'auto' : 'hidden';
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                  }
+                }}
+                placeholder="Type your argument... (Shift+Enter for new line)"
+                className="w-full px-4 py-3 pr-12 bg-slate-800 border border-slate-700 rounded-lg focus:border-indigo-500 focus:outline-none text-slate-100 placeholder-slate-500 resize-none leading-6"
+                style={{ minHeight: '48px', maxHeight: '200px', overflowY: 'hidden' }}
+                rows={1}
+                disabled={isLoading}
+              />
+              <button
+                onClick={handleAITakeover}
+                disabled={isLoading || isAITakeover}
+                className={`absolute right-3 h-8 w-8 flex items-center justify-center rounded-md transition-all group ${
+                  isLoading || isAITakeover
+                    ? 'text-slate-600 cursor-not-allowed'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
+                }`}
+                style={{ top: '24px', transform: 'translateY(-50%)' }}
+                title="Let AI argue for you"
+              >
+                {/* Tooltip */}
+                <span className="absolute bottom-full right-0 mb-2 px-2 py-1 text-xs text-slate-200 bg-slate-800 rounded border border-slate-700 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                  AI will argue for you
+                </span>
+                {isAITakeover ? (
+                  <div className="w-5 h-5 border-2 border-slate-600 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
+                )}
+              </button>
+            </div>
             <button
               onClick={() => sendMessage()}
               disabled={isLoading || !userInput.trim()}
-              className={`h-11 px-5 rounded-lg font-medium transition-all flex items-center justify-center flex-shrink-0 ${
+              className={`px-6 h-12 rounded-lg font-medium transition-colors flex items-center justify-center ${
                 isLoading || !userInput.trim()
                   ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
                   : 'bg-indigo-500 text-white hover:bg-indigo-600'
               }`}
             >
-              {isLoading ? (
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                </svg>
-              )}
+              Send
             </button>
           </div>
         </div>
