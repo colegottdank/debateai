@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { currentUser } from '@clerk/nextjs/server';
 import { d1 } from '@/lib/d1';
 import { OpponentType } from '@/lib/opponents';
 import { getUserId } from '@/lib/auth-helper';
