@@ -27,6 +27,11 @@ export async function POST(request: Request) {
     
     // Use custom style if provided, otherwise use the character type
     const effectiveOpponent = opponent || 'custom';
+    const effectiveStyle = opponentStyle || opponent;
+
+    // Get user info for the debate
+    const user = await currentUser();
+    const username = user?.firstName || user?.username || 'Anonymous';
 
     // Create initial debate with welcome message
     const initialMessages = [{
