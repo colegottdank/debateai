@@ -1,54 +1,25 @@
 'use client';
 
-import { useTheme } from '@/components/ThemeProvider';
+import { useTheme } from './ThemeProvider';
 
 export default function ThemeToggle() {
   const { theme, toggleTheme } = useTheme();
-
+  
   return (
     <button
       onClick={toggleTheme}
-      className="theme-toggle"
-      aria-label="Toggle theme"
+      className="w-9 h-9 flex items-center justify-center rounded-lg bg-white/5 border border-white/[0.06] text-zinc-400 hover:text-white hover:bg-white/10 transition-colors"
+      aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
     >
-      <div className="relative w-[18px] h-[18px]">
-        {/* Sun icon for dark mode */}
-        <svg 
-          className={`absolute inset-0 w-[18px] h-[18px] transition-all duration-300 ${
-            theme === 'dark' ? 'rotate-0 scale-100 opacity-100' : 'rotate-90 scale-0 opacity-0'
-          }`} 
-          viewBox="0 0 24 24" 
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <circle cx="12" cy="12" r="5" />
-          <line x1="12" y1="1" x2="12" y2="3" />
-          <line x1="12" y1="21" x2="12" y2="23" />
-          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-          <line x1="1" y1="12" x2="3" y2="12" />
-          <line x1="21" y1="12" x2="23" y2="12" />
-          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+      {theme === 'dark' ? (
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
         </svg>
-        {/* Moon icon for light mode */}
-        <svg 
-          className={`absolute inset-0 w-[18px] h-[18px] transition-all duration-300 ${
-            theme === 'light' ? 'rotate-0 scale-100 opacity-100' : '-rotate-90 scale-0 opacity-0'
-          }`} 
-          viewBox="0 0 24 24" 
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+      ) : (
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
         </svg>
-      </div>
+      )}
     </button>
   );
 }

@@ -13,62 +13,66 @@ export default function Header() {
 
   return (
     <>
-      <header className="border-b flex-shrink-0 sticky top-0 z-50 backdrop-blur-xl" style={{ 
-        borderColor: 'var(--border-subtle)',
-        background: 'var(--bg-secondary)'
-      }}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
-          <div className="flex justify-between items-center">
-            <Link href="/" className="flex items-center gap-2.5 group">
-              <div className="logo-icon">
-                <svg className="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                </svg>
-              </div>
-              <span className="text-lg font-semibold tracking-tight" style={{ color: 'var(--text-primary)' }}>
-                DebateAI
-              </span>
+      <header className="sticky top-0 z-50 bg-[#0a0a0b]/80 backdrop-blur-xl border-b border-white/[0.06]">
+        <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-3 group">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20 transition-transform group-hover:scale-105 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500">
+              <span className="text-white font-bold text-sm">D</span>
+            </div>
+            <span className="text-lg font-semibold tracking-tight text-white">
+              DebateAI
+            </span>
+          </Link>
+          
+          <nav className="flex items-center gap-2">
+            <Link 
+              href="/debate" 
+              className="px-4 py-2 text-sm text-zinc-400 hover:text-white transition-colors rounded-lg hover:bg-white/5"
+            >
+              Topics
+            </Link>
+            <Link 
+              href="/history" 
+              className="px-4 py-2 text-sm text-zinc-400 hover:text-white transition-colors rounded-lg hover:bg-white/5"
+            >
+              History
             </Link>
             
-            <nav className="flex items-center gap-4">
-              {/* Upgrade Button for Free Users */}
-              <SignedIn>
-                {!isLoading && !isPremium && (
-                  <button
-                    onClick={() => setShowUpgradeModal(true)}
-                    className="text-sm font-medium transition-colors"
-                    style={{ color: 'var(--text-tertiary)' }}
-                  >
-                    Upgrade
-                  </button>
-                )}
-              </SignedIn>
+            <div className="w-px h-5 bg-white/10 mx-2" />
+            
+            {/* Upgrade Button for Free Users */}
+            <SignedIn>
+              {!isLoading && !isPremium && (
+                <button
+                  onClick={() => setShowUpgradeModal(true)}
+                  className="px-3 py-1.5 text-sm text-zinc-400 hover:text-white transition-colors"
+                >
+                  Upgrade
+                </button>
+              )}
+            </SignedIn>
 
-              {/* Auth */}
-              <SignedIn>
-                <UserButton 
-                  appearance={{
-                    elements: {
-                      avatarBox: 'w-8 h-8'
-                    }
-                  }}
-                />
-              </SignedIn>
-              <SignedOut>
-                <SignInButton mode="modal">
-                  <button 
-                    className="text-sm font-medium transition-colors"
-                    style={{ color: 'var(--text-primary)' }}
-                  >
-                    Sign In
-                  </button>
-                </SignInButton>
-              </SignedOut>
-              
-              {/* Theme Toggle */}
-              <ThemeToggle />
-            </nav>
-          </div>
+            {/* Auth */}
+            <SignedIn>
+              <UserButton 
+                appearance={{
+                  elements: {
+                    avatarBox: "w-8 h-8"
+                  }
+                }}
+              />
+            </SignedIn>
+            <SignedOut>
+              <SignInButton mode="modal">
+                <button className="px-4 py-2 text-sm font-medium rounded-lg bg-indigo-500 text-white hover:bg-indigo-400 transition-colors">
+                  Sign In
+                </button>
+              </SignInButton>
+            </SignedOut>
+            
+            {/* Theme Toggle */}
+            <ThemeToggle />
+          </nav>
         </div>
       </header>
 

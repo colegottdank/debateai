@@ -18,14 +18,13 @@ export default function Home() {
   const [userInput, setUserInput] = useState('');
   const [isStarting, setIsStarting] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
 
-  // Load daily debate pairing on mount
   useEffect(() => {
     const debate = getDailyDebate();
     setDailyDebate(debate);
   }, []);
 
-  // Check for pending debate after sign-in
   useEffect(() => {
     if (!isSignedIn || !dailyDebate) return;
     
@@ -35,14 +34,10 @@ export default function Home() {
     try {
       const pendingDebate = JSON.parse(pendingDebateStr);
       if (pendingDebate.fromLandingPage) {
-        // Clear the pending debate data
         sessionStorage.removeItem('pendingDebate');
-        
-        // Set the user input and start the debate
         setUserInput(pendingDebate.userInput);
         setIsStarting(true);
         
-        // Create the debate immediately
         const createPendingDebate = async () => {
           const debateId = crypto.randomUUID();
           
@@ -59,7 +54,6 @@ export default function Home() {
             });
             
             if (response.ok) {
-              // Store first argument for the debate page to use
               sessionStorage.setItem('firstArgument', pendingDebate.userInput);
               sessionStorage.setItem('isInstantDebate', 'true');
               router.push(`/debate/${debateId}`);
@@ -87,35 +81,24 @@ export default function Home() {
     }
   }, [isSignedIn, dailyDebate, router]);
 
-  const resetToDaily = () => {
-    setUserInput('');
-  };
-
-
   const startDebate = async () => {
     if (!userInput.trim() || !dailyDebate) return;
     
-    // Check if user is signed in first
     if (!isSignedIn) {
-      // Store debate data before opening sign-in
       sessionStorage.setItem('pendingDebate', JSON.stringify({
         userInput,
         topic: dailyDebate.topic,
         persona: dailyDebate.persona,
         fromLandingPage: true
       }));
-      // Use afterSignInUrl to return to landing page
       openSignIn({ afterSignInUrl: '/' });
       return;
     }
     
     setIsStarting(true);
-    
-    // Always use daily debate topic from homepage
     const debateTopic = dailyDebate.topic;
     const firstArgument = userInput;
-    const opponentStyle = dailyDebate.persona; // Always use today's persona
-    
+    const opponentStyle = dailyDebate.persona;
     const debateId = crypto.randomUUID();
     
     try {
@@ -131,14 +114,12 @@ export default function Home() {
       });
       
       if (response.ok) {
-        // Store first argument in sessionStorage instead of URL
         sessionStorage.setItem('firstArgument', firstArgument);
         sessionStorage.setItem('isInstantDebate', 'true');
         router.push(`/debate/${debateId}`);
       } else {
         const error = await response.json();
         if (response.status === 401) {
-          // This shouldn't happen now, but keep as fallback
           openSignIn();
         } else {
           alert('Failed to start debate. Please try again.');
@@ -153,93 +134,109 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col">
+    <div className="min-h-screen flex flex-col bg-[#0a0a0b] text-white">
       <Header />
 
       {/* Main Content */}
-      <main className="flex-1 flex items-center justify-center px-4 py-12">
-        <div className="max-w-3xl w-full">
-          {/* Topic Display */}
-          <div className="mb-12 text-center">
-            <p className="text-slate-500 text-sm mb-2 uppercase tracking-wider">Today's Debate</p>
-            <h2 className="text-3xl font-bold text-slate-100 mb-4">
+      <main className="flex-1 flex items-center justify-center px-6 py-16">
+        <div className="max-w-2xl w-full">
+          {/* Hero Section */}
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.06] text-sm text-zinc-400 mb-6">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              Daily Challenge
+            </div>
+            
+            <h1 className="text-4xl md:text-5xl font-semibold mb-6 px-4 leading-tight tracking-tight text-white">
               {dailyDebate?.topic || 'Loading...'}
-            </h2>
-            <p className="text-slate-400 text-lg">
-              Debating against: <span className="text-slate-100 font-medium">{dailyDebate?.persona || '...'}</span>
+            </h1>
+            
+            <p className="text-lg text-zinc-400">
+              Your opponent: <span className="font-medium text-white">{dailyDebate?.persona || '...'}</span>
             </p>
           </div>
 
           {/* Input Area */}
-          <div className="space-y-4">
-            <textarea
-              value={userInput}
-              onChange={(e) => setUserInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                  startDebate();
-                }
-              }}
-              placeholder="Type your position on this topic..."
-              className="w-full px-6 py-4 bg-slate-800 border border-slate-700 rounded-lg focus:border-indigo-500 focus:outline-none resize-none h-32 text-slate-100 placeholder-slate-500 transition-colors"
-              autoFocus
-            />
-
-            {/* Action Buttons */}
-            <div className="flex gap-3">
-              <button
-                onClick={startDebate}
-                disabled={!userInput.trim() || isStarting}
-                className={`flex-1 py-3 px-6 font-medium rounded-lg transition-all ${
-                  userInput.trim() && !isStarting
-                    ? 'bg-indigo-500 text-white hover:bg-indigo-600'
-                    : 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                }`}
-              >
-                {isStarting ? 'Starting...' : 'Start Debate'}
-              </button>
+          <div className={`relative rounded-2xl transition-all duration-300 ${isFocused ? 'ring-2 ring-indigo-500/50 ring-offset-2 ring-offset-[#0a0a0b]' : ''}`}>
+            <div className="rounded-2xl overflow-hidden bg-[#131316] border border-white/[0.06] shadow-2xl shadow-black/50">
+              <textarea
+                value={userInput}
+                onChange={(e) => setUserInput(e.target.value)}
+                onFocus={() => setIsFocused(true)}
+                onBlur={() => setIsFocused(false)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                    startDebate();
+                  }
+                }}
+                placeholder="Share your opening argument..."
+                className="w-full px-6 py-5 bg-transparent border-none focus:outline-none resize-none text-lg leading-relaxed text-white placeholder:text-zinc-500"
+                style={{ minHeight: '140px' }}
+                autoFocus
+              />
               
-              <button
-                onClick={resetToDaily}
-                className="py-3 px-6 font-medium rounded-lg bg-transparent border border-slate-700 text-slate-100 hover:bg-slate-800 transition-all"
-                title="Reset to today's question"
-              >
-                Reset
-              </button>
-            </div>
-
-            {/* Helper Text */}
-            <div className="text-center">
-              <p className="text-slate-400 text-sm">
-                Responding to the topic above
-              </p>
-              <p className="text-slate-500 text-xs mt-1">
-                Press ⌘+Enter to start
-              </p>
+              {/* Bottom bar */}
+              <div className="px-6 py-4 bg-white/[0.02] flex items-center justify-between border-t border-white/[0.04]">
+                <span className="text-sm text-zinc-500">
+                  {userInput.length > 0 ? `${userInput.length} characters` : 'Start typing...'}
+                </span>
+                
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setUserInput('')}
+                    className={`px-4 py-2 text-sm rounded-lg text-zinc-400 hover:text-white hover:bg-white/5 transition-colors ${!userInput.trim() ? 'opacity-50 pointer-events-none' : ''}`}
+                  >
+                    Clear
+                  </button>
+                  <button
+                    onClick={startDebate}
+                    disabled={!userInput.trim() || isStarting}
+                    className={`px-6 py-2 text-sm font-medium rounded-lg transition-all flex items-center gap-2 ${
+                      userInput.trim() && !isStarting 
+                        ? 'bg-indigo-500 text-white hover:bg-indigo-400' 
+                        : 'bg-white/5 text-zinc-500 cursor-not-allowed'
+                    }`}
+                  >
+                    {isStarting ? 'Starting...' : 'Start Debate'}
+                    <kbd className="px-1.5 py-0.5 text-xs bg-white/20 rounded">⌘↵</kbd>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Bottom Links */}
-          <div className="mt-16 flex items-center justify-center gap-6">
-            <Link href="/debate" className="text-slate-500 hover:text-slate-100 text-sm transition-colors">
-              Advanced Setup
-            </Link>
-            <span className="text-slate-600">•</span>
-            <Link href="/history" className="text-slate-500 hover:text-slate-100 text-sm transition-colors">
-              Previous Debates
-            </Link>
+          {/* Quick Info */}
+          <div className="mt-8 flex items-center justify-center gap-8 text-sm text-zinc-500">
+            <div className="flex items-center gap-2">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>~10 min debate</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              <span>Real-time AI</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <span>Web-sourced</span>
+            </div>
           </div>
 
-          {/* Subtle Premium Link for Free Users */}
+          {/* Subtle Premium Link */}
           {isSignedIn && !isPremium && debatesUsed !== undefined && debatesUsed >= 2 && (
-            <div className="mt-12 text-center">
+            <div className="mt-8 text-center">
               <button
                 onClick={() => setShowUpgradeModal(true)}
-                className="text-sm text-slate-500 hover:text-slate-300 transition-colors"
+                className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors"
               >
                 {debatesLimit && debatesUsed >= debatesLimit 
                   ? 'Debate limit reached • Upgrade for unlimited'
-                  : `${debatesLimit ? debatesLimit - debatesUsed : 0} free debate${debatesLimit && debatesLimit - debatesUsed === 1 ? '' : 's'} remaining • Upgrade`}
+                  : `${debatesLimit ? debatesLimit - debatesUsed : 0} free debate${debatesLimit && debatesLimit - debatesUsed === 1 ? '' : 's'} remaining`}
               </button>
             </div>
           )}
@@ -253,12 +250,16 @@ export default function Home() {
         trigger="button"
       />
 
-      {/* Minimal Footer */}
-      <footer className="border-t border-slate-800 py-6">
-        <div className="container mx-auto px-4 text-center">
-          <p className="text-slate-500 text-xs">
-            Sharpen your argumentation skills with AI
+      {/* Footer */}
+      <footer className="py-6 border-t border-white/[0.06]">
+        <div className="max-w-5xl mx-auto px-6 flex items-center justify-between">
+          <p className="text-sm text-zinc-500">
+            Sharpen your critical thinking with AI
           </p>
+          <div className="flex items-center gap-6 text-sm text-zinc-500">
+            <Link href="/debate" className="hover:text-white transition-colors">Browse Topics</Link>
+            <Link href="/history" className="hover:text-white transition-colors">History</Link>
+          </div>
         </div>
       </footer>
     </div>

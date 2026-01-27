@@ -1,28 +1,39 @@
-import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
 
-const isPublicRoute = createRouteMatcher([
-  '/',
-  '/sign-in(.*)',
-  '/sign-up(.*)',
-  '/api/stripe/webhook',  // Allow Stripe webhooks
-  '/api/stripe/price',    // Allow public price check
-  '/api/test-webhook',    // Test webhook endpoint
-  '/debate',  // Allow access to debate setup page (will handle auth client-side)
-  '/debate/(.*)',  // Allow debate pages to load and handle auth client-side
-  '/history',  // Allow history page to load and handle auth client-side
-])
+// Check if we're in test mode - if so, skip Clerk entirely
+const isTestMode = process.env.NEXT_PUBLIC_TEST_MODE === 'true'
 
-export default clerkMiddleware(async (auth, req) => {
-  // Skip auth in development mode when TEST_MODE is enabled
-  if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_TEST_MODE === 'true') {
-    return
+export default async function middleware(req: NextRequest) {
+  // In test mode, allow all requests through without auth
+  if (isTestMode) {
+    return NextResponse.next()
   }
+
+  // In production mode, use Clerk middleware
+  const { clerkMiddleware, createRouteMatcher } = await import('@clerk/nextjs/server')
   
-  // Protect all routes except the public ones
-  if (!isPublicRoute(req)) {
-    await auth.protect()
-  }
-})
+  const isPublicRoute = createRouteMatcher([
+    '/',
+    '/sign-in(.*)',
+    '/sign-up(.*)',
+    '/api/stripe/webhook',
+    '/api/stripe/price',
+    '/api/test-webhook',
+    '/debate',
+    '/debate/(.*)',
+    '/history',
+    '/preview',
+    '/preview/(.*)',
+  ])
+
+  // Use Clerk middleware
+  return clerkMiddleware(async (auth, request) => {
+    if (!isPublicRoute(request)) {
+      await auth.protect()
+    }
+  })(req, {} as any)
+}
 
 export const config = {
   matcher: [

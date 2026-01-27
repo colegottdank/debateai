@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { ClerkProvider } from '@clerk/nextjs';
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from '@/components/ThemeProvider';
 import "./globals.css";
@@ -28,39 +27,39 @@ export const metadata: Metadata = {
   },
 };
 
+// Dynamic auth wrapper component
+import { AuthWrapper } from '@/components/AuthWrapper';
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider>
-      <html lang="en" suppressHydrationWarning>
-        <head>
-          <script
-            dangerouslySetInnerHTML={{
-              __html: `
-                (function() {
-                  const theme = localStorage.getItem('theme');
-                  if (theme === 'light') {
-                    document.documentElement.classList.add('light');
-                  } else {
-                    // Default to dark if no preference or dark is set
-                    document.documentElement.classList.add('dark');
-                  }
-                })();
-              `,
-            }}
-          />
-        </head>
-        <body
-          className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-        >
+    <html lang="en" className="dark" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                const theme = localStorage.getItem('theme');
+                if (theme === 'light') {
+                  document.documentElement.classList.add('light');
+                } else {
+                  document.documentElement.classList.add('dark');
+                }
+              })();
+            `,
+          }}
+        />
+      </head>
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        <AuthWrapper>
           <ThemeProvider>
             {children}
           </ThemeProvider>
-        </body>
-      </html>
-    </ClerkProvider>
+        </AuthWrapper>
+      </body>
+    </html>
   );
 }

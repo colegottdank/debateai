@@ -30,12 +30,12 @@
     "@playwright/test": "^1.55.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20.19.30",
-    "@types/react": "^19.2.9",
+    "@types/react": "19.2.9",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "15.4.7",
     "tailwindcss": "^4",
-    "typescript": "5.9.3",
+    "typescript": "^5.9.3",
     "yarn": "^1.22.22"
   }
 }
