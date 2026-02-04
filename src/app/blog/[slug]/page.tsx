@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { getPostBySlug, getAllPosts } from '@/lib/blog';
 import { articleJsonLd } from '@/lib/jsonld';
 import Header from '@/components/Header';
+import AnalyticsPageView from '@/components/AnalyticsPageView';
 
 export default async function BlogPostPage({
   params,
@@ -23,6 +24,15 @@ export default async function BlogPostPage({
 
   return (
     <>
+      {/* Analytics */}
+      <AnalyticsPageView
+        type="blog_post"
+        slug={post.slug}
+        title={post.title}
+        tags={post.tags}
+        readingTime={post.readingTime}
+      />
+
       {/* JSON-LD Article structured data */}
       <script
         type="application/ld+json"
