@@ -11,6 +11,7 @@ const isPublicRoute = createRouteMatcher([
   '/api/embed/(.*)',      // Public embed endpoint
   '/api/og',             // Public OG image generation
   '/api/trending',       // Public trending endpoint
+  '/api/stats',          // Public platform stats
   '/blog',            // Public blog index
   '/blog/(.*)',        // Public blog posts
   '/debate',  // Allow access to debate setup page (will handle auth client-side)

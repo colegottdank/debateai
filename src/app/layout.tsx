@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
 import { ClerkProvider } from '@clerk/nextjs';
+import { Analytics } from '@vercel/analytics/next';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 import { Geist, Geist_Mono, Playfair_Display } from "next/font/google";
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { ToastProvider } from '@/components/Toast';
 import ArtisticBackground from '@/components/backgrounds/ArtisticBackground';
+import AnalyticsProvider from '@/components/AnalyticsProvider';
 import { websiteJsonLd } from '@/lib/jsonld';
 import "./globals.css";
 
@@ -125,6 +128,9 @@ export default function RootLayout({
               </main>
             </ToastProvider>
           </ThemeProvider>
+          <AnalyticsProvider />
+          <Analytics />
+          <SpeedInsights />
         </body>
       </html>
     </AuthProvider>
