@@ -18,14 +18,13 @@ export default function Home() {
   const [userInput, setUserInput] = useState('');
   const [isStarting, setIsStarting] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
 
-  // Load daily debate pairing on mount
   useEffect(() => {
     const debate = getDailyDebate();
     setDailyDebate(debate);
   }, []);
 
-  // Check for pending debate after sign-in
   useEffect(() => {
     if (!isSignedIn || !dailyDebate) return;
     
@@ -35,14 +34,10 @@ export default function Home() {
     try {
       const pendingDebate = JSON.parse(pendingDebateStr);
       if (pendingDebate.fromLandingPage) {
-        // Clear the pending debate data
         sessionStorage.removeItem('pendingDebate');
-        
-        // Set the user input and start the debate
         setUserInput(pendingDebate.userInput);
         setIsStarting(true);
         
-        // Create the debate immediately
         const createPendingDebate = async () => {
           const debateId = crypto.randomUUID();
           
@@ -59,7 +54,6 @@ export default function Home() {
             });
             
             if (response.ok) {
-              // Store first argument for the debate page to use
               sessionStorage.setItem('firstArgument', pendingDebate.userInput);
               sessionStorage.setItem('isInstantDebate', 'true');
               router.push(`/debate/${debateId}`);
@@ -87,35 +81,21 @@ export default function Home() {
     }
   }, [isSignedIn, dailyDebate, router]);
 
-  const resetToDaily = () => {
-    setUserInput('');
-  };
-
-
   const startDebate = async () => {
     if (!userInput.trim() || !dailyDebate) return;
     
-    // Check if user is signed in first
     if (!isSignedIn) {
-      // Store debate data before opening sign-in
       sessionStorage.setItem('pendingDebate', JSON.stringify({
         userInput,
         topic: dailyDebate.topic,
         persona: dailyDebate.persona,
         fromLandingPage: true
       }));
-      // Use afterSignInUrl to return to landing page
       openSignIn({ afterSignInUrl: '/' });
       return;
     }
     
     setIsStarting(true);
-    
-    // Always use daily debate topic from homepage
-    const debateTopic = dailyDebate.topic;
-    const firstArgument = userInput;
-    const opponentStyle = dailyDebate.persona; // Always use today's persona
-    
     const debateId = crypto.randomUUID();
     
     try {
@@ -124,143 +104,206 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           character: 'custom',
-          opponentStyle,
-          topic: debateTopic,
+          opponentStyle: dailyDebate.persona,
+          topic: dailyDebate.topic,
           debateId
         })
       });
       
       if (response.ok) {
-        // Store first argument in sessionStorage instead of URL
-        sessionStorage.setItem('firstArgument', firstArgument);
+        sessionStorage.setItem('firstArgument', userInput);
         sessionStorage.setItem('isInstantDebate', 'true');
         router.push(`/debate/${debateId}`);
       } else {
         const error = await response.json();
-        if (response.status === 401) {
-          // This shouldn't happen now, but keep as fallback
-          openSignIn();
+        if (response.status === 429 && error.error === 'debate_limit_exceeded') {
+          setShowUpgradeModal(true);
         } else {
           alert('Failed to start debate. Please try again.');
         }
+        setIsStarting(false);
       }
     } catch (error) {
       console.error('Error starting debate:', error);
       alert('Failed to start debate. Please try again.');
-    } finally {
       setIsStarting(false);
     }
   };
 
+  const charCount = userInput.length;
+  const maxChars = 2000;
+
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col">
+    <div className="h-screen flex flex-col relative overflow-hidden">
       <Header />
 
-      {/* Main Content */}
-      <main className="flex-1 flex items-center justify-center px-4 py-12">
-        <div className="max-w-3xl w-full">
-          {/* Topic Display */}
-          <div className="mb-12 text-center">
-            <p className="text-slate-500 text-sm mb-2 uppercase tracking-wider">Today's Debate</p>
-            <h2 className="text-3xl font-bold text-slate-100 mb-4">
-              {dailyDebate?.topic || 'Loading...'}
-            </h2>
-            <p className="text-slate-400 text-lg">
-              Debating against: <span className="text-slate-100 font-medium">{dailyDebate?.persona || '...'}</span>
-            </p>
+      <main className="flex-1 flex flex-col items-center justify-center px-5 py-4 relative z-10">
+        <div className="w-full max-w-2xl">
+          
+          {/* Header Section - Compact */}
+          <div className="text-center mb-6 animate-fade-up">
+            {/* Label */}
+            <div className="inline-flex items-center gap-2 mb-4">
+              <span className="h-px w-6 bg-gradient-to-r from-transparent to-[var(--accent)] opacity-50" />
+              <span className="text-[10px] font-medium text-[var(--accent)] uppercase tracking-[0.2em]">
+                Today&apos;s Debate
+              </span>
+              <span className="h-px w-6 bg-gradient-to-l from-transparent to-[var(--accent)] opacity-50" />
+            </div>
+
+            {/* Topic - Smaller */}
+            <h1 className="text-3xl sm:text-4xl font-serif font-semibold text-[var(--text)] mb-3 leading-tight">
+              {dailyDebate?.topic ? (
+                <span className="gradient-text-animated">
+                  {dailyDebate.topic}
+                </span>
+              ) : (
+                <span className="inline-flex gap-2">
+                  <span className="dot"></span>
+                  <span className="dot"></span>
+                  <span className="dot"></span>
+                </span>
+              )}
+            </h1>
+            
+            {/* Opponent */}
+            {dailyDebate && (
+              <div className="flex items-center justify-center gap-2 text-sm text-[var(--text-secondary)]">
+                <span>vs</span>
+                <span className="text-[var(--text)] font-medium">{dailyDebate.persona}</span>
+              </div>
+            )}
           </div>
 
-          {/* Input Area */}
-          <div className="space-y-4">
-            <textarea
-              value={userInput}
-              onChange={(e) => setUserInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                  startDebate();
+          {/* Input Card - Compact */}
+          <div className="animate-fade-up delay-100 relative">
+            {/* Subtle glow */}
+            <div className="absolute -inset-0.5 bg-gradient-to-r from-[var(--accent)]/20 to-[var(--accent-light)]/20 rounded-2xl blur-lg opacity-50" />
+            
+            <div 
+              className={`
+                relative artistic-card transition-all duration-300
+                ${isFocused 
+                  ? 'shadow-[0_0_40px_-10px_rgba(201,102,74,0.3)]' 
+                  : ''
                 }
-              }}
-              placeholder="Type your position on this topic..."
-              className="w-full px-6 py-4 bg-slate-800 border border-slate-700 rounded-lg focus:border-indigo-500 focus:outline-none resize-none h-32 text-slate-100 placeholder-slate-500 transition-colors"
-              autoFocus
-            />
+              `}
+            >
+              <textarea
+                value={userInput}
+                onChange={(e) => {
+                  if (e.target.value.length <= maxChars) {
+                    setUserInput(e.target.value);
+                  }
+                }}
+                onFocus={() => setIsFocused(true)}
+                onBlur={() => setIsFocused(false)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                    startDebate();
+                  }
+                }}
+                placeholder="Share your perspective..."
+                className="w-full px-5 py-4 bg-transparent resize-none outline-none text-[var(--text)] placeholder-[var(--text-tertiary)] min-h-[100px] text-[15px] leading-relaxed"
+                autoFocus
+              />
+              
+              {/* Input Footer */}
+              <div className="flex items-center justify-between px-5 py-3 border-t border-[var(--border)]/20">
+                <span className={`text-[10px] font-mono transition-colors ${charCount > maxChars * 0.9 ? 'text-[var(--error)]' : 'text-[var(--text-tertiary)]'}`}>
+                  {charCount} / {maxChars}
+                </span>
+                
+                <span className="hidden sm:flex items-center gap-1 text-[10px] text-[var(--text-tertiary)]">
+                  <kbd className="px-1.5 py-0.5 rounded bg-[var(--bg-sunken)]/50 border border-[var(--border)]/30 text-[9px] font-mono">⌘</kbd>
+                  <span>+</span>
+                  <kbd className="px-1.5 py-0.5 rounded bg-[var(--bg-sunken)]/50 border border-[var(--border)]/30 text-[9px] font-mono">Enter</kbd>
+                </span>
+              </div>
+            </div>
 
-            {/* Action Buttons */}
-            <div className="flex gap-3">
+            {/* Action Buttons - Clean and visible */}
+            <div className="mt-4 flex gap-3">
               <button
                 onClick={startDebate}
                 disabled={!userInput.trim() || isStarting}
-                className={`flex-1 py-3 px-6 font-medium rounded-lg transition-all ${
-                  userInput.trim() && !isStarting
-                    ? 'bg-indigo-500 text-white hover:bg-indigo-600'
-                    : 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                }`}
+                className={`
+                  flex-1 h-11 px-6 rounded-xl font-medium text-sm transition-all duration-300 flex items-center justify-center gap-2
+                  ${userInput.trim() && !isStarting
+                    ? 'bg-[var(--accent)] text-white shadow-lg shadow-[var(--accent)]/30 hover:shadow-xl hover:shadow-[var(--accent)]/40 hover:-translate-y-0.5'
+                    : 'bg-[var(--bg-sunken)] text-[var(--text-tertiary)] cursor-not-allowed'
+                  }
+                `}
               >
-                {isStarting ? 'Starting...' : 'Start Debate'}
+                {isStarting ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                    </svg>
+                    <span>Starting...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Start Debate</span>
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+                    </svg>
+                  </>
+                )}
               </button>
               
-              <button
-                onClick={resetToDaily}
-                className="py-3 px-6 font-medium rounded-lg bg-transparent border border-slate-700 text-slate-100 hover:bg-slate-800 transition-all"
-                title="Reset to today's question"
+              <Link
+                href="/debate"
+                className="h-11 px-5 rounded-xl font-medium text-sm flex items-center justify-center gap-2 bg-[var(--bg-elevated)]/50 border border-[var(--border)]/30 text-[var(--text)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border)]/50 transition-all duration-200"
+                title="Custom debate setup"
               >
-                Reset
-              </button>
-            </div>
-
-            {/* Helper Text */}
-            <div className="text-center">
-              <p className="text-slate-400 text-sm">
-                Responding to the topic above
-              </p>
-              <p className="text-slate-500 text-xs mt-1">
-                Press ⌘+Enter to start
-              </p>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                </svg>
+                <span className="hidden sm:inline">Custom</span>
+              </Link>
             </div>
           </div>
 
-          {/* Bottom Links */}
-          <div className="mt-16 flex items-center justify-center gap-6">
-            <Link href="/debate" className="text-slate-500 hover:text-slate-100 text-sm transition-colors">
-              Advanced Setup
-            </Link>
-            <span className="text-slate-600">•</span>
-            <Link href="/history" className="text-slate-500 hover:text-slate-100 text-sm transition-colors">
-              Previous Debates
-            </Link>
-          </div>
-
-          {/* Subtle Premium Link for Free Users */}
-          {isSignedIn && !isPremium && debatesUsed !== undefined && debatesUsed >= 2 && (
-            <div className="mt-12 text-center">
+          {/* Upgrade Nudge - Compact */}
+          {!isPremium && debatesUsed !== undefined && debatesUsed >= 2 && (
+            <div className="mt-6 text-center animate-fade-in delay-200">
               <button
                 onClick={() => setShowUpgradeModal(true)}
-                className="text-sm text-slate-500 hover:text-slate-300 transition-colors"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs text-[var(--accent)] bg-[var(--accent)]/5 border border-[var(--accent)]/20 hover:bg-[var(--accent)]/10 transition-colors"
               >
-                {debatesLimit && debatesUsed >= debatesLimit 
-                  ? 'Debate limit reached • Upgrade for unlimited'
-                  : `${debatesLimit ? debatesLimit - debatesUsed : 0} free debate${debatesLimit && debatesLimit - debatesUsed === 1 ? '' : 's'} remaining • Upgrade`}
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                </svg>
+                <span>
+                  {debatesLimit && debatesUsed >= debatesLimit 
+                    ? 'Limit reached — Upgrade'
+                    : `${debatesLimit ? debatesLimit - debatesUsed : 0} left — Upgrade`
+                  }
+                </span>
               </button>
             </div>
           )}
+
+          {/* Footer Links - Compact */}
+          <div className="mt-8 flex items-center justify-center gap-6 text-xs text-[var(--text-secondary)]">
+            <Link href="/history" className="hover:text-[var(--text)] transition-colors">
+              History
+            </Link>
+            <span className="w-1 h-1 rounded-full bg-[var(--border-strong)]" />
+            <Link href="/debate" className="hover:text-[var(--text)] transition-colors">
+              Advanced Setup
+            </Link>
+          </div>
         </div>
       </main>
 
-      {/* Upgrade Modal */}
       <UpgradeModal 
         isOpen={showUpgradeModal}
         onClose={() => setShowUpgradeModal(false)}
         trigger="button"
       />
-
-      {/* Minimal Footer */}
-      <footer className="border-t border-slate-800 py-6">
-        <div className="container mx-auto px-4 text-center">
-          <p className="text-slate-500 text-xs">
-            Sharpen your argumentation skills with AI
-          </p>
-        </div>
-      </footer>
     </div>
   );
 }

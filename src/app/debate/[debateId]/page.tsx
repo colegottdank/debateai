@@ -1,971 +1,663 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useRef, useCallback, memo } from 'react';
-import React from 'react';
-import { useUser } from '@clerk/nextjs';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { opponents, getOpponentById } from '@/lib/opponents';
-import Header from '@/components/Header';
-import UpgradeModal from '@/components/UpgradeModal';
+import { useState, useEffect, useRef, memo } from "react";
+import React from "react";
+import { useUser } from "@clerk/nextjs";
+import { useParams, useSearchParams } from "next/navigation";
+import { getOpponentById } from "@/lib/opponents";
+import Header from "@/components/Header";
+import UpgradeModal from "@/components/UpgradeModal";
 
-// Memoized message component to prevent re-renders during streaming
-const Message = memo(({ msg, opponent, debate, isAILoading, isUserLoading, isNew, msgIndex }: { 
-  msg: { role: string; content: string; aiAssisted?: boolean; citations?: Array<{id: number; url: string; title: string}>; isSearching?: boolean }, 
-  opponent: any,
-  debate: any,
-  isAILoading: boolean,
-  isUserLoading?: boolean,
-  isNew?: boolean,
-  msgIndex: number 
-}) => {
-  const [isSourcesExpanded, setIsSourcesExpanded] = useState(false);
-  
-  // Parse content to add inline citation links
-  const parseContentWithCitations = (content: string, citations: any[]) => {
-    if (!citations || citations.length === 0) return content;
-    
-    // Replace [1], [2], etc. with clickable superscript links
-    return content.replace(/\[(\d+)\]/g, (match, num) => {
-      const citation = citations.find(c => c.id === parseInt(num));
+// Streaming indicator
+const StreamingIndicator = memo(() => (
+  <div className="flex items-center gap-1.5 h-5">
+    <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] animate-bounce" style={{ animationDelay: '0ms' }} />
+    <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] animate-bounce" style={{ animationDelay: '100ms' }} />
+    <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] animate-bounce" style={{ animationDelay: '200ms' }} />
+  </div>
+));
+StreamingIndicator.displayName = "StreamingIndicator";
+
+// Search indicator
+const SearchIndicator = memo(({ message }: { message: string }) => (
+  <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
+    <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+    </svg>
+    <span>{message}</span>
+  </div>
+));
+SearchIndicator.displayName = "SearchIndicator";
+
+// Helper to render content with clickable citation links
+const renderContentWithCitations = (
+  content: string,
+  citations: Array<{ id: number; url: string; title: string }> | undefined,
+  onCitationClick: (id: number) => void
+) => {
+  if (!citations || citations.length === 0) {
+    return content;
+  }
+
+  // Match citation markers like [1], [2], [3]
+  const parts = content.split(/(\[\d+\])/g);
+
+  return parts.map((part, index) => {
+    const match = part.match(/^\[(\d+)\]$/);
+    if (match) {
+      const citationId = parseInt(match[1], 10);
+      const citation = citations.find(c => c.id === citationId);
       if (citation) {
-        return `<sup><a href="#sources-msg-${msgIndex}" class="citation-inline" data-citation="${num}" title="${citation.title || 'View source'}">[${num}]</a></sup>`;
+        return (
+          <button
+            key={index}
+            onClick={() => onCitationClick(citationId)}
+            className="inline-flex items-baseline text-[11px] font-medium text-[var(--accent)] hover:text-[var(--accent-hover)]
+              hover:underline transition-colors cursor-pointer align-super leading-none mx-0.5"
+            title={citation.title || citation.url}
+          >
+            [{citationId}]
+          </button>
+        );
       }
-      return match;
-    });
-  };
-  
-  const handleCitationClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const target = e.target as HTMLElement;
-    if (target.classList.contains('citation-inline')) {
-      e.preventDefault();
-      const citationNum = target.getAttribute('data-citation');
-      const wasExpanded = isSourcesExpanded;
-      setIsSourcesExpanded(true);
-      
-      // Wait for DOM update if we just expanded
-      setTimeout(() => {
-        const sourcesSection = document.getElementById(`sources-msg-${msgIndex}`);
-        if (sourcesSection) {
-          sourcesSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-          // Highlight the specific citation
-          const citationElement = sourcesSection.querySelector(`[data-citation-id="${citationNum}"]`) as HTMLElement;
-          if (citationElement) {
-            citationElement.classList.add('citation-highlight');
-            setTimeout(() => citationElement.classList.remove('citation-highlight'), 2000);
-          }
-        }
-      }, wasExpanded ? 0 : 100); // Only delay if we just expanded
     }
-  };
-  return (
-    <div className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} ${isNew ? 'animate-slide-up' : ''}`}>
-      <div className={`max-w-[70%] ${msg.role === 'user' ? 'order-2' : 'order-1'}`}>
-        {msg.role === 'ai' && (
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-sm">{opponent?.avatar || '🤖'}</span>
-            <span className="text-sm font-medium text-slate-400">
-              {debate?.opponentStyle || opponent?.name || 'AI Opponent'}
-            </span>
-          </div>
-        )}
-        {msg.role === 'user' && (
-          <div className="text-right mb-1">
-            <span className="text-sm font-medium text-slate-400">
-              You
-              {msg.aiAssisted && (
-                <span className="ml-2 text-xs text-indigo-400">🤖 AI-assisted</span>
+    return part;
+  });
+};
+
+// Message component
+const Message = memo(
+  ({
+    msg,
+    opponent,
+    debate,
+    isAILoading,
+    isUserLoading,
+  }: {
+    msg: {
+      role: string;
+      content: string;
+      aiAssisted?: boolean;
+      citations?: Array<{ id: number; url: string; title: string }>;
+      isSearching?: boolean;
+    };
+    opponent: any;
+    debate: any;
+    isAILoading: boolean;
+    isUserLoading?: boolean;
+  }) => {
+    const isUser = msg.role === "user";
+    const isStreaming = (isUser && isUserLoading) || (!isUser && isAILoading);
+    const hasContent = msg.content && msg.content.length > 0;
+    const [showCitations, setShowCitations] = useState(false);
+    const [highlightedCitation, setHighlightedCitation] = useState<number | null>(null);
+    const citationRefs = useRef<{ [key: number]: HTMLAnchorElement | null }>({});
+
+    const handleCitationClick = (citationId: number) => {
+      // Open citations panel if not already open
+      if (!showCitations) {
+        setShowCitations(true);
+      }
+
+      // Highlight the citation
+      setHighlightedCitation(citationId);
+
+      // Scroll to the citation after a brief delay for panel to open
+      setTimeout(() => {
+        const citationEl = citationRefs.current[citationId];
+        if (citationEl) {
+          citationEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      }, 100);
+
+      // Remove highlight after animation
+      setTimeout(() => {
+        setHighlightedCitation(null);
+      }, 2000);
+    };
+
+    return (
+      <div className={`py-5 ${isUser ? '' : 'bg-[var(--bg-elevated)]/60 border-y border-[var(--border)]/30'}`}>
+        <div className="max-w-3xl mx-auto px-4 sm:px-6">
+          <div className="flex gap-3">
+            {/* Avatar */}
+            <div className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-sm
+              ${isUser
+                ? 'bg-[var(--accent)]/10 text-[var(--accent)]'
+                : 'bg-[var(--bg-sunken)] border border-[var(--border)]/50'
+              }`}
+            >
+              {isUser ? (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                </svg>
+              ) : (
+                opponent?.avatar || "🤖"
               )}
-            </span>
-          </div>
-        )}
-        <div className={`px-4 py-3 rounded-lg streaming-message ${
-          msg.role === 'user' 
-            ? msg.aiAssisted ? 'message-user border-dashed' : 'message-user'
-            : 'message-ai'
-        }`}>
-          {(msg.role === 'ai' && msg.content === '' && isAILoading) || (msg.role === 'user' && msg.content === '' && isUserLoading) ? (
-            <div className="inline-flex gap-1">
-              <span className="dot-bounce"></span>
-              <span className="dot-bounce"></span>
-              <span className="dot-bounce"></span>
             </div>
-          ) : (
-            <>
-              <div className="text-slate-100 whitespace-pre-wrap" onClick={handleCitationClick}>
-                {msg.isSearching ? (
-                  <>
-                    <span>{msg.content}</span>
-                    <span className="inline-flex gap-1 ml-1">
-                      <span className="dot-bounce"></span>
-                      <span className="dot-bounce"></span>
-                      <span className="dot-bounce"></span>
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <span dangerouslySetInnerHTML={{ 
-                      __html: msg.citations ? parseContentWithCitations(msg.content || '', msg.citations) : (msg.content || '')
-                    }} />
-                    {((msg.role === 'ai' && isAILoading) || (msg.role === 'user' && isUserLoading)) && msg.content !== '' && msg.content !== '🔍 Searching the web' && (
-                      <span className="typewriter-cursor" />
-                    )}
-                  </>
+
+            {/* Content */}
+            <div className="flex-1 min-w-0 pt-0.5">
+              {/* Name */}
+              <div className="flex items-center gap-2 mb-1">
+                <span className="font-semibold text-sm text-[var(--text)]">
+                  {isUser ? "You" : (opponent?.name || debate?.opponentStyle || "AI Opponent")}
+                </span>
+                {msg.aiAssisted && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--accent)]/10 text-[var(--accent)] font-medium">
+                    AI-assisted
+                  </span>
                 )}
               </div>
-              {msg.citations && msg.citations.length > 0 && (
-                <div className="mt-3 pt-2 border-t border-slate-700" id={`sources-msg-${msgIndex}`}>
-                  <div 
-                    className={`flex items-center justify-between cursor-pointer select-none ${isSourcesExpanded ? 'mb-2' : ''}`}
-                    onClick={() => setIsSourcesExpanded(!isSourcesExpanded)}
-                  >
-                    <div className="text-xs text-slate-500 font-medium">
-                      📚 Sources ({msg.citations.length})
-                    </div>
-                    <svg 
-                      className={`w-4 h-4 text-slate-500 transition-transform ${isSourcesExpanded ? 'rotate-180' : ''}`} 
-                      fill="none" 
-                      stroke="currentColor" 
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
+
+              {/* Message Content */}
+              <div className="text-[15px] leading-7 text-[var(--text)]">
+                {!hasContent && isStreaming ? (
+                  msg.isSearching ? (
+                    <SearchIndicator message={msg.content || "Searching..."} />
+                  ) : (
+                    <StreamingIndicator />
+                  )
+                ) : (
+                  <div className="whitespace-pre-wrap">
+                    {renderContentWithCitations(msg.content, msg.citations, handleCitationClick)}
+                    {isStreaming && (
+                      <span className="inline-block w-2 h-4 ml-0.5 bg-[var(--accent)] animate-pulse rounded-sm" />
+                    )}
                   </div>
-                  <div className={`grid grid-cols-1 sm:grid-cols-2 gap-2 pr-1 transition-all duration-200 ease-out overflow-hidden ${
-                    isSourcesExpanded ? 'max-h-[400px] opacity-100' : 'max-h-0 opacity-0'
-                  }`}>
-                    {msg.citations.map(citation => (
-                      <a
-                        key={citation.id}
-                        href={citation.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="citation-link"
-                        data-citation-id={citation.id}
-                        title={citation.url}
-                      >
-                        <span className="citation-number">{citation.id}</span>
-                        <span className="truncate">
-                          {citation.title || new URL(citation.url).hostname}
-                        </span>
-                        <svg className="w-3 h-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                        </svg>
-                      </a>
-                    ))}
+                )}
+              </div>
+
+              {/* Citations */}
+              {msg.citations && msg.citations.length > 0 && (
+                <div className="mt-3">
+                  <button
+                    onClick={() => setShowCitations(!showCitations)}
+                    className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors cursor-pointer"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+                    </svg>
+                    <span>Sources ({msg.citations.length})</span>
+                    <svg
+                      className={`w-3.5 h-3.5 transition-transform duration-200 ${showCitations ? 'rotate-180' : ''}`}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/>
+                    </svg>
+                  </button>
+
+                  <div className={`overflow-hidden transition-all duration-300 ${showCitations ? 'max-h-96 opacity-100 mt-2' : 'max-h-0 opacity-0'}`}>
+                    <div className="flex flex-wrap gap-2">
+                      {msg.citations.map((citation) => (
+                        <a
+                          key={citation.id}
+                          ref={(el) => { citationRefs.current[citation.id] = el; }}
+                          href={citation.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[var(--bg-sunken)]
+                            text-xs text-[var(--text-secondary)] hover:text-[var(--accent)]
+                            hover:bg-[var(--accent)]/5 transition-all duration-300 border border-[var(--border)]/30
+                            ${highlightedCitation === citation.id
+                              ? 'ring-2 ring-[var(--accent)] bg-[var(--accent)]/10 scale-105'
+                              : ''}`}
+                        >
+                          <span className="font-medium text-[var(--accent)]">[{citation.id}]</span>
+                          <span className="truncate max-w-[160px]">
+                            {citation.title || new URL(citation.url).hostname}
+                          </span>
+                          <svg className="w-3 h-3 opacity-50 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                          </svg>
+                        </a>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}
-            </>
-          )}
+            </div>
+          </div>
         </div>
       </div>
-    </div>
-  );
-});
+    );
+  }
+);
+Message.displayName = "Message";
 
-Message.displayName = 'Message';
+// Search messages
+const SEARCH_MESSAGES = [
+  "🔍 Searching for evidence...",
+  "📚 Analyzing sources...",
+  "🧠 Formulating argument...",
+  "💡 Building counterpoints...",
+];
 
 export default function DebatePage() {
   const params = useParams();
-  const router = useRouter();
   const searchParams = useSearchParams();
   const { user, isSignedIn } = useUser();
   const debateId = params.debateId as string;
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const currentCitationsRef = useRef<any[]>([]);
 
-  // Check if this is an instant debate from homepage (using sessionStorage)
-  const [isInstant, setIsInstant] = useState(false);
-  const [firstArg, setFirstArg] = useState('');
-  
   const [debate, setDebate] = useState<any>(null);
-  const [messages, setMessages] = useState<Array<{ role: string; content: string; aiAssisted?: boolean; citations?: Array<{id: number; url: string; title: string}>; isSearching?: boolean }>>([]);
-  const [userInput, setUserInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [userInput, setUserInput] = useState("");
+  const instantDebateActiveRef = useRef(false);
   const [isLoadingDebate, setIsLoadingDebate] = useState(true);
   const [isAILoading, setIsAILoading] = useState(false);
   const [isUserLoading, setIsUserLoading] = useState(false);
-  const [newMessageIndex, setNewMessageIndex] = useState<number | null>(null);
-  const [currentCitations, setCurrentCitations] = useState<Array<{id: number; url: string; title: string}>>([]);
   const [isAITakeover, setIsAITakeover] = useState(false);
   const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(true);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [rateLimitData, setRateLimitData] = useState<{ current: number; limit: number } | undefined>();
+  
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // Track if we've already sent the first message
-  const [hasAutoSent, setHasAutoSent] = useState(false);
+  // Dev mode check from URL
+  const isDevMode = searchParams.get('dev') === 'true';
 
-  // Track tab visibility for streaming optimization
-  const [isTabVisible, setIsTabVisible] = useState(true);
-
-  // Listen to tab visibility changes
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      setIsTabVisible(!document.hidden);
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, []);
-
-  // Redirect to landing page if not authenticated
-  useEffect(() => {
-    if (isSignedIn === false) {
-      router.push('/');
-    }
-  }, [isSignedIn, router]);
-
-  // Check sessionStorage for instant debate data
-  useEffect(() => {
-    // Only check sessionStorage on client side
-    const instantDebate = sessionStorage.getItem('isInstantDebate') === 'true';
-    const firstArgument = sessionStorage.getItem('firstArgument') || '';
-    
-    if (instantDebate) {
-      setIsInstant(true);
-      setFirstArg(firstArgument);
-      // Clear sessionStorage to prevent reuse
-      sessionStorage.removeItem('isInstantDebate');
-      sessionStorage.removeItem('firstArgument');
-    }
-  }, []);
-
-  // Load debate data
+  // Load debate
   useEffect(() => {
     const loadDebate = async () => {
+      if (isDevMode) {
+        setDebate({
+          id: debateId,
+          topic: "Should AI be regulated?",
+          opponentStyle: "Elon Musk",
+          character: "elon",
+          messages: [
+            { role: "user", content: "I think AI should be regulated to ensure safety and prevent misuse. We need guardrails in place before it's too late." },
+            { role: "ai", content: "I disagree. Regulation stifles innovation. We need to move fast and break things. The market will self-regulate. Look at how the tech industry has evolved - innovation happens when smart people are free to experiment, not when bureaucrats write rules about technology they don't understand." }
+          ]
+        });
+        setMessages([
+          { role: "user", content: "I think AI should be regulated to ensure safety and prevent misuse. We need guardrails in place before it's too late." },
+          { role: "ai", content: "I disagree. Regulation stifles innovation. We need to move fast and break things. The market will self-regulate. Look at how the tech industry has evolved - innovation happens when smart people are free to experiment, not when bureaucrats write rules about technology they don't understand." }
+        ]);
+        setIsLoadingDebate(false);
+        return;
+      }
+      
       try {
         const response = await fetch(`/api/debate/${debateId}`);
         if (response.ok) {
           const data = await response.json();
           setDebate(data.debate);
-          setMessages(data.debate.messages || []);
+          // Only set messages if instant debate isn't already in progress
+          // (prevents React StrictMode's second effect run from overwriting)
+          if (!instantDebateActiveRef.current) {
+            setMessages(data.debate.messages || []);
+          }
         }
       } catch (error) {
-        console.error('Failed to load debate:', error);
+        console.error("Failed to load debate:", error);
       } finally {
         setIsLoadingDebate(false);
       }
     };
-    
+
     loadDebate();
-  }, [debateId]);
+  }, [debateId, isDevMode]);
 
-  // Handle auto-sending first argument (separate effect to prevent double-sends)
+  // Handle instant debate from landing page
   useEffect(() => {
-    if (isInstant && firstArg && debate && !hasAutoSent && messages.length === 1) {
-      setHasAutoSent(true);
-      setTimeout(() => {
-        sendMessage(firstArg);
-      }, 500);
-    }
-  }, [isInstant, firstArg, debate, messages.length, hasAutoSent]);
-
-  // Auto-scroll to bottom with debouncing during streaming
-  useEffect(() => {
-    // Only auto-scroll if enabled
-    if (isAutoScrollEnabled && messagesEndRef.current) {
-      // Use requestAnimationFrame for smoother scrolling
-      requestAnimationFrame(() => {
-        messagesEndRef.current?.scrollIntoView({ 
-          behavior: 'auto', // Use 'auto' instead of 'smooth' to prevent conflicts
-          block: 'end' 
-        });
-      });
-    }
-  }, [messages, isAutoScrollEnabled]);
-
-  // Handle scroll detection to enable/disable auto-scroll
-  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-    const scrollContainer = e.currentTarget;
-    const scrollBottom = scrollContainer.scrollHeight - scrollContainer.scrollTop - scrollContainer.clientHeight;
+    const isInstant = sessionStorage.getItem('isInstantDebate') === 'true';
+    const firstArgument = sessionStorage.getItem('firstArgument');
     
-    // If user scrolled up more than 100px from bottom, disable auto-scroll
-    if (scrollBottom > 100 && isAutoScrollEnabled) {
-      setIsAutoScrollEnabled(false);
-    }
-    // If user scrolled back to within 50px of bottom, re-enable auto-scroll
-    else if (scrollBottom < 50 && !isAutoScrollEnabled) {
-      setIsAutoScrollEnabled(true);
-    }
-  }, [isAutoScrollEnabled]);
+    if (isInstant && firstArgument && debate && !isLoadingDebate) {
+      // Mark instant debate as active - prevents loadDebate from overwriting messages
+      instantDebateActiveRef.current = true;
 
-  const sendMessage = async (messageText?: string, isAIAssisted: boolean = false) => {
-    const textToSend = messageText || userInput;
-    if (!textToSend.trim() || isLoading) return;
+      // Clear session storage
+      sessionStorage.removeItem('isInstantDebate');
+      sessionStorage.removeItem('firstArgument');
 
-    const newUserMessage: any = { role: 'user', content: textToSend };
-    if (isAIAssisted) {
-      newUserMessage.aiAssisted = true;
-    }
-    setMessages(prev => [...prev, newUserMessage]);
-    setUserInput('');
-    // Reset textarea height
-    if (textareaRef.current) {
-      textareaRef.current.style.height = '48px';
-    }
-    setIsLoading(true);
-    setIsAILoading(true);
-
-    // Check if this is the first user turn
-    const isFirstTurn = messages.filter(m => m.role === 'user').length === 0;
-
-    try {
-      // Use Anthropic API with WebSearch for better debates
-      const response = await fetch('/api/debate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          debateId,
-          character: debate?.opponent || debate?.character || 'custom',
-          opponentStyle: debate?.opponentStyle, // Pass custom style if available
-          topic: debate?.topic,
-          userArgument: textToSend,
-          previousMessages: messages,
-          stream: true
-        })
-      });
-
-      // Check for rate limit error before trying to read stream
-      if (!response.ok) {
-        if (response.status === 429) {
-          const error = await response.json();
-          // Remove the user message we just added
-          setMessages(prev => prev.slice(0, -1));
-          // Restore the user input
-          setUserInput(textToSend);
-          // Show upgrade modal
-          setRateLimitData({ 
-            current: error.current || 0, 
-            limit: error.limit || 3 
-          });
-          setShowUpgradeModal(true);
-          setIsLoading(false);
-          setIsAILoading(false);
-          return;
-        }
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      if (!response.body) {
-        throw new Error('No response body');
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      
-      // Add placeholder AI message
-      const aiMessageIndex = messages.length + 1;
-      setMessages(prev => [...prev, { role: 'ai', content: '' }]);
-
-      // Clear citations ref for new message
-      currentCitationsRef.current = [];
-
-      let accumulatedContent = '';
-      const charQueue: string[] = [];
-      let isProcessing = false;
-      const CHAR_DELAY = 10; // Reduced to 10ms for faster typing
-
-      // Function to process character queue with typewriter effect
-      const processCharQueue = () => {
-        if (isProcessing || charQueue.length === 0) return;
-
-        isProcessing = true;
-
-        const processNextChar = () => {
-          if (charQueue.length === 0) {
-            isProcessing = false;
-            return;
-          }
-
-          // If tab is hidden, batch process all characters at once
-          if (!isTabVisible) {
-            while (charQueue.length > 0) {
-              accumulatedContent += charQueue.shift()!;
-            }
-
-            requestAnimationFrame(() => {
-              setMessages(prev => {
-                const newMessages = [...prev];
-                newMessages[aiMessageIndex] = {
-                  ...newMessages[aiMessageIndex],
-                  content: accumulatedContent,
-                  ...(currentCitationsRef.current.length > 0 && { citations: currentCitationsRef.current })
-                };
-                return newMessages;
-              });
-            });
-
-            isProcessing = false;
-            return;
-          }
-
-          const char = charQueue.shift()!;
-          accumulatedContent += char;
-
-          requestAnimationFrame(() => {
-            setMessages(prev => {
-              const newMessages = [...prev];
-              newMessages[aiMessageIndex] = {
-                ...newMessages[aiMessageIndex],
-                content: accumulatedContent,
-                ...(currentCitationsRef.current.length > 0 && { citations: currentCitationsRef.current })
-              };
-              return newMessages;
-            });
-          });
-
-          if (charQueue.length > 0) {
-            setTimeout(processNextChar, CHAR_DELAY);
-          } else {
-            isProcessing = false;
-          }
+      // Auto-send the first message
+      const sendFirstMessage = async () => {
+        const userMessage = {
+          role: "user",
+          content: firstArgument,
+          aiAssisted: false
         };
 
-        processNextChar();
-      };
+        // Add user message
+        setMessages(prev => [...prev, userMessage]);
+        setIsUserLoading(true);
 
-      let lastActivityTime = Date.now();
-      let streamComplete = false;
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) {
-          streamComplete = true;
-          break;
-        }
-
-        lastActivityTime = Date.now();
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n');
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6);
-            if (data === '[DONE]') {
-              streamComplete = true;
-              break;
-            }
-            try {
-              const parsed = JSON.parse(data);
-              
-              if (parsed.type === 'chunk') {
-                // Clear loading state on first chunk
-                if (isAILoading) {
-                  setIsAILoading(false);
-                }
-
-                // Clear search indicator if showing
-                if (accumulatedContent === '') {
-                  setMessages(prev => {
-                    const newMessages = [...prev];
-                    if (newMessages[aiMessageIndex]?.isSearching) {
-                      newMessages[aiMessageIndex] = {
-                        ...newMessages[aiMessageIndex],
-                        content: '',
-                        isSearching: false
-                      };
-                    }
-                    return newMessages;
-                  });
-                }
-
-                // Add characters to queue
-                for (const char of parsed.content) {
-                  charQueue.push(char);
-                }
-
-                // Start processing if not already running
-                if (!isProcessing) {
-                  processCharQueue();
-                }
-              } else if (parsed.type === 'search_start') {
-                // Show search indicator
-                const waitForQueue = () => {
-                  if (charQueue.length > 0) {
-                    setTimeout(waitForQueue, 50);
-                  } else {
-                    setMessages(prev => {
-                      const newMessages = [...prev];
-                      newMessages[aiMessageIndex] = { 
-                        ...newMessages[aiMessageIndex],
-                        role: 'ai', 
-                        content: accumulatedContent || '🔍 Searching the web',
-                        isSearching: !accumulatedContent  // Only show dots if no content yet
-                      };
-                      return newMessages;
-                    });
-                  }
-                };
-                waitForQueue();
-              } else if (parsed.type === 'citations') {
-                // Store citations in ref and update message
-                currentCitationsRef.current = parsed.citations;
-                setMessages(prev => {
-                  const newMessages = [...prev];
-                  const currentMessage = newMessages[aiMessageIndex];
-                  newMessages[aiMessageIndex] = {
-                    ...currentMessage,
-                    citations: parsed.citations
-                  };
-                  return newMessages;
-                });
-              } else if (parsed.type === 'complete') {
-                // Update citations immediately if provided
-                if (parsed.citations) {
-                  currentCitationsRef.current = parsed.citations;
-                  setMessages(prev => {
-                    const newMessages = [...prev];
-                    newMessages[aiMessageIndex] = {
-                      ...newMessages[aiMessageIndex],
-                      citations: parsed.citations
-                    };
-                    return newMessages;
-                  });
-                }
-                streamComplete = true;
-              }
-            } catch (e) {
-              // Skip invalid JSON
-            }
-          }
-        }
-        if (streamComplete) break;
-      }
-
-      // Wait for queue to finish with timeout
-      const maxWaitTime = 2000; // 2 second max wait
-      const startWait = Date.now();
-      while ((charQueue.length > 0 || isProcessing) && (Date.now() - startWait < maxWaitTime)) {
-        await new Promise(resolve => setTimeout(resolve, 50));
-      }
-
-      // Clear loading state only after everything is done
-      setIsAILoading(false);
-      setIsLoading(false);
-    } catch (error) {
-      console.error('Error:', error);
-      setMessages(prev => [...prev, { role: 'ai', content: 'Error: Could not generate response. Try again!' }]);
-      setIsAILoading(false);
-      setIsLoading(false);
-    }
-  };
-
-  // AI Takeover - Let AI argue on user's behalf
-  const handleAITakeover = async () => {
-    if (isLoading || isAITakeover) return;
-    
-    setIsAITakeover(true);
-    setIsLoading(true);
-    setIsUserLoading(true);
-
-    try {
-      const response = await fetch('/api/debate/takeover', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          debateId,
-          topic: debate?.topic,
-          previousMessages: messages,
-          opponentStyle: debate?.opponentStyle,
-        })
-      });
-
-      // Check for rate limit error before trying to read stream
-      if (!response.ok) {
-        if (response.status === 429) {
-          const error = await response.json();
-          // Show upgrade modal
-          setRateLimitData({ 
-            current: error.current || 0, 
-            limit: error.limit || 3 
-          });
-          setShowUpgradeModal(true);
-          setIsAITakeover(false);
-          setIsLoading(false);
-          setIsUserLoading(false);
-          return;
-        }
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      if (!response.body) {
-        throw new Error('No response body');
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      
-      // Add the user message immediately with empty content
-      const userMessageIndex = messages.length;
-      setMessages(prev => [...prev, { role: 'user', content: '', aiAssisted: true }]);
-      
-      let accumulatedAiArgument = '';
-      const charQueue: string[] = [];
-      let isProcessing = false;
-      const CHAR_DELAY = 10; // Same delay as opponent responses
-
-      const processCharQueue = () => {
-        if (isProcessing || charQueue.length === 0) return;
-
-        isProcessing = true;
-
-        const processNextChar = () => {
-          if (charQueue.length === 0) {
-            isProcessing = false;
-            return;
-          }
-
-          // If tab is hidden, batch process all characters at once
-          if (!isTabVisible) {
-            while (charQueue.length > 0) {
-              accumulatedAiArgument += charQueue.shift()!;
-            }
-
-            requestAnimationFrame(() => {
-              setMessages(prev => {
-                const newMessages = [...prev];
-                newMessages[userMessageIndex] = {
-                  ...newMessages[userMessageIndex],
-                  role: 'user',
-                  content: accumulatedAiArgument,
-                  aiAssisted: true
-                };
-                return newMessages;
-              });
-            });
-
-            isProcessing = false;
-            return;
-          }
-
-          const char = charQueue.shift()!;
-          accumulatedAiArgument += char;
-
-          requestAnimationFrame(() => {
-            setMessages(prev => {
-              const newMessages = [...prev];
-              newMessages[userMessageIndex] = {
-                ...newMessages[userMessageIndex],
-                role: 'user',
-                content: accumulatedAiArgument,
-                aiAssisted: true
+        if (isDevMode) {
+          // Simulate in dev mode
+          setTimeout(() => {
+            setIsUserLoading(false);
+            setIsAILoading(true);
+            
+            setTimeout(() => {
+              const aiMessage = {
+                role: "ai",
+                content: "That's an interesting point. However, I believe the free market will naturally find the right balance without government intervention. History has shown that excessive regulation often creates more problems than it solves."
               };
-              return newMessages;
+              setMessages(prev => [...prev, aiMessage]);
+              setIsAILoading(false);
+            }, 1500);
+          }, 500);
+        } else {
+          // Real API call with streaming
+          try {
+            setIsUserLoading(false);
+            setIsAILoading(true);
+
+            // Add placeholder AI message for streaming
+            setMessages(prev => [...prev, { role: 'ai', content: '' }]);
+
+            const response = await fetch('/api/debate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                debateId,
+                character: debate.opponent || debate.character || 'custom',
+                opponentStyle: debate.opponentStyle,
+                topic: debate.topic,
+                userArgument: firstArgument,
+                previousMessages: [],
+                isAIAssisted: false
+              })
             });
-          });
 
-          if (charQueue.length > 0) {
-            setTimeout(processNextChar, CHAR_DELAY);
-          } else {
-            isProcessing = false;
-          }
-        };
-
-        processNextChar();
-      };
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n');
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6);
-            if (data === '[DONE]') {
-              // Wait for all characters to be processed
-              while (charQueue.length > 0 || isProcessing) {
-                await new Promise(resolve => setTimeout(resolve, 50));
+            if (!response.ok) {
+              const error = await response.json();
+              if (response.status === 429 && error.upgrade_required) {
+                setRateLimitData({ current: error.current, limit: error.limit });
+                setShowUpgradeModal(true);
+                // Remove the placeholder AI message
+                setMessages(prev => prev.slice(0, -1));
               }
-              
-              // Turn off user loading once streaming is complete
-              setIsUserLoading(false);
-              
-              // AI takeover complete, now trigger opponent response
-              if (accumulatedAiArgument.trim()) {
-                setUserInput('');
-                
-                // Now trigger the opponent's response
-                setIsLoading(true);
-                setIsAILoading(true);
-                
-                // Use the regular debate API for opponent response
-                const opponentResponse = await fetch('/api/debate', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    debateId,
-                    character: debate?.opponent || debate?.character || 'custom',
-                    opponentStyle: debate?.opponentStyle,
-                    topic: debate?.topic,
-                    userArgument: accumulatedAiArgument,
-                    previousMessages: messages,
-                    isAIAssisted: true,  // Mark this as AI-assisted since it was generated by takeover
-                    stream: true
-                  })
-                });
+              throw new Error(error.error || 'Failed to send message');
+            }
 
-                // Process opponent response with existing logic
-                if (!opponentResponse.body) {
-                  throw new Error('No response body');
-                }
+            if (!response.body) throw new Error('No response body');
 
-                const opponentReader = opponentResponse.body.getReader();
-                const opponentDecoder = new TextDecoder();
-                
-                const aiMessageIndex = messages.length + 1;
-                setMessages(prev => [...prev, { role: 'ai', content: '' }]);
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let accumulatedContent = '';
+            let citations: Array<{ id: number; url: string; title: string }> = [];
 
-                let accumulatedContent = '';
-                const charQueue: string[] = [];
-                let isProcessing = false;
-                const CHAR_DELAY = 10;
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
 
-                const processCharQueue = () => {
-                  if (isProcessing || charQueue.length === 0) return;
+              const chunk = decoder.decode(value);
+              const lines = chunk.split('\n');
 
-                  isProcessing = true;
-
-                  const processNextChar = () => {
-                    if (charQueue.length === 0) {
-                      isProcessing = false;
-                      return;
-                    }
-
-                    // If tab is hidden, batch process all characters at once
-                    if (!isTabVisible) {
-                      while (charQueue.length > 0) {
-                        accumulatedContent += charQueue.shift()!;
-                      }
-
-                      requestAnimationFrame(() => {
-                        setMessages(prev => {
-                          const newMessages = [...prev];
-                          newMessages[aiMessageIndex] = {
-                            ...newMessages[aiMessageIndex],
-                            role: 'ai',
-                            content: accumulatedContent
-                          };
-                          return newMessages;
-                        });
-                      });
-
-                      isProcessing = false;
-                      return;
-                    }
-
-                    const char = charQueue.shift()!;
-                    accumulatedContent += char;
-
-                    requestAnimationFrame(() => {
+              for (const line of lines) {
+                if (line.startsWith('data: ') && line !== 'data: [DONE]') {
+                  try {
+                    const data = JSON.parse(line.substring(6));
+                    if (data.type === 'chunk') {
+                      accumulatedContent += data.content;
                       setMessages(prev => {
                         const newMessages = [...prev];
-                        newMessages[aiMessageIndex] = {
-                          ...newMessages[aiMessageIndex],
+                        newMessages[newMessages.length - 1] = {
                           role: 'ai',
-                          content: accumulatedContent
+                          content: accumulatedContent,
+                          citations: citations.length > 0 ? citations : undefined
                         };
                         return newMessages;
                       });
-                    });
-
-                    if (charQueue.length > 0) {
-                      setTimeout(processNextChar, CHAR_DELAY);
-                    } else {
-                      isProcessing = false;
-                    }
-                  };
-
-                  processNextChar();
-                };
-
-                let opponentStreamComplete = false;
-
-                while (true) {
-                  const { done: opponentDone, value: opponentValue } = await opponentReader.read();
-                  if (opponentDone) {
-                    opponentStreamComplete = true;
-                    break;
-                  }
-
-                  const opponentChunk = opponentDecoder.decode(opponentValue);
-                  const opponentLines = opponentChunk.split('\n');
-
-                  for (const line of opponentLines) {
-                    if (line.startsWith('data: ')) {
-                      const data = line.slice(6);
-                      if (data === '[DONE]') {
-                        opponentStreamComplete = true;
-                        break;
-                      }
-                      try {
-                        const parsed = JSON.parse(data);
-                        if (parsed.type === 'chunk' && parsed.content) {
-                          if (isAILoading) {
-                            setIsAILoading(false);
-                          }
-                          for (const char of parsed.content) {
-                            charQueue.push(char);
-                          }
-                          if (!isProcessing) {
-                            processCharQueue();
-                          }
-                        } else if (parsed.type === 'citations' && parsed.citations) {
-                          setMessages(prev => {
-                            const newMessages = [...prev];
-                            const currentMessage = newMessages[aiMessageIndex];
-                            newMessages[aiMessageIndex] = {
-                              ...currentMessage,
-                              citations: parsed.citations
-                            };
-                            return newMessages;
-                          });
-                        } else if (parsed.type === 'search_start') {
-                          // Keep search indicator if no content yet
-                        } else if (parsed.type === 'complete') {
-                          // Update citations immediately if provided
-                          if (parsed.citations) {
-                            setMessages(prev => {
-                              const newMessages = [...prev];
-                              newMessages[aiMessageIndex] = {
-                                ...newMessages[aiMessageIndex],
-                                citations: parsed.citations
-                              };
-                              return newMessages;
-                            });
-                          }
-                          opponentStreamComplete = true;
-                        }
-                      } catch (e) {
-                        // Skip invalid JSON
-                      }
-                    }
-                  }
-                  if (opponentStreamComplete) break;
-                }
-
-                // Wait for queue to finish with timeout
-                const maxWaitTime = 2000;
-                const startWait = Date.now();
-                while ((charQueue.length > 0 || isProcessing) && (Date.now() - startWait < maxWaitTime)) {
-                  await new Promise(resolve => setTimeout(resolve, 50));
-                }
-                setIsAILoading(false);
-              }
-            } else {
-              try {
-                const parsed = JSON.parse(data);
-                if (parsed.type === 'chunk' && parsed.content) {
-                  // Clear search message immediately when first content arrives
-                  if (accumulatedAiArgument === '') {
-                    setMessages(prev => {
-                      const newMessages = [...prev];
-                      if (newMessages[userMessageIndex]?.isSearching) {
-                        newMessages[userMessageIndex] = { 
-                          ...newMessages[userMessageIndex],
+                    } else if (data.type === 'citations' && data.citations) {
+                      citations = data.citations;
+                    } else if (data.type === 'search_start') {
+                      setMessages(prev => {
+                        const newMessages = [...prev];
+                        newMessages[newMessages.length - 1] = {
+                          role: 'ai',
                           content: '',
-                          isSearching: false  // Clear searching flag
+                          isSearching: true
                         };
-                      }
-                      return newMessages;
-                    });
-                    setIsUserLoading(true); // Re-enable loading state for cursor
-                  }
-                  // Add characters to the queue for streaming
-                  for (const char of parsed.content) {
-                    charQueue.push(char);
-                  }
-                  if (!isProcessing) {
-                    processCharQueue();
-                  }
-                } else if (parsed.type === 'search_start') {
-                  // Show search indicator (will be replaced when content arrives)
+                        return newMessages;
+                      });
+                    } else if (data.type === 'complete') {
+                      setMessages(prev => {
+                        const newMessages = [...prev];
+                        newMessages[newMessages.length - 1] = {
+                          role: 'ai',
+                          content: data.content,
+                          citations: data.citations || (citations.length > 0 ? citations : undefined)
+                        };
+                        return newMessages;
+                      });
+                    }
+                  } catch { /* skip invalid JSON */ }
+                }
+              }
+            }
+          } catch (error) {
+            console.error("Failed to send first message:", error);
+            // Remove placeholder if there was an error
+            setMessages(prev => {
+              const lastMsg = prev[prev.length - 1];
+              if (lastMsg && lastMsg.role === 'ai' && !lastMsg.content) {
+                return prev.slice(0, -1);
+              }
+              return prev;
+            });
+          } finally {
+            setIsAILoading(false);
+          }
+        }
+      };
+      
+      sendFirstMessage();
+    }
+  }, [debate, isLoadingDebate, debateId, isDevMode]);
+
+  // Auto-scroll - use instant scroll during streaming to prevent bouncing
+  useEffect(() => {
+    if (isAutoScrollEnabled && messagesEndRef.current) {
+      // Use 'instant' scroll during AI streaming to prevent layout bouncing
+      const behavior = isAILoading ? 'instant' : 'smooth';
+      messagesEndRef.current.scrollIntoView({ behavior });
+    }
+  }, [messages, isAutoScrollEnabled, isAILoading]);
+
+  const opponent = debate ? getOpponentById(debate.opponent || debate.character) : null;
+
+  // Handle scroll - throttled to reduce state updates
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const handleScroll = () => {
+    if (scrollTimeoutRef.current) return;
+    
+    scrollTimeoutRef.current = setTimeout(() => {
+      scrollTimeoutRef.current = null;
+      if (scrollContainerRef.current) {
+        const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
+        const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+        setIsAutoScrollEnabled(isNearBottom);
+      }
+    }, 100);
+  };
+
+  // Send message handler
+  const handleSend = async () => {
+    if (!userInput.trim() || isUserLoading || isAILoading) return;
+    
+    const messageText = userInput.trim();
+    
+    // Add user message immediately
+    const userMessage = { 
+      role: "user", 
+      content: messageText,
+      aiAssisted: isAITakeover 
+    };
+    
+    setMessages(prev => [...prev, userMessage]);
+    setUserInput("");
+    setIsUserLoading(true);
+    setIsAutoScrollEnabled(true);
+    
+    // Reset textarea height
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+    }
+    
+    if (isDevMode) {
+      // Simulate API delay
+      setTimeout(() => {
+        setIsUserLoading(false);
+        setIsAILoading(true);
+        
+        // Simulate AI response after a delay
+        setTimeout(() => {
+          const aiMessage = {
+            role: "ai",
+            content: "That's an interesting point. However, I believe the free market will naturally find the right balance without government intervention. History has shown that excessive regulation often creates more problems than it solves."
+          };
+          setMessages(prev => [...prev, aiMessage]);
+          setIsAILoading(false);
+        }, 1500);
+      }, 500);
+    } else {
+      // Real API call with streaming
+      try {
+        setIsUserLoading(false);
+        setIsAILoading(true);
+
+        // Add placeholder AI message for streaming
+        setMessages(prev => [...prev, { role: 'ai', content: '' }]);
+
+        const response = await fetch('/api/debate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            debateId,
+            character: debate?.opponent || debate?.character || 'custom',
+            opponentStyle: debate?.opponentStyle,
+            topic: debate?.topic,
+            userArgument: messageText,
+            previousMessages: messages,
+            isAIAssisted: isAITakeover
+          }),
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          if (response.status === 429 && error.upgrade_required) {
+            setRateLimitData({ current: error.current, limit: error.limit });
+            setShowUpgradeModal(true);
+            // Remove the user message we just added and the placeholder AI message
+            setMessages(prev => prev.slice(0, -2));
+            setUserInput(messageText); // Restore input
+          }
+          throw new Error(error.error || 'Failed to send message');
+        }
+
+        if (!response.body) throw new Error('No response body');
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let accumulatedContent = '';
+        let citations: Array<{ id: number; url: string; title: string }> = [];
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value);
+          const lines = chunk.split('\n');
+
+          for (const line of lines) {
+            if (line.startsWith('data: ') && line !== 'data: [DONE]') {
+              try {
+                const data = JSON.parse(line.substring(6));
+                if (data.type === 'chunk') {
+                  accumulatedContent += data.content;
                   setMessages(prev => {
                     const newMessages = [...prev];
-                    newMessages[userMessageIndex] = { 
-                      ...newMessages[userMessageIndex],
-                      content: '🔍 Searching the web',
-                      isSearching: true  // Add flag to trigger dots animation
+                    newMessages[newMessages.length - 1] = {
+                      role: 'ai',
+                      content: accumulatedContent,
+                      citations: citations.length > 0 ? citations : undefined
                     };
                     return newMessages;
                   });
-                  // Keep loading state true so cursor shows when content arrives
-                } else if (parsed.type === 'citations' && parsed.citations) {
-                  // Update citations on the message
+                } else if (data.type === 'citations' && data.citations) {
+                  citations = data.citations;
+                } else if (data.type === 'search_start') {
                   setMessages(prev => {
                     const newMessages = [...prev];
-                    newMessages[userMessageIndex] = { 
-                      ...newMessages[userMessageIndex],
-                      citations: parsed.citations
+                    newMessages[newMessages.length - 1] = {
+                      role: 'ai',
+                      content: '',
+                      isSearching: true
+                    };
+                    return newMessages;
+                  });
+                } else if (data.type === 'complete') {
+                  setMessages(prev => {
+                    const newMessages = [...prev];
+                    newMessages[newMessages.length - 1] = {
+                      role: 'ai',
+                      content: data.content,
+                      citations: data.citations || (citations.length > 0 ? citations : undefined)
                     };
                     return newMessages;
                   });
                 }
-              } catch (e) {
-                // Ignore parse errors
-              }
+              } catch { /* skip invalid JSON */ }
             }
           }
         }
+      } catch (error) {
+        console.error("Failed to send message:", error);
+        // Remove placeholder if there was an error and it's empty
+        setMessages(prev => {
+          const lastMsg = prev[prev.length - 1];
+          if (lastMsg && lastMsg.role === 'ai' && !lastMsg.content) {
+            return prev.slice(0, -1);
+          }
+          return prev;
+        });
+      } finally {
+        setIsAILoading(false);
       }
-    } catch (error) {
-      console.error('AI takeover error:', error);
-      alert('Failed to generate AI argument. Please try again.');
-      setIsAILoading(false);
-      setIsUserLoading(false);
-    } finally {
-      setIsAITakeover(false);
-      setIsLoading(false);
-      setIsUserLoading(false);
     }
   };
 
-  // Show loading state while checking auth or loading debate
-  if (isSignedIn === undefined || isLoadingDebate) {
+  // Loading state
+  if (!isDevMode && (isSignedIn === undefined || isLoadingDebate)) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center animate-fade-in">
-          <div className="text-xl font-medium text-slate-100 mb-3">
-            {isSignedIn === undefined ? 'Checking authentication...' : 'Preparing debate arena'}
-          </div>
-          <div className="inline-flex gap-1">
-            <span className="dot-bounce"></span>
-            <span className="dot-bounce"></span>
-            <span className="dot-bounce"></span>
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-8 h-8 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin mx-auto mb-4"/>
+            <p className="text-[var(--text-secondary)]">Loading debate...</p>
           </div>
         </div>
       </div>
     );
   }
 
-  const opponent = debate ? getOpponentById(debate.opponent || debate.character) : null;
+  const canSend = userInput.trim().length > 0 && !isUserLoading && !isAILoading;
 
   return (
-    <div className="h-screen bg-background flex flex-col overflow-hidden animate-fade-in">
+    <div className="h-screen flex flex-col overflow-hidden">
       <Header />
-      
-      {/* Topic Display */}
+
+      {/* Topic Header - Fixed */}
       {debate && (
-        <div className="border-b border-slate-700 bg-slate-800 px-4 py-3 animate-slide-down">
-          <div className="container mx-auto max-w-4xl">
-            <div className="flex items-center gap-3 text-sm">
-              <div className="text-slate-100">
-                <span className="text-slate-400 mr-2">Topic:</span>
-                <span className="font-medium">{debate.topic}</span>
-              </div>
+        <div className="flex-shrink-0 z-10 border-b border-[var(--border)] bg-[var(--bg)]/95 backdrop-blur supports-[backdrop-filter]:bg-[var(--bg)]/80">
+          <div className="max-w-3xl mx-auto px-4 sm:px-6 py-3">
+            <div className="flex items-center justify-center gap-2 text-sm">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--accent)]">Topic</span>
+              <h1 className="font-medium text-[var(--text)] truncate max-w-[200px] sm:max-w-[300px]">{debate.topic}</h1>
               {(debate.opponentStyle || opponent) && (
                 <>
-                  <span className="text-slate-600">•</span>
-                  <div className="text-slate-100">
-                    <span className="text-slate-400 mr-2">Opponent:</span>
-                    <span className="font-medium">{debate.opponentStyle || opponent?.name}</span>
-                  </div>
+                  <span className="text-[var(--border-strong)]">·</span>
+                  <span className="text-[var(--text-secondary)]">vs {debate.opponentStyle || opponent?.name}</span>
                 </>
               )}
             </div>
@@ -973,119 +665,119 @@ export default function DebatePage() {
         </div>
       )}
 
-      {/* Messages Area - Scrollable Container */}
-      <div className="flex-1 overflow-hidden flex flex-col">
-        <div className="flex-1 overflow-y-auto relative" onScroll={handleScroll}>
-          <div className="container mx-auto max-w-4xl px-4 py-4">
-          {/* Opponent Info */}
-          {opponent && messages.length === 0 && (
-            <div className="text-center mb-8 animate-fade-in-up">
-              <div className="inline-flex items-center gap-3 px-4 py-2 bg-slate-800 rounded-full border border-slate-700">
-                <span className="text-2xl">{opponent.avatar}</span>
-                <div className="text-left">
-                  <div className="font-semibold text-slate-100">{opponent.name}</div>
-                  <div className="text-xs text-slate-400">{opponent.style}</div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Messages */}
-          <div className="space-y-4">
-            {messages.filter(msg => msg && msg.role).map((msg, idx) => (
-              <Message 
-                key={idx} 
-                msg={msg} 
-                opponent={opponent}
-                debate={debate}
-                isAILoading={isAILoading && idx === messages.length - 1}
-                isUserLoading={isUserLoading && idx === messages.length - 1}
-                msgIndex={idx}
-              />
-            ))}
-            
-            <div ref={messagesEndRef} />
-          </div>
-          
-          {/* Auto-scroll indicator - only show during active streaming */}
-          {!isAutoScrollEnabled && isLoading && (
-            <div className="absolute bottom-24 right-4 bg-slate-800 text-slate-400 text-xs px-3 py-1.5 rounded-full border border-slate-700 animate-fade-in">
-              Auto-scroll paused • Scroll to bottom to resume
-            </div>
-          )}
+      {/* Messages - Scrollable */}
+      <div 
+        ref={scrollContainerRef}
+        className="flex-1 overflow-y-auto min-h-0"
+        onScroll={handleScroll}
+      >
+        <div className="pb-4">
+          {messages.filter((msg) => msg && msg.role).map((msg, idx) => (
+            <Message
+              key={idx}
+              msg={msg}
+              opponent={opponent}
+              debate={debate}
+              isAILoading={isAILoading && idx === messages.length - 1}
+              isUserLoading={isUserLoading && idx === messages.length - 1}
+            />
+          ))}
+          <div ref={messagesEndRef} />
         </div>
       </div>
-    </div>
 
-      {/* Input Area - Fixed */}
-      <div className="border-t border-slate-700 bg-slate-900 flex-shrink-0">
-        <div className="container mx-auto max-w-4xl px-4 py-4">
-          <div className="flex gap-3 items-start">
-            <div className="flex-1 relative">
+      {/* Input Area - Fixed at bottom */}
+      <div className="flex-shrink-0 border-t border-[var(--border)] bg-[var(--bg)]">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-4">
+          {/* Input Row */}
+          <div className="flex gap-2">
+            {/* Textarea Container */}
+            <div className="flex-1 min-w-0">
               <textarea
                 ref={textareaRef}
                 value={userInput}
                 onChange={(e) => {
                   setUserInput(e.target.value);
-                  // Auto-resize textarea
-                  e.target.style.height = 'auto';
-                  const newHeight = Math.min(e.target.scrollHeight, 200);
-                  e.target.style.height = newHeight + 'px';
-                  // Only show scrollbar if content exceeds max height
-                  e.target.style.overflowY = e.target.scrollHeight > 200 ? 'auto' : 'hidden';
+                  e.target.style.height = "auto";
+                  e.target.style.height = Math.min(e.target.scrollHeight, 200) + "px";
                 }}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
+                  if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
-                    sendMessage();
+                    if (canSend) handleSend();
                   }
                 }}
-                placeholder="Type your argument... (Shift+Enter for new line)"
-                className="w-full px-4 py-3 pr-12 bg-slate-800 border border-slate-700 rounded-lg focus:border-indigo-500 focus:outline-none text-slate-100 placeholder-slate-500 resize-none leading-6"
-                style={{ minHeight: '48px', maxHeight: '200px', overflowY: 'hidden' }}
+                placeholder="Make your argument..."
+                className="w-full bg-[var(--bg-elevated)] border border-[var(--border)] rounded-xl 
+                  px-4 py-3 resize-none text-[var(--text)] placeholder-[var(--text-tertiary)] 
+                  outline-none focus:border-[var(--accent)]/50 focus:ring-1 focus:ring-[var(--accent)]/20
+                  transition-all min-h-[48px] max-h-[200px] text-[15px] leading-relaxed overflow-hidden"
                 rows={1}
-                disabled={isLoading}
+                disabled={isUserLoading || isAILoading}
               />
+            </div>
+            
+            {/* Buttons - Fixed size, centered vertically */}
+            <div className="flex items-center gap-1.5 flex-shrink-0 self-center">
+              {/* AI Takeover Button */}
               <button
-                onClick={handleAITakeover}
-                disabled={isLoading || isAITakeover}
-                className={`absolute right-3 h-8 w-8 flex items-center justify-center rounded-md transition-all group ${
-                  isLoading || isAITakeover
-                    ? 'text-slate-600 cursor-not-allowed'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
-                }`}
-                style={{ top: '24px', transform: 'translateY(-50%)' }}
+                type="button"
+                onClick={() => setIsAITakeover(!isAITakeover)}
+                disabled={isUserLoading || isAILoading}
+                className={`
+                  w-10 h-10 rounded-lg border flex items-center justify-center
+                  transition-all duration-200 flex-shrink-0
+                  ${isAITakeover 
+                    ? 'border-[var(--accent)] text-[var(--accent)] bg-[var(--accent)]/10' 
+                    : 'border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--accent)] hover:border-[var(--accent)]/30'
+                  }
+                  disabled:opacity-40 disabled:cursor-not-allowed
+                `}
                 title="Let AI argue for you"
+                aria-pressed={isAITakeover}
               >
-                {/* Tooltip */}
-                <span className="absolute bottom-full right-0 mb-2 px-2 py-1 text-xs text-slate-200 bg-slate-800 rounded border border-slate-700 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                  AI will argue for you
-                </span>
-                {isAITakeover ? (
-                  <div className="w-5 h-5 border-2 border-slate-600 border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                  </svg>
-                )}
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} 
+                    d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                </svg>
+              </button>
+              
+              {/* Send Button */}
+              <button
+                type="button"
+                onClick={handleSend}
+                disabled={!canSend}
+                className={`
+                  w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0
+                  transition-all duration-200
+                  ${canSend 
+                    ? 'bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)] cursor-pointer' 
+                    : 'bg-[var(--bg-sunken)] text-[var(--text-tertiary)] cursor-not-allowed'
+                  }
+                `}
+                title="Send message"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                </svg>
               </button>
             </div>
-            <button
-              onClick={() => sendMessage()}
-              disabled={isLoading || !userInput.trim()}
-              className={`px-6 h-12 rounded-lg font-medium transition-colors flex items-center justify-center ${
-                isLoading || !userInput.trim()
-                  ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                  : 'bg-indigo-500 text-white hover:bg-indigo-600'
-              }`}
-            >
-              Send
-            </button>
+          </div>
+          
+          {/* Keyboard Hints */}
+          <div className="mt-2 flex items-center justify-center gap-4 text-[11px] text-[var(--text-tertiary)]">
+            <span className="flex items-center gap-1">
+              <kbd className="px-1.5 py-0.5 rounded bg-[var(--bg-sunken)] border border-[var(--border)] text-[var(--text-secondary)] font-mono text-[10px]">Enter</kbd>
+              to send
+            </span>
+            <span className="flex items-center gap-1">
+              <kbd className="px-1.5 py-0.5 rounded bg-[var(--bg-sunken)] border border-[var(--border)] text-[var(--text-secondary)] font-mono text-[10px]">Shift + Enter</kbd>
+              for new line
+            </span>
           </div>
         </div>
       </div>
-      
-      {/* Upgrade Modal */}
+
       <UpgradeModal 
         isOpen={showUpgradeModal}
         onClose={() => setShowUpgradeModal(false)}

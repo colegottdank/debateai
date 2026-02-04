@@ -377,6 +377,31 @@ class D1Client {
     
     return { success: false, count: 0, limit: 2, allowed: true, remaining: 2, isPremium: false };
   }
+
+  async addMessage(debateId: string, message: { role: string; content: string; aiAssisted?: boolean; citations?: unknown[] }) {
+    // First get the existing debate
+    const debateResult = await this.getDebate(debateId);
+    
+    if (!debateResult.success || !debateResult.debate) {
+      return { success: false, error: 'Debate not found' };
+    }
+    
+    // Get existing messages
+    const existingMessages = Array.isArray(debateResult.debate.messages) 
+      ? debateResult.debate.messages 
+      : [];
+    
+    // Add new message
+    const updatedMessages = [...existingMessages, message];
+    
+    // Update the debate with new messages
+    const result = await this.query(
+      `UPDATE debates SET messages = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+      [JSON.stringify(updatedMessages), debateId]
+    );
+    
+    return result;
+  }
 }
 
 // Export singleton instance

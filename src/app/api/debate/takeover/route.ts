@@ -93,6 +93,16 @@ export async function POST(request: Request) {
     messages.push({ role: "system", content: systemPrompt });
     messages.push({ role: "user", content: userPrompt });
 
+    // Inject reminder about citations to keep it fresh in context
+    messages.push({
+      role: "assistant",
+      content: "Understood. I will ONLY use citation markers [1], [2] if I actually perform a web search and retrieve real sources. I will NOT hallucinate citation numbers without searching. If I don't search, I won't use any citation markers."
+    });
+    messages.push({
+      role: "user",
+      content: "Correct. Now provide your response."
+    });
+
     // Generate the AI takeover response
     // eslint-disable-next-line prefer-const
     let controllerClosed = false; // Track if controller is closed
@@ -104,7 +114,7 @@ export async function POST(request: Request) {
         try {
           const response = await openai.chat.completions.create({
             model: "claude-sonnet-4:online/anthropic",
-            max_tokens: 400, // Strictly enforce brevity for takeover
+            max_tokens: 600, // Strictly enforce brevity for takeover
             temperature: 0.7,
             messages: messages,
             stream: true,
@@ -117,6 +127,8 @@ export async function POST(request: Request) {
           const BUFFER_SIZE = 5; // Smaller chunks for smoother flow
           const citations: any[] = [];
           let citationCounter = 1;
+          let hasReceivedContent = false;
+          let searchIndicatorSent = false;
 
           const flushBuffer = () => {
             if (buffer && !controllerClosed) {
@@ -134,19 +146,40 @@ export async function POST(request: Request) {
           };
 
           for await (const chunk of response) {
+            // Log EVERY single chunk from Helicone to see full structure
+            console.log(
+              "📚 [TAKEOVER - FULL CHUNK FROM HELICONE]:",
+              JSON.stringify(chunk, null, 2)
+            );
+
             const content = chunk.choices[0]?.delta?.content;
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const annotations = (chunk.choices[0]?.delta as any)?.annotations;
+            const delta = chunk.choices[0]?.delta as any;
+            const annotations = delta?.annotations;
 
             // Process annotations (citations from web search)
             if (annotations && Array.isArray(annotations)) {
+              // If we have annotations but no content yet, web search is happening
+              if (!hasReceivedContent && !searchIndicatorSent) {
+                searchIndicatorSent = true;
+                controller.enqueue(
+                  encoder.encode(
+                    `data: ${JSON.stringify({
+                      type: "search_start",
+                    })}\n\n`
+                  )
+                );
+              }
+
               for (const annotation of annotations) {
-                if (annotation.type === "url_citation" && annotation.url_citation) {
+                if (
+                  annotation.type === "url_citation" &&
+                  annotation.url_citation
+                ) {
                   const urlCitation = annotation.url_citation;
 
                   // Check if we already have this citation (deduplicate by URL)
                   const existingCitation = citations.find(
-                    c => c.url === urlCitation.url
+                    (c) => c.url === urlCitation.url
                   );
 
                   if (!existingCitation) {
@@ -154,7 +187,8 @@ export async function POST(request: Request) {
                     const citationData = {
                       id: citationCounter++,
                       url: urlCitation.url,
-                      title: urlCitation.title || new URL(urlCitation.url).hostname,
+                      title:
+                        urlCitation.title || new URL(urlCitation.url).hostname,
                     };
                     citations.push(citationData);
                   }
@@ -180,6 +214,7 @@ export async function POST(request: Request) {
             }
 
             if (content) {
+              hasReceivedContent = true;
               accumulatedContent += content;
 
               // Add characters to buffer one by one

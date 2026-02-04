@@ -1,0 +1,266 @@
+/* ============================================
+   ARTISTIC BACKGROUND - Bold & Dramatic
+   Inspired by Linear, Vercel, Gumroad
+   ============================================ */
+
+/* Deep gradient mesh background - reduced opacity */
+.gradient-mesh {
+  position: absolute;
+  inset: 0;
+  background: 
+    radial-gradient(ellipse 80% 50% at 20% 40%, rgba(181, 77, 48, 0.25) 0%, transparent 50%),
+    radial-gradient(ellipse 60% 40% at 80% 20%, rgba(201, 102, 74, 0.2) 0%, transparent 40%),
+    radial-gradient(ellipse 50% 60% at 50% 70%, rgba(232, 179, 163, 0.12) 0%, transparent 45%),
+    radial-gradient(ellipse 40% 30% at 70% 40%, rgba(150, 61, 37, 0.2) 0%, transparent 40%);
+  filter: blur(80px);
+  animation: mesh-shift 20s ease-in-out infinite;
+}
+
+/* Large gradient orbs - positioned away from buttons, lower opacity */
+.gradient-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(100px);
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  animation-iteration-count: infinite;
+}
+
+.orb-1 {
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(201, 102, 74, 0.35) 0%, rgba(181, 77, 48, 0.15) 40%, transparent 70%);
+  top: -15%;
+  right: -5%;
+  animation: orb-float-1 25s infinite;
+}
+
+.orb-2 {
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(232, 179, 163, 0.25) 0%, rgba(201, 102, 74, 0.1) 50%, transparent 70%);
+  bottom: 20%;
+  left: -10%;
+  animation: orb-float-2 30s infinite;
+}
+
+.orb-3 {
+  width: 350px;
+  height: 350px;
+  background: radial-gradient(circle, rgba(150, 61, 37, 0.3) 0%, rgba(125, 53, 35, 0.12) 40%, transparent 70%);
+  top: 10%;
+  left: 20%;
+  animation: orb-float-3 35s infinite;
+}
+
+.orb-4 {
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(circle, rgba(217, 137, 112, 0.2) 0%, rgba(201, 102, 74, 0.08) 50%, transparent 70%);
+  top: 60%;
+  right: 10%;
+  animation: orb-float-4 28s infinite;
+}
+
+/* Noise texture */
+.noise-overlay {
+  position: absolute;
+  inset: 0;
+  opacity: 0.04;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  pointer-events: none;
+}
+
+/* Mouse spotlight overlay */
+.spotlight-overlay {
+  position: absolute;
+  inset: 0;
+  transition: background 0.15s ease-out;
+  pointer-events: none;
+}
+
+/* Perspective grid for depth */
+.perspective-grid {
+  position: absolute;
+  inset: 0;
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 100px 100px;
+  mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 40%, transparent 70%);
+  -webkit-mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 40%, transparent 70%);
+  opacity: 0.5;
+}
+
+/* ============================================
+   ANIMATIONS
+   ============================================ */
+
+@keyframes mesh-shift {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 1;
+  }
+  25% {
+    transform: translate(2%, 3%) scale(1.05);
+    opacity: 0.9;
+  }
+  50% {
+    transform: translate(-1%, 2%) scale(0.98);
+    opacity: 1;
+  }
+  75% {
+    transform: translate(3%, -2%) scale(1.02);
+    opacity: 0.95;
+  }
+}
+
+@keyframes orb-float-1 {
+  0%, 100% {
+    transform: translate(0, 0) scale(1) rotate(0deg);
+  }
+  33% {
+    transform: translate(-30px, 20px) scale(1.1) rotate(5deg);
+  }
+  66% {
+    transform: translate(20px, 40px) scale(0.95) rotate(-3deg);
+  }
+}
+
+@keyframes orb-float-2 {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(40px, -30px) scale(1.08);
+  }
+}
+
+@keyframes orb-float-3 {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  25% {
+    transform: translate(-20px, -40px) scale(0.92);
+  }
+  75% {
+    transform: translate(30px, 20px) scale(1.05);
+  }
+}
+
+@keyframes orb-float-4 {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(-40px, 30px) scale(1.1);
+  }
+}
+
+/* ============================================
+   LIGHT MODE ADJUSTMENTS - Clean White Background
+   ============================================ */
+
+.light {
+  /* Clean light theme */
+  --bg: #fafafa;
+  --bg-elevated: #ffffff;
+  --bg-sunken: #f0f0f0;
+  --text: #1a1a1a;
+  --text-secondary: #666666;
+  --text-tertiary: #999999;
+}
+
+.light .gradient-mesh {
+  background: 
+    radial-gradient(ellipse 60% 35% at 20% 20%, rgba(201, 102, 74, 0.12) 0%, transparent 50%),
+    radial-gradient(ellipse 45% 30% at 80% 30%, rgba(232, 179, 163, 0.1) 0%, transparent 40%),
+    radial-gradient(ellipse 40% 45% at 60% 70%, rgba(249, 235, 230, 0.15) 0%, transparent 45%);
+  filter: blur(60px);
+}
+
+.light .gradient-orb {
+  opacity: 0.25;
+  filter: blur(80px);
+}
+
+.light .orb-1 {
+  background: radial-gradient(circle, rgba(201, 102, 74, 0.12) 0%, rgba(181, 77, 48, 0.04) 40%, transparent 70%);
+}
+
+.light .orb-2 {
+  background: radial-gradient(circle, rgba(232, 179, 163, 0.1) 0%, rgba(201, 102, 74, 0.04) 50%, transparent 70%);
+}
+
+.light .orb-3 {
+  background: radial-gradient(circle, rgba(150, 61, 37, 0.1) 0%, rgba(125, 53, 35, 0.03) 40%, transparent 70%);
+}
+
+.light .orb-4 {
+  background: radial-gradient(circle, rgba(217, 137, 112, 0.08) 0%, rgba(201, 102, 74, 0.03) 50%, transparent 70%);
+}
+
+.light .perspective-grid {
+  background-image: 
+    linear-gradient(rgba(0, 0, 0, 0.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.015) 1px, transparent 1px);
+  opacity: 0.2;
+}
+
+.light .noise-overlay {
+  opacity: 0.01;
+}
+
+.light .spotlight-overlay {
+  opacity: 0.3;
+}
+
+/* ============================================
+   DARK MODE ENHANCEMENTS - Visible Gradients
+   ============================================ */
+
+.dark .gradient-mesh {
+  background: 
+    radial-gradient(ellipse 80% 50% at 20% 40%, rgba(201, 102, 74, 0.6) 0%, rgba(181, 77, 48, 0.3) 40%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 80% 20%, rgba(232, 179, 163, 0.5) 0%, rgba(201, 102, 74, 0.25) 40%, transparent 60%),
+    radial-gradient(ellipse 50% 60% at 50% 80%, rgba(249, 235, 230, 0.35) 0%, transparent 50%),
+    radial-gradient(ellipse 40% 30% at 70% 60%, rgba(150, 61, 37, 0.55) 0%, transparent 50%);
+  filter: blur(50px);
+}
+
+.dark .gradient-orb {
+  opacity: 0.9;
+  filter: blur(80px);
+}
+
+.dark .orb-1 {
+  background: radial-gradient(circle, rgba(201, 102, 74, 0.7) 0%, rgba(181, 77, 48, 0.4) 40%, transparent 70%);
+}
+
+.dark .orb-2 {
+  background: radial-gradient(circle, rgba(232, 179, 163, 0.6) 0%, rgba(201, 102, 74, 0.3) 50%, transparent 70%);
+}
+
+.dark .orb-3 {
+  background: radial-gradient(circle, rgba(150, 61, 37, 0.7) 0%, rgba(125, 53, 35, 0.4) 40%, transparent 70%);
+}
+
+.dark .orb-4 {
+  background: radial-gradient(circle, rgba(217, 137, 112, 0.6) 0%, rgba(201, 102, 74, 0.3) 50%, transparent 70%);
+}
+
+/* Show/hide base backgrounds based on theme */
+.dark-only {
+  display: block;
+}
+
+.light-only {
+  display: none;
+}
+
+.light .dark-only {
+  display: none;
+}
+
+.light .light-only {
+  display: block;
+}

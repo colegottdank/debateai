@@ -3,11 +3,14 @@ import { getUserId } from "@/lib/auth-helper";
 import { d1 } from "@/lib/d1";
 import { getDebatePrompt, getDailyPersona } from "@/lib/prompts";
 import { checkAppDisabled } from "@/lib/app-disabled";
-import OpenAI from "openai";
+import Anthropic from "@anthropic-ai/sdk";
 
-const openai = new OpenAI({
-  apiKey: `${process.env.HELICONE_API_KEY}`,
-  baseURL: "https://ai-gateway.helicone.ai",
+const anthropic = new Anthropic({
+  baseURL: "https://anthropic.helicone.ai",
+  apiKey: process.env.ANTHROPIC_API_KEY,
+  defaultHeaders: {
+    "Helicone-Auth": `Bearer ${process.env.HELICONE_API_KEY}`,
+  },
 });
 
 export async function POST(request: Request) {
@@ -65,11 +68,8 @@ export async function POST(request: Request) {
     const persona = opponentStyle || getDailyPersona();
     const systemPrompt = getDebatePrompt(persona, topic);
 
-    // Build conversation history for OpenAI SDK format
-    const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [];
-
-    // Add system prompt as first message
-    messages.push({ role: "system", content: systemPrompt });
+    // Build conversation history for Anthropic SDK format
+    const messages: Anthropic.MessageParam[] = [];
 
     // Add previous messages if they exist
     if (previousMessages && previousMessages.length > 0) {
@@ -88,6 +88,17 @@ export async function POST(request: Request) {
     // Add the current user argument
     messages.push({ role: "user", content: userArgument });
 
+    // Inject reminder about citations to prime the model
+    messages.push({
+      role: "assistant",
+      content:
+        "I'll respond to this argument. If I use web search, I will include citation markers [1], [2] directly in my text for any facts I cite.",
+    });
+    messages.push({
+      role: "user",
+      content: "Go ahead.",
+    });
+
     // Always use streaming response
     const encoder = new TextEncoder();
     // eslint-disable-next-line prefer-const
@@ -101,12 +112,19 @@ export async function POST(request: Request) {
             encoder.encode(`data: ${JSON.stringify({ type: "start" })}\n\n`)
           );
 
-          const stream = await openai.chat.completions.create({
-            model: "claude-sonnet-4:online/anthropic",
+          // Use Anthropic directly with web search tool
+          const stream = anthropic.messages.stream({
+            model: "claude-sonnet-4-20250514",
             max_tokens: 600,
-            temperature: 0.7,
+            system: systemPrompt,
             messages: messages,
-            stream: true,
+            tools: [
+              {
+                type: "web_search_20250305",
+                name: "web_search",
+                max_uses: 1, // Limit to 1 search to reduce cost
+              },
+            ],
           });
 
           let accumulatedContent = "";
@@ -116,6 +134,7 @@ export async function POST(request: Request) {
           const BUFFER_SIZE = 8; // Send 8 characters at a time for better speed
           const citations: any[] = [];
           let citationCounter = 1;
+          let searchIndicatorSent = false;
 
           // Simple flush function for character streaming
           const flushBuffer = () => {
@@ -133,73 +152,135 @@ export async function POST(request: Request) {
             }
           };
 
-          for await (const chunk of stream) {
-            const content = chunk.choices[0]?.delta?.content;
-            const delta = chunk.choices[0]?.delta as any;
-            const annotations = delta?.annotations;
+          // Handle Anthropic streaming events
+          stream.on("text", (text) => {
+            accumulatedContent += text;
 
-            // Process annotations (citations from web search)
-            if (annotations && Array.isArray(annotations)) {
-              for (const annotation of annotations) {
-                if (
-                  annotation.type === "url_citation" &&
-                  annotation.url_citation
-                ) {
-                  const urlCitation = annotation.url_citation;
+            // Add characters to buffer one by one
+            for (const char of text) {
+              buffer += char;
 
-                  // Check if we already have this citation (deduplicate by URL)
-                  const existingCitation = citations.find(
-                    (c) => c.url === urlCitation.url
-                  );
-
-                  if (!existingCitation) {
-                    // Create new citation
-                    const citationData = {
-                      id: citationCounter++,
-                      url: urlCitation.url,
-                      title:
-                        urlCitation.title || new URL(urlCitation.url).hostname,
-                    };
-                    citations.push(citationData);
-                  }
-                }
+              // Flush small chunks frequently
+              const now = Date.now();
+              if (
+                buffer.length >= BUFFER_SIZE ||
+                (now - lastFlushTime >= BUFFER_TIME && buffer.length > 0)
+              ) {
+                flushBuffer();
               }
+            }
+          });
 
-              // Send citations update to frontend
-              if (citations.length > 0 && !controllerClosed) {
-                // Flush any pending content first
-                if (buffer) {
-                  flushBuffer();
-                }
-
+          // Handle content block events for web search
+          (stream as any).on("contentBlockStart", (event: any) => {
+            console.log("📚 [ANTHROPIC] Content block start:", JSON.stringify(event, null, 2));
+            if (event.content_block?.type === "server_tool_use" && event.content_block?.name === "web_search") {
+              if (!searchIndicatorSent) {
+                searchIndicatorSent = true;
                 controller.enqueue(
                   encoder.encode(
                     `data: ${JSON.stringify({
-                      type: "citations",
-                      citations: citations,
+                      type: "search_start",
                     })}\n\n`
                   )
                 );
               }
             }
+          });
 
-            if (content) {
-              accumulatedContent += content;
+          // Handle the full message to extract citations
+          const finalMessage = await stream.finalMessage();
+          console.log("📚 [ANTHROPIC] Final message content blocks:", finalMessage.content.length);
 
-              // Add characters to buffer one by one
-              for (const char of content) {
-                buffer += char;
+          // Extract citations from the response (limit to 3 to reduce clutter)
+          const MAX_CITATIONS = 3;
+          const seenUrls = new Set<string>();
 
-                // Flush small chunks frequently
-                const now = Date.now();
-                if (
-                  buffer.length >= BUFFER_SIZE ||
-                  (now - lastFlushTime >= BUFFER_TIME && buffer.length > 0)
-                ) {
-                  flushBuffer();
+          // First pass: extract from text block citations (preferred - has proper mapping)
+          for (const block of finalMessage.content) {
+            if (block.type === "text") {
+              // Cast to access citations property (added by web search, not in base type)
+              const textBlock = block as typeof block & {
+                citations?: Array<{
+                  type: string;
+                  url: string;
+                  title?: string;
+                  cited_text?: string;
+                }>;
+              };
+
+              if (textBlock.citations && Array.isArray(textBlock.citations)) {
+                console.log("📚 [CITATIONS] Found text block with", textBlock.citations.length, "citations");
+                for (const citation of textBlock.citations) {
+                  if (citations.length >= MAX_CITATIONS) break;
+                  if (citation.type === "web_search_result_location" && citation.url) {
+                    // Deduplicate by URL
+                    if (!seenUrls.has(citation.url)) {
+                      seenUrls.add(citation.url);
+                      const citationData = {
+                        id: citationCounter++,
+                        url: citation.url,
+                        title: citation.title || new URL(citation.url).hostname,
+                      };
+                      citations.push(citationData);
+                      console.log("📚 [CITATIONS] Added citation:", citationData);
+                    }
+                  }
                 }
               }
             }
+            if (citations.length >= MAX_CITATIONS) break;
+          }
+
+          // Fallback: if no citations found in text blocks, extract from web_search_tool_result
+          if (citations.length === 0) {
+            console.log("📚 [CITATIONS] No citations in text blocks, checking web_search_tool_result");
+            for (const block of finalMessage.content) {
+              if (block.type === "web_search_tool_result") {
+                const resultBlock = block as typeof block & {
+                  content?: Array<{
+                    type: string;
+                    url?: string;
+                    title?: string;
+                  }>;
+                };
+                if (resultBlock.content && Array.isArray(resultBlock.content)) {
+                  console.log("📚 [CITATIONS] Found web_search_tool_result with", resultBlock.content.length, "results");
+                  for (const result of resultBlock.content) {
+                    if (citations.length >= MAX_CITATIONS) break;
+                    if (result.type === "web_search_result" && result.url) {
+                      if (!seenUrls.has(result.url)) {
+                        seenUrls.add(result.url);
+                        const citationData = {
+                          id: citationCounter++,
+                          url: result.url,
+                          title: result.title || new URL(result.url).hostname,
+                        };
+                        citations.push(citationData);
+                        console.log("📚 [CITATIONS] Added fallback citation:", citationData);
+                      }
+                    }
+                  }
+                }
+              }
+              if (citations.length >= MAX_CITATIONS) break;
+            }
+          }
+
+          console.log("📚 [CITATIONS] Total extracted:", citations.length);
+
+          // Send citations if any
+          if (citations.length > 0 && !controllerClosed) {
+            console.log("📚 [CITATIONS] Sending to frontend. Total citations:", citations.length);
+            flushBuffer(); // Flush any pending content first
+            controller.enqueue(
+              encoder.encode(
+                `data: ${JSON.stringify({
+                  type: "citations",
+                  citations: citations,
+                })}\n\n`
+              )
+            );
           }
 
           // Flush any remaining buffer
@@ -248,6 +329,7 @@ export async function POST(request: Request) {
 
           // Send completion message
           if (!controllerClosed) {
+            console.log('📚 [CITATIONS] Stream complete. Final citations count:', citations.length);
             controller.enqueue(
               encoder.encode(
                 `data: ${JSON.stringify({
