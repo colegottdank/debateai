@@ -10,11 +10,14 @@ const isPublicRoute = createRouteMatcher([
   '/api/share/(.*)',      // Public share metadata
   '/api/embed/(.*)',      // Public embed endpoint
   '/api/og',             // Public OG image generation
+  '/api/trending',       // Public trending endpoint
   '/blog',            // Public blog index
   '/blog/(.*)',        // Public blog posts
   '/debate',  // Allow access to debate setup page (will handle auth client-side)
   '/debate/(.*)',  // Allow debate pages to load and handle auth client-side
   '/history',  // Allow history page to load and handle auth client-side
+  '/robots.txt',      // SEO — must be public
+  '/sitemap.xml',     // SEO — must be public
 ])
 
 export default clerkMiddleware(async (auth, req) => {
