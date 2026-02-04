@@ -47,7 +47,13 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
 function ToastContainer({ toasts }: { toasts: Toast[] }) {
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 sm:top-6 sm:bottom-auto sm:right-6 sm:left-auto sm:translate-x-0">
+    <div 
+      className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 sm:top-6 sm:bottom-auto sm:right-6 sm:left-auto sm:translate-x-0"
+      aria-live="polite"
+      aria-atomic="true"
+      role="region"
+      aria-label="Notifications"
+    >
       {toasts.map((toast) => (
         <ToastItem key={toast.id} toast={toast} />
       ))}

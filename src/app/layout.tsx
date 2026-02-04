@@ -96,9 +96,14 @@ export default function RootLayout({
           className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} antialiased`}
         >
           <ArtisticBackground />
+          <a href="#main-content" className="skip-link">
+            Skip to main content
+          </a>
           <ThemeProvider>
             <ToastProvider>
-              {children}
+              <main id="main-content" tabIndex={-1}>
+                {children}
+              </main>
             </ToastProvider>
           </ThemeProvider>
         </body>
