@@ -60,7 +60,7 @@ export async function POST(request: Request) {
     const isTestMode = process.env.NEXT_PUBLIC_TEST_MODE === "true";
     const isLocalDev =
       process.env.NODE_ENV === "development" ||
-      process.env.LOCAL_DEV_BYPASS === "true";
+      (process.env.NODE_ENV !== "production" && process.env.LOCAL_DEV_BYPASS === "true");
     if (debateId && !isTestMode && !isLocalDev) {
       const messageLimit = await d1.checkDebateMessageLimit(debateId);
       if (!messageLimit.allowed) {

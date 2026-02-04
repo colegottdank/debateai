@@ -34,8 +34,11 @@ export async function GET(
       const isOwner = userId ? result.debate.user_id === userId : false;
       const isAuthenticated = !!userId;
       
+      // Strip sensitive fields from public response
+      const { user_id, ...safeDebate } = result.debate as Record<string, unknown>;
+      
       return NextResponse.json({ 
-        debate: result.debate,
+        debate: safeDebate,
         isOwner,
         isAuthenticated 
       });
