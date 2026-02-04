@@ -7,6 +7,7 @@ import { ThemeProvider } from '@/components/ThemeProvider';
 import { ToastProvider } from '@/components/Toast';
 import ArtisticBackground from '@/components/backgrounds/ArtisticBackground';
 import AnalyticsProvider from '@/components/AnalyticsProvider';
+import SentryProvider from '@/components/SentryProvider';
 import { websiteJsonLd } from '@/lib/jsonld';
 import "./globals.css";
 
@@ -129,6 +130,7 @@ export default function RootLayout({
             </ToastProvider>
           </ThemeProvider>
           <AnalyticsProvider />
+          <SentryProvider />
           <Analytics />
           <SpeedInsights />
         </body>
