@@ -83,3 +83,49 @@ export function debateJsonLd(debate: {
     },
   };
 }
+
+/**
+ * Article schema for blog posts.
+ * Enables rich results for articles in Google Search.
+ */
+export function articleJsonLd(post: {
+  slug: string;
+  title: string;
+  description: string;
+  date: string;
+  author: string;
+  tags: string[];
+  image?: string;
+}) {
+  const postUrl = `${BASE_URL}/blog/${post.slug}`;
+
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: post.title,
+    description: post.description,
+    url: postUrl,
+    datePublished: post.date,
+    dateModified: post.date,
+    author: {
+      '@type': 'Person',
+      name: post.author,
+    },
+    publisher: {
+      '@type': 'Organization',
+      name: 'DebateAI',
+      url: BASE_URL,
+    },
+    image: post.image || `${BASE_URL}/api/og`,
+    keywords: post.tags.join(', '),
+    mainEntityOfPage: {
+      '@type': 'WebPage',
+      '@id': postUrl,
+    },
+    isPartOf: {
+      '@type': 'WebSite',
+      name: 'DebateAI',
+      url: BASE_URL,
+    },
+  };
+}
