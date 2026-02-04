@@ -8,6 +8,7 @@ import { getOpponentById } from "@/lib/opponents";
 import Header from "@/components/Header";
 import UpgradeModal from "@/components/UpgradeModal";
 import ShareButtons from "@/components/ShareButtons";
+import ShareModal from "@/components/ShareModal";
 
 export interface DebateClientProps {
   initialDebate?: {
@@ -269,6 +270,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
   const [isAITakeover, setIsAITakeover] = useState(false);
   const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(true);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
   const [rateLimitData, setRateLimitData] = useState<{ current: number; limit: number } | undefined>();
   
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -682,7 +684,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
                   </>
                 )}
               </div>
-              <ShareButtons debateId={debateId} topic={debate.topic} />
+              <ShareButtons debateId={debateId} topic={debate.topic} onOpenModal={() => setShowShareModal(true)} />
             </div>
           </div>
         </div>
@@ -806,6 +808,14 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
         onClose={() => setShowUpgradeModal(false)}
         trigger="rate-limit-message"
         limitData={rateLimitData}
+      />
+
+      <ShareModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        debateId={debateId}
+        topic={debate?.topic || ''}
+        opponentName={opponent?.name || debate?.opponentStyle}
       />
     </div>
   );
