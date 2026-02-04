@@ -23,8 +23,14 @@ const playfair = Playfair_Display({
   display: "swap",
 });
 
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://debateai.org';
+
 export const metadata: Metadata = {
-  title: "DebateAI - Challenge Your Convictions",
+  metadataBase: new URL(BASE_URL),
+  title: {
+    default: "DebateAI — Challenge Your Convictions",
+    template: "%s | DebateAI",
+  },
   description: "Challenge your beliefs against AI trained to argue from every perspective. Sharpen your critical thinking through rigorous intellectual debate.",
   icons: {
     icon: [
@@ -33,6 +39,23 @@ export const metadata: Metadata = {
     ],
     shortcut: '/favicon-32.png',
     apple: '/favicon-512.png',
+  },
+  openGraph: {
+    type: 'website',
+    siteName: 'DebateAI',
+    title: 'DebateAI — Challenge Your Convictions',
+    description: 'Challenge your beliefs against AI trained to argue from every perspective.',
+    url: BASE_URL,
+    images: [{ url: `${BASE_URL}/api/og`, width: 1200, height: 630 }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'DebateAI — Challenge Your Convictions',
+    description: 'Challenge your beliefs against AI trained to argue from every perspective.',
+    images: [`${BASE_URL}/api/og`],
+  },
+  alternates: {
+    canonical: BASE_URL,
   },
 };
 
