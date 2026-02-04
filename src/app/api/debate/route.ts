@@ -3,6 +3,7 @@ import { getUserId } from "@/lib/auth-helper";
 import { d1 } from "@/lib/d1";
 import { getDebatePrompt, getDailyPersona } from "@/lib/prompts";
 import { checkAppDisabled } from "@/lib/app-disabled";
+import { createRateLimiter, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
 import Anthropic from "@anthropic-ai/sdk";
 
 const anthropic = new Anthropic({
@@ -13,10 +14,19 @@ const anthropic = new Anthropic({
   },
 });
 
+// 20 messages per minute per user (calls Claude API — expensive)
+const userLimiter = createRateLimiter({ maxRequests: 20, windowMs: 60_000 });
+// 60 per minute per IP as a broader safety net
+const ipLimiter = createRateLimiter({ maxRequests: 60, windowMs: 60_000 });
+
 export async function POST(request: Request) {
   // Check if app is disabled
   const disabledResponse = checkAppDisabled();
   if (disabledResponse) return disabledResponse;
+
+  // IP-based rate limit first (before auth check)
+  const ipRl = ipLimiter.check(getClientIp(request));
+  if (!ipRl.allowed) return rateLimitResponse(ipRl);
 
   try {
     const userId = await getUserId();
@@ -24,6 +34,10 @@ export async function POST(request: Request) {
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    // Per-user rate limit (protects Claude API costs)
+    const userRl = userLimiter.check(`user:${userId}`);
+    if (!userRl.allowed) return rateLimitResponse(userRl);
 
     const {
       debateId,

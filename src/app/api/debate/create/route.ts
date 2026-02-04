@@ -4,11 +4,21 @@ import { d1 } from '@/lib/d1';
 import { OpponentType } from '@/lib/opponents';
 import { getUserId } from '@/lib/auth-helper';
 import { checkAppDisabled } from '@/lib/app-disabled';
+import { createRateLimiter, getClientIp, rateLimitResponse } from '@/lib/rate-limit';
+
+// 10 debates per minute per user (generous for normal use, blocks abuse)
+const userLimiter = createRateLimiter({ maxRequests: 10, windowMs: 60_000 });
+// 30 per minute per IP as a fallback for pre-auth requests
+const ipLimiter = createRateLimiter({ maxRequests: 30, windowMs: 60_000 });
 
 export async function POST(request: Request) {
   // Check if app is disabled
   const disabledResponse = checkAppDisabled();
   if (disabledResponse) return disabledResponse;
+
+  // IP-based rate limit first (before auth, which is expensive)
+  const ipRl = ipLimiter.check(getClientIp(request));
+  if (!ipRl.allowed) return rateLimitResponse(ipRl);
 
   try {
     const userId = await getUserId();
@@ -17,7 +27,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // No debate creation limit - Vercel rate limiting handles bot protection
+    // Per-user rate limit
+    const userRl = userLimiter.check(`user:${userId}`);
+    if (!userRl.allowed) return rateLimitResponse(userRl);
 
     const { character: opponent, opponentStyle, topic, debateId } = await request.json();
 

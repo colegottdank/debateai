@@ -4,16 +4,25 @@ import { getUserId } from "@/lib/auth-helper";
 import { d1 } from "@/lib/d1";
 import { checkAppDisabled } from "@/lib/app-disabled";
 import { getTakeoverPrompt } from "@/lib/prompts";
+import { createRateLimiter, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
 
 const openai = new OpenAI({
   apiKey: `${process.env.HELICONE_API_KEY}`,
   baseURL: "https://ai-gateway.helicone.ai",
 });
 
+// 10 takeover requests per minute per user (calls OpenAI API)
+const userLimiter = createRateLimiter({ maxRequests: 10, windowMs: 60_000 });
+const ipLimiter = createRateLimiter({ maxRequests: 30, windowMs: 60_000 });
+
 export async function POST(request: Request) {
   // Check if app is disabled
   const disabledResponse = checkAppDisabled();
   if (disabledResponse) return disabledResponse;
+
+  // IP-based rate limit first
+  const ipRl = ipLimiter.check(getClientIp(request));
+  if (!ipRl.allowed) return rateLimitResponse(ipRl);
 
   try {
     const userId = await getUserId();
@@ -21,6 +30,10 @@ export async function POST(request: Request) {
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    // Per-user rate limit
+    const userRl = userLimiter.check(`user:${userId}`);
+    if (!userRl.allowed) return rateLimitResponse(userRl);
 
     const { debateId, topic, previousMessages, opponentStyle } =
       await request.json();
