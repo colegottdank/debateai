@@ -1,209 +1,298 @@
 # DebateAI API Reference
 
-All endpoints are prefixed with `/api/`. Base URL: `https://debateai.org`
+> **Base URL:** `https://debateai.org`
+>
+> **Auth:** [Clerk](https://clerk.com) session tokens. Authenticated endpoints require a valid Clerk session cookie or Bearer token.
+>
+> **Rate Limiting:** All endpoints include standard headers: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`. When exceeded, a `Retry-After` header is also returned.
 
 ---
 
-## Authentication
+## Table of Contents
 
-Protected endpoints require a valid Clerk session. Requests without auth receive `401 Unauthorized`.
+| # | Endpoint | Method | Auth | Description |
+|---|----------|--------|------|-------------|
+| 1 | [`/api/debate`](#1-post-apidebate) | POST | ✅ | Send a message in a debate (streams AI response) |
+| 2 | [`/api/debate/create`](#2-post-apidebatecreate) | POST | ✅ | Create a new debate |
+| 3 | [`/api/debate/takeover`](#3-post-apidebatetakeover) | POST | ✅ | AI writes the user's argument |
+| 4 | [`/api/debate/[debateId]`](#4-get-apidebatedebateid) | GET | ❌* | Fetch a debate by ID |
+| 5 | [`/api/debate/[debateId]`](#5-post-apidebatedebateid) | POST | ❌* | Post a message to a debate (legacy) |
+| 6 | [`/api/debates`](#6-get-apidebates) | GET | ✅ | List user's debate history |
+| 7 | [`/api/profile`](#7-get-apiprofile) | GET | ✅ | Get user profile |
+| 8 | [`/api/profile`](#8-post-apiprofile) | POST | ✅ | Update display name |
+| 9 | [`/api/subscription`](#9-get-apisubscription) | GET | ✅ | Get subscription status |
+| 10 | [`/api/stripe/create-checkout`](#10-post-apistripecreate-checkout) | POST | ✅ | Create Stripe checkout session |
+| 11 | [`/api/stripe/manage`](#11-post-apistripemanage) | POST | ✅ | Create Stripe customer portal session |
+| 12 | [`/api/stripe/price`](#12-get-apistripeprice) | GET | ❌ | Get subscription price info |
+| 13 | [`/api/stripe/webhook`](#13-post-apistripewebhook) | POST | 🔑† | Stripe webhook handler |
+| 14 | [`/api/share/[debateId]`](#14-get-apisharedebateid) | GET | ❌ | Get share metadata for a debate |
+| 15 | [`/api/embed/[debateId]`](#15-get-apiembeddebateid) | GET | ❌ | Embeddable HTML for a debate |
+| 16 | [`/api/og`](#16-get-apiog) | GET | ❌ | Dynamic Open Graph image |
+| 17 | [`/api/trending`](#17-get-apitrending) | GET | ❌ | Trending debate topics |
+| 18 | [`/api/test-webhook`](#18-test-webhook-dev-only) | GET/POST | 🔒 | Dev-only test endpoint |
 
-Public endpoints are marked with 🌐. All others require authentication.
-
-## Error Format
-
-All errors return JSON:
-```json
-{ "error": "Human-readable error message" }
-```
-
-Rate-limited responses (429) include headers:
-```
-X-RateLimit-Limit: 60
-X-RateLimit-Remaining: 0
-X-RateLimit-Reset: 1707000000
-Retry-After: 45
-```
+> \* Optional auth — returns `isOwner` flag when authenticated
+>
+> † Verified via Stripe webhook signature (`stripe-signature` header)
 
 ---
 
 ## Debate Endpoints
 
-### POST `/api/debate`
-Send a message in a debate. Streams Claude's response via SSE.
+### 1. POST `/api/debate`
 
-| Field | Value |
-|-------|-------|
-| Auth | Required |
-| Rate Limit | 20/min per user, 60/min per IP |
-| Content-Type | `application/json` |
-| Response | `text/event-stream` |
+Send a user message in an active debate. Returns a **Server-Sent Events (SSE)** stream with the AI opponent's response.
 
-**Request Body:**
+**Auth:** Required (Clerk session)
+**Rate Limit:** 60/min per IP · 20/min per user
+
+#### Request Body
+
 ```json
 {
-  "debateId": "uuid",
-  "character": "custom",
-  "opponentStyle": "Devil's Advocate",
-  "topic": "Should AI be regulated?",
-  "userArgument": "I believe AI needs oversight because...",
+  "debateId": "string (required) — UUID of the debate",
+  "character": "string (required) — opponent type or 'custom'",
+  "opponentStyle": "string (optional) — custom opponent style description",
+  "topic": "string (required) — debate topic",
+  "userArgument": "string (required) — the user's message",
   "previousMessages": [
-    { "role": "user", "content": "..." },
-    { "role": "ai", "content": "..." }
+    { "role": "user|ai", "content": "string" }
   ],
-  "isAIAssisted": false
+  "isAIAssisted": "boolean (optional) — flag for AI-assisted messages"
 }
 ```
 
-**SSE Events:**
+#### Response — SSE Stream
+
 ```
+Content-Type: text/event-stream
+
 data: {"type":"start"}
-data: {"type":"search_start"}
-data: {"type":"chunk","content":"I "}
-data: {"type":"chunk","content":"disagree"}
+data: {"type":"search_start"}              // if web search triggered
+data: {"type":"chunk","content":"..."}     // repeated
 data: {"type":"citations","citations":[{"id":1,"url":"...","title":"..."}]}
-data: {"type":"complete","content":"Full response...","debateId":"uuid","citations":[...]}
+data: {"type":"complete","content":"full text","debateId":"...","citations":[...]}
 data: [DONE]
 ```
 
-**Errors:** `400` missing fields, `401` unauthorized, `429` rate/message limit
+#### Error Responses
+
+| Status | Body | When |
+|--------|------|------|
+| 400 | `{"error":"Missing required fields"}` | Missing `character`, `topic`, or `userArgument` |
+| 401 | `{"error":"Unauthorized"}` | No valid session |
+| 429 | `{"error":"message_limit_exceeded","message":"...","current":N,"limit":N,"upgrade_required":true}` | Free tier message limit reached |
+| 429 | `{"error":"Too many requests. Please try again later."}` | Rate limit exceeded |
+| 500 | `{"error":"Failed to generate debate response"}` | Server error |
+| 503 | `{"error":"Service is temporarily disabled"}` | App disabled via kill switch |
 
 ---
 
-### POST `/api/debate/create`
-Create a new debate.
+### 2. POST `/api/debate/create`
 
-| Field | Value |
-|-------|-------|
-| Auth | Required |
-| Rate Limit | 10/min per user, 30/min per IP |
+Create a new debate session. Saves initial state to D1.
 
-**Request Body:**
+**Auth:** Required (Clerk session)
+**Rate Limit:** 30/min per IP · 10/min per user
+
+#### Request Body
+
 ```json
 {
-  "character": "custom",
-  "opponentStyle": "Devil's Advocate",
-  "topic": "Should AI be regulated?",
-  "debateId": "client-generated-uuid"
+  "character": "string (optional) — opponent type, defaults to 'custom'",
+  "opponentStyle": "string (optional) — custom style description",
+  "topic": "string (required) — debate topic",
+  "debateId": "string (required) — client-generated UUID"
 }
 ```
 
-**Response (200):**
+#### Success Response — `200`
+
 ```json
 {
   "success": true,
-  "debateId": "uuid"
+  "debateId": "uuid-string"
 }
 ```
 
-**Errors:** `400` missing fields, `401` unauthorized, `429` rate limited
+#### Error Responses
+
+| Status | Body | When |
+|--------|------|------|
+| 400 | `{"error":"Missing required fields"}` | Missing `topic` or `debateId` |
+| 401 | `{"error":"Unauthorized"}` | No valid session |
+| 429 | `{"error":"Too many requests. Please try again later."}` | Rate limit exceeded |
+| 500 | `{"error":"Failed to create debate"}` | Server error |
+| 503 | `{"error":"Service is temporarily disabled"}` | App disabled |
 
 ---
 
-### GET `/api/debate/[debateId]`
-Fetch a debate and its messages.
+### 3. POST `/api/debate/takeover`
 
-| Field | Value |
-|-------|-------|
-| Auth | Optional (public for sharing) |
-| Rate Limit | None (Clerk middleware handles abuse) |
+AI generates an argument **on behalf of the user** (AI takeover / ghost-writing). Returns an SSE stream. Uses OpenAI-compatible API via Helicone gateway.
 
-**Response (200):**
+**Auth:** Required (Clerk session)
+**Rate Limit:** 30/min per IP · 10/min per user
+
+#### Request Body
+
+```json
+{
+  "debateId": "string (required) — UUID of the debate",
+  "topic": "string (required) — debate topic",
+  "previousMessages": [
+    { "role": "user|ai", "content": "string" }
+  ],
+  "opponentStyle": "string (optional) — opponent style for context"
+}
+```
+
+#### Response — SSE Stream
+
+```
+Content-Type: text/event-stream
+
+data: {"type":"search_start"}              // if web search triggered
+data: {"type":"chunk","content":"..."}     // repeated
+data: {"type":"citations","citations":[{"id":1,"url":"...","title":"..."}]}
+data: [DONE]
+```
+
+#### Error Responses
+
+| Status | Body | When |
+|--------|------|------|
+| 400 | `{"error":"Missing required fields"}` | Missing `topic` or `debateId` |
+| 401 | `{"error":"Unauthorized"}` | No valid session |
+| 429 | `{"error":"message_limit_exceeded",...}` | Free tier limit |
+| 429 | `{"error":"Too many requests. Please try again later."}` | Rate limit exceeded |
+| 500 | `{"error":"Failed to process AI takeover"}` | Server error |
+| 503 | `{"error":"Service is temporarily disabled"}` | App disabled |
+
+---
+
+### 4. GET `/api/debate/[debateId]`
+
+Fetch a single debate by ID. Public access — anyone with the debate ID can view it.
+
+**Auth:** Optional (adds `isOwner` flag when present)
+**Rate Limit:** None (consider adding)
+
+#### Path Parameters
+
+| Param | Type | Description |
+|-------|------|-------------|
+| `debateId` | string | Debate UUID |
+
+#### Success Response — `200`
+
 ```json
 {
   "debate": {
-    "id": "uuid",
-    "opponent": "custom",
-    "opponentStyle": "Devil's Advocate",
-    "topic": "Should AI be regulated?",
-    "messages": [...],
-    "score_data": { ... },
-    "created_at": "2026-01-01T00:00:00Z"
+    "id": "uuid-string",
+    "opponent": "custom|elon-musk|...",
+    "opponentStyle": "string|null",
+    "topic": "string",
+    "messages": [
+      { "role": "user|ai|system", "content": "string", "aiAssisted": false, "citations": [] }
+    ],
+    "created_at": "ISO 8601",
+    "score_data": { "userScore": 0, "aiScore": 0, "verdict": "...", "roastLevel": "..." }
   },
   "isOwner": true,
   "isAuthenticated": true
 }
 ```
 
-> Note: `user_id` is stripped from the response for privacy.
+> Note: `user_id` is stripped from public response.
 
-**Errors:** `400` missing ID, `404` not found
+#### Error Responses
+
+| Status | Body | When |
+|--------|------|------|
+| 400 | `{"error":"Debate ID required"}` | Empty debateId |
+| 404 | `{"error":"Debate not found"}` | No matching debate |
+| 500 | `{"error":"Failed to retrieve debate"}` | Server error |
 
 ---
 
-### POST `/api/debate/[debateId]`
-Add a message to a debate (legacy/fallback endpoint).
+### 5. POST `/api/debate/[debateId]`
 
-| Field | Value |
-|-------|-------|
-| Auth | Optional |
+Post a message to a debate. **Legacy endpoint** — uses in-memory store with D1 fallback and generates AI response server-side (non-streaming). Prefer the main `POST /api/debate` endpoint.
 
-**Request Body:**
+**Auth:** Optional
+**Rate Limit:** None
+
+#### Path Parameters
+
+| Param | Type | Description |
+|-------|------|-------------|
+| `debateId` | string | Debate UUID |
+
+#### Request Body
+
 ```json
 {
-  "message": "My argument...",
-  "aiTakeover": false
+  "message": "string (required) — user's message",
+  "aiTakeover": "boolean (optional) — flag for AI-assisted"
 }
 ```
 
-**Response (200):**
+#### Success Response — `200`
+
 ```json
 {
   "success": true,
-  "userMessage": { "role": "user", "content": "..." },
-  "aiMessage": { "role": "ai", "content": "..." }
+  "userMessage": {
+    "role": "user",
+    "content": "string",
+    "aiAssisted": false,
+    "created_at": "ISO 8601"
+  },
+  "aiMessage": {
+    "role": "ai",
+    "content": "string",
+    "created_at": "ISO 8601"
+  }
 }
 ```
 
----
+#### Error Responses
 
-### POST `/api/debate/takeover`
-Let AI generate an argument on the user's behalf.
-
-| Field | Value |
-|-------|-------|
-| Auth | Required |
-| Rate Limit | 10/min per user, 30/min per IP |
-| Response | `text/event-stream` |
-
-**Request Body:**
-```json
-{
-  "debateId": "uuid",
-  "topic": "Should AI be regulated?",
-  "previousMessages": [...],
-  "opponentStyle": "Devil's Advocate"
-}
-```
-
-**SSE Events:** Same format as `POST /api/debate`
+| Status | Body | When |
+|--------|------|------|
+| 400 | `{"error":"Debate ID required"}` | Empty debateId |
+| 400 | `{"error":"Message is required"}` | Missing or non-string message |
+| 500 | `{"error":"Failed to send message"}` | Server error |
 
 ---
 
-### GET `/api/debates`
-List the authenticated user's debates (paginated).
+### 6. GET `/api/debates`
 
-| Field | Value |
-|-------|-------|
-| Auth | Required |
+List the authenticated user's debate history, paginated.
 
-**Query Params:**
-| Param | Default | Description |
-|-------|---------|-------------|
-| `limit` | 20 | Max results |
-| `offset` | 0 | Pagination offset |
+**Auth:** Required (Clerk session)
+**Rate Limit:** None (consider adding)
 
-**Response (200):**
+#### Query Parameters
+
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| `limit` | integer | 20 | Results per page |
+| `offset` | integer | 0 | Pagination offset |
+
+#### Success Response — `200`
+
 ```json
 {
   "debates": [
     {
-      "id": "uuid",
-      "opponent": "custom",
-      "opponentStyle": "Devil's Advocate",
-      "topic": "Should AI be regulated?",
+      "id": "uuid-string",
+      "opponent": "custom|elon-musk|...",
+      "opponentStyle": "string|null",
+      "topic": "string",
       "messageCount": 12,
-      "createdAt": "2026-01-01T00:00:00Z"
+      "createdAt": "ISO 8601"
     }
   ],
   "pagination": {
@@ -215,171 +304,189 @@ List the authenticated user's debates (paginated).
 }
 ```
 
+#### Error Responses
+
+| Status | Body | When |
+|--------|------|------|
+| 401 | `{"error":"Unauthorized"}` | No valid session |
+| 500 | `{"error":"Failed to fetch debates"}` | Server error |
+| 503 | `{"error":"Service is temporarily disabled"}` | App disabled |
+
 ---
 
-## Public Endpoints 🌐
+## User & Subscription Endpoints
 
-### GET `/api/share/[debateId]` 🌐
-Share metadata for a debate.
+### 7. GET `/api/profile`
 
-| Field | Value |
-|-------|-------|
-| Auth | None |
-| Rate Limit | 60/min per IP |
+Get the current user's display name and avatar.
 
-**Response (200):**
+**Auth:** Required (Clerk `auth()`)
+**Rate Limit:** None
+
+#### Success Response — `200`
+
 ```json
 {
-  "debateId": "uuid",
-  "url": "https://debateai.org/debate/uuid",
-  "ogImage": "https://debateai.org/api/og?debateId=uuid",
-  "topic": "Should AI be regulated?",
-  "opponent": "Devil's Advocate",
-  "messageCount": 12,
-  "score": {
-    "userScore": 7,
-    "aiScore": 5,
-    "roastLevel": "dominated",
-    "verdict": "You won convincingly"
-  },
-  "shareText": "I just won against Devil's Advocate on \"Should AI be regulated?\" (7-5)!",
-  "shareUrls": {
-    "twitter": "https://twitter.com/intent/tweet?...",
-    "facebook": "https://www.facebook.com/sharer/...",
-    "linkedin": "https://www.linkedin.com/sharing/...",
-    "reddit": "https://reddit.com/submit?..."
-  }
+  "displayName": "string|null",
+  "avatarUrl": "string|null"
 }
 ```
 
----
+#### Error Responses
 
-### GET `/api/embed/[debateId]` 🌐
-Embeddable HTML for iframes.
-
-| Field | Value |
-|-------|-------|
-| Auth | None |
-| Rate Limit | 30/min per IP |
-| Response | `text/html` |
-
-**Query Params:**
-| Param | Default | Description |
-|-------|---------|-------------|
-| `maxMessages` | 10 | Max messages shown (max 50) |
-| `theme` | `dark` | `dark` or `light` |
-
-**Usage:**
-```html
-<iframe src="https://debateai.org/api/embed/DEBATE_ID?theme=dark" 
-        width="600" height="400"></iframe>
-```
+| Status | Body | When |
+|--------|------|------|
+| 401 | `{"error":"Unauthorized"}` | No valid session |
+| 500 | `{"error":"Failed to get profile"}` | Server error |
 
 ---
 
-### GET `/api/og` 🌐
-Dynamic OG image generation (Edge runtime).
+### 8. POST `/api/profile`
 
-| Field | Value |
-|-------|-------|
-| Auth | None |
-| Rate Limit | 20/min per IP |
-| Runtime | Edge |
-| Response | `image/png` |
+Update the user's display name.
 
-**Query Params:**
-| Param | Description |
-|-------|-------------|
-| `debateId` | Optional — generates debate-specific image with score |
+**Auth:** Required (Clerk `auth()`)
+**Rate Limit:** None
 
----
+#### Request Body
 
-### GET `/api/trending` 🌐
-AI-generated trending debate topics (cached 1 hour).
-
-| Field | Value |
-|-------|-------|
-| Auth | None |
-| Rate Limit | 10/min per IP |
-
-**Response (200):**
 ```json
 {
-  "topics": [
-    {
-      "id": "uuid",
-      "question": "Should AI replace teachers?",
-      "context": "Recent advances in AI tutoring...",
-      "source": "Education Week",
-      "category": "tech",
-      "heat": 3
-    }
-  ],
-  "cached": true,
-  "cacheAge": "23 minutes"
+  "displayName": "string (required, max 50 chars)"
 }
 ```
 
----
+#### Success Response — `200`
 
-## Payment Endpoints
-
-### POST `/api/stripe/create-checkout`
-Create a Stripe Checkout session for premium upgrade.
-
-| Field | Value |
-|-------|-------|
-| Auth | Required |
-
-**Request Body:**
 ```json
 {
-  "returnUrl": "/debate"
+  "success": true
 }
 ```
 
-**Response (200):**
-```json
-{
-  "url": "https://checkout.stripe.com/..."
-}
-```
+#### Error Responses
 
-**Errors:** `400` already subscribed, `401` unauthorized, `503` Stripe connection error
+| Status | Body | When |
+|--------|------|------|
+| 400 | `{"error":"Invalid display name"}` | Missing or > 50 chars |
+| 401 | `{"error":"Unauthorized"}` | No valid session |
+| 500 | `{"error":"Failed to update profile"}` | Server error |
 
 ---
 
-### POST `/api/stripe/manage`
-Create a Stripe Customer Portal session.
+### 9. GET `/api/subscription`
 
-| Field | Value |
-|-------|-------|
-| Auth | Required |
+Get the current user's subscription/premium status.
 
-**Request Body:**
+**Auth:** Required (Clerk `auth()`)
+**Rate Limit:** None
+
+> **Dev mode:** Returns `isPremium: true` when `NODE_ENV=development` or `LOCAL_DEV_BYPASS=true`.
+
+#### Success Response — `200`
+
 ```json
 {
-  "returnUrl": "/history"
+  "isPremium": true,
+  "isSubscribed": true,
+  "stripePlan": "premium|null",
+  "subscriptionStatus": "active|canceled|past_due|null",
+  "currentPeriodEnd": "ISO 8601|null",
+  "cancelAtPeriodEnd": false
 }
 ```
 
-**Response (200):**
-```json
-{
-  "url": "https://billing.stripe.com/..."
-}
-```
+#### Error Responses
+
+| Status | Body | When |
+|--------|------|------|
+| 401 | `{"error":"Unauthorized"}` | No valid session |
+| 500 | `{"error":"Failed to fetch subscription"}` | Server error |
+| 503 | `{"error":"Service is temporarily disabled"}` | App disabled |
 
 ---
 
-### GET `/api/stripe/price`
-Fetch current subscription price (cached 1 hour).
+## Stripe / Payment Endpoints
 
-| Field | Value |
-|-------|-------|
-| Auth | None |
+### 10. POST `/api/stripe/create-checkout`
 
-**Response (200):**
+Create a Stripe Checkout session for premium subscription.
+
+**Auth:** Required (Clerk `auth()`)
+**Rate Limit:** None (Stripe has its own)
+
+#### Request Body
+
+```json
+{
+  "returnUrl": "string (optional, default: '/debate') — redirect path after checkout"
+}
+```
+
+#### Success Response — `200`
+
+```json
+{
+  "url": "https://checkout.stripe.com/c/pay_..."
+}
+```
+
+#### Error Responses
+
+| Status | Body | When |
+|--------|------|------|
+| 400 | `{"error":"You already have an active subscription","hasSubscription":true}` | Already subscribed |
+| 401 | `{"error":"Unauthorized"}` | No valid session |
+| 500 | `{"error":"Failed to create checkout session"}` | General error |
+| 500 | `{"error":"Payment configuration error. Please contact support."}` | Invalid Stripe price ID |
+| 500 | `{"error":"Payment service error. Please try again later."}` | Stripe API error |
+| 503 | `{"error":"Unable to connect to payment service. Please try again later.","type":"connection"}` | Stripe connection failure |
+| 503 | `{"error":"Service is temporarily disabled"}` | App disabled |
+
+---
+
+### 11. POST `/api/stripe/manage`
+
+Create a Stripe Customer Portal session for managing subscriptions.
+
+**Auth:** Required (Clerk `auth()`)
+**Rate Limit:** None
+
+#### Request Body
+
+```json
+{
+  "returnUrl": "string (optional, default: '/history') — redirect path after portal"
+}
+```
+
+#### Success Response — `200`
+
+```json
+{
+  "url": "https://billing.stripe.com/p/session/..."
+}
+```
+
+#### Error Responses
+
+| Status | Body | When |
+|--------|------|------|
+| 401 | `{"error":"Unauthorized"}` | No valid session |
+| 404 | `{"error":"No subscription found"}` | No Stripe customer ID |
+| 500 | `{"error":"Failed to create portal session"}` | Server error |
+
+---
+
+### 12. GET `/api/stripe/price`
+
+Get the current subscription price. Returns cached data (1-hour TTL). Falls back to `$20.00/month` if Stripe is unavailable.
+
+**Auth:** None
+**Rate Limit:** None
+
+#### Success Response — `200`
+
 ```json
 {
   "amount": 2000,
@@ -390,84 +497,328 @@ Fetch current subscription price (cached 1 hour).
 }
 ```
 
----
-
-### POST `/api/stripe/webhook`
-Stripe webhook handler. Validates signature.
-
-| Field | Value |
-|-------|-------|
-| Auth | Stripe signature |
-
-**Events handled:** `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_failed`
+> When `isFallback: true`, the price is a static default (Stripe unavailable or unconfigured).
 
 ---
 
-## User Endpoints
+### 13. POST `/api/stripe/webhook`
 
-### GET `/api/subscription`
-Check current user's subscription status.
+Stripe webhook handler. Verified via `stripe-signature` header and `STRIPE_WEBHOOK_SECRET`.
 
-| Field | Value |
-|-------|-------|
-| Auth | Required |
+**Auth:** Stripe signature verification
+**Rate Limit:** None (called by Stripe)
 
-**Response (200):**
+#### Handled Events
+
+| Event | Action |
+|-------|--------|
+| `checkout.session.completed` | Creates/updates user subscription in D1 |
+| `customer.subscription.updated` | Updates subscription status, period end, cancel flag |
+| `customer.subscription.deleted` | Marks subscription as canceled |
+| `invoice.payment_failed` | Marks subscription as past_due |
+
+#### Success Response — `200`
+
 ```json
 {
-  "isPremium": true,
-  "isSubscribed": true,
-  "stripePlan": "premium",
-  "subscriptionStatus": "active",
-  "debatesUsed": 5,
-  "debatesLimit": null,
-  "currentPeriodEnd": "2026-03-01T00:00:00Z"
+  "received": true
+}
+```
+
+#### Error Responses
+
+| Status | Body | When |
+|--------|------|------|
+| 400 | `{"error":"No signature"}` | Missing `stripe-signature` header |
+| 400 | `{"error":"Invalid signature"}` | Signature verification failed |
+| 500 | `{"error":"Webhook secret not configured"}` | Missing `STRIPE_WEBHOOK_SECRET` env var |
+| 500 | `{"error":"Webhook handler failed"}` | Handler processing error |
+
+---
+
+## Public / SEO Endpoints
+
+### 14. GET `/api/share/[debateId]`
+
+Returns share-ready metadata for a debate: formatted text, platform-specific share URLs, OG image URL.
+
+**Auth:** None
+**Rate Limit:** 60/min per IP
+
+#### Path Parameters
+
+| Param | Type | Description |
+|-------|------|-------------|
+| `debateId` | string | Debate UUID |
+
+#### Success Response — `200`
+
+```json
+{
+  "debateId": "uuid-string",
+  "url": "https://debateai.org/debate/uuid-string",
+  "ogImage": "https://debateai.org/api/og?debateId=uuid-string",
+  "topic": "Is AI coming for your job?",
+  "opponent": "Elon Musk",
+  "messageCount": 8,
+  "score": {
+    "userScore": 7,
+    "aiScore": 5,
+    "roastLevel": "dominated",
+    "verdict": "You won!"
+  },
+  "shareText": "I just won against Elon Musk on \"Is AI coming for your job?\" (7-5)! Can you do better?",
+  "shareUrls": {
+    "twitter": "https://twitter.com/intent/tweet?text=...",
+    "facebook": "https://www.facebook.com/sharer/sharer.php?u=...",
+    "linkedin": "https://www.linkedin.com/sharing/share-offsite/?url=...",
+    "reddit": "https://reddit.com/submit?url=...&title=..."
+  }
+}
+```
+
+> `score` is `null` when the debate hasn't been scored yet.
+
+#### Error Responses
+
+| Status | Body | When |
+|--------|------|------|
+| 400 | `{"error":"Debate ID required"}` | Empty debateId |
+| 404 | `{"error":"Debate not found"}` | No matching debate |
+| 429 | `{"error":"Too many requests. Please try again later."}` | Rate limit exceeded |
+| 500 | `{"error":"Failed to generate share data"}` | Server error |
+
+---
+
+### 15. GET `/api/embed/[debateId]`
+
+Returns a self-contained HTML page for embedding debates in iframes. No external JS dependencies.
+
+**Auth:** None
+**Rate Limit:** 30/min per IP (via middleware)
+
+#### Path Parameters
+
+| Param | Type | Description |
+|-------|------|-------------|
+| `debateId` | string | Debate UUID |
+
+#### Query Parameters
+
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| `maxMessages` | integer | 10 | Max messages to display (capped at 50) |
+| `theme` | `dark\|light` | `dark` | Color scheme |
+
+#### Success Response — `200`
+
+```
+Content-Type: text/html; charset=utf-8
+X-Frame-Options: ALLOWALL
+Cache-Control: public, max-age=300, s-maxage=600
+```
+
+Returns complete HTML document with inline styles. Suitable for `<iframe>` embedding:
+
+```html
+<iframe src="https://debateai.org/api/embed/DEBATE_ID?theme=dark" width="600" height="400"></iframe>
+```
+
+#### Error Responses
+
+| Status | Content-Type | When |
+|--------|-------------|------|
+| 400 | `text/html` | Empty debateId |
+| 404 | `text/html` | Debate not found (styled error page) |
+| 500 | `application/json` | Server error |
+
+---
+
+### 16. GET `/api/og`
+
+Dynamic Open Graph image generation (1200×630px). Used as `og:image` in debate page meta tags.
+
+**Auth:** None
+**Rate Limit:** 20/min per IP
+**Runtime:** Edge
+
+#### Query Parameters
+
+| Param | Type | Description |
+|-------|------|-------------|
+| `debateId` | string (optional) | Debate UUID for score-specific image |
+
+#### Response
+
+```
+Content-Type: image/png
+```
+
+- **Without `debateId`:** Generic DebateAI branding image (purple gradient, "Challenge AI Debaters")
+- **With `debateId`:** Score card with verdict, user vs AI score, opponent name, topic. Gradient color based on `roastLevel` (red=destroyed, orange=roasted, yellow=held_own, green=dominated)
+
+#### Error Responses
+
+Returns a fallback branding image on any error (never returns JSON errors).
+
+---
+
+### 17. GET `/api/trending`
+
+Fetch trending debate topics. Uses Brave Search API + Claude to generate debate questions from current news. Results cached for 1 hour.
+
+**Auth:** None
+**Rate Limit:** 10/min per IP
+
+#### Success Response — `200`
+
+```json
+{
+  "topics": [
+    {
+      "id": "ai-taking-jobs",
+      "question": "Is AI actually coming for your job this year?",
+      "context": "Tech layoffs continue while AI tools proliferate",
+      "source": "Tech News",
+      "category": "politics|tech|culture|business|science|sports",
+      "heat": 3
+    }
+  ],
+  "cached": true,
+  "cacheAge": "23 minutes"
+}
+```
+
+> When `fallback: true`, returns curated evergreen topics (news API or Claude unavailable).
+
+#### Error Responses
+
+| Status | Body | When |
+|--------|------|------|
+| 429 | `{"error":"Too many requests. Please try again later."}` | Rate limit exceeded |
+
+> Non-429 errors return fallback topics instead of error status codes.
+
+---
+
+### 18. Test Webhook (Dev Only)
+
+**`GET|POST /api/test-webhook`**
+
+Development-only endpoint for testing webhook delivery. Returns `404` in production (`NODE_ENV !== 'development'`).
+
+**Auth:** None (gated by `NODE_ENV`)
+**Rate Limit:** None
+
+#### Success Response — `200` (dev only)
+
+```json
+{
+  "success": true,
+  "message": "Test webhook received",
+  "timestamp": "ISO 8601"
 }
 ```
 
 ---
 
-### GET `/api/profile`
-Get user's display name and avatar.
+## Rate Limit Summary
 
-| Field | Value |
-|-------|-------|
-| Auth | Required |
+| Endpoint | IP Limit | User Limit |
+|----------|----------|------------|
+| `POST /api/debate` | 60/min | 20/min |
+| `POST /api/debate/create` | 30/min | 10/min |
+| `POST /api/debate/takeover` | 30/min | 10/min |
+| `GET /api/share/[debateId]` | 60/min | — |
+| `GET /api/embed/[debateId]` | 30/min | — |
+| `GET /api/og` | 20/min | — |
+| `GET /api/trending` | 10/min | — |
 
-**Response (200):**
-```json
-{
-  "displayName": "DebateChamp",
-  "avatarUrl": "https://..."
-}
-```
-
----
-
-### POST `/api/profile`
-Update user's display name.
-
-| Field | Value |
-|-------|-------|
-| Auth | Required |
-
-**Request Body:**
-```json
-{
-  "displayName": "NewName"
-}
-```
+Rate limiting is **in-memory, per-instance** (not distributed). Each Vercel serverless function instance maintains its own counters. This catches single-source abuse; distributed attacks would require external rate limiting (e.g., Vercel WAF, Cloudflare).
 
 ---
 
-## Status Codes
+## Common Headers
 
-| Code | Meaning |
-|------|---------|
-| 200 | Success |
-| 400 | Bad request (missing/invalid fields) |
-| 401 | Unauthorized (no valid session) |
-| 404 | Not found |
-| 429 | Rate limited or message limit exceeded |
-| 500 | Internal server error |
-| 503 | Service unavailable (Stripe connection) |
+### Rate Limit Headers (on rate-limited endpoints)
+
+```
+X-RateLimit-Limit: 60
+X-RateLimit-Remaining: 42
+X-RateLimit-Reset: 1706889600
+Retry-After: 30          (only on 429 responses)
+```
+
+### App Disabled Response
+
+When the app kill switch is active, affected endpoints return:
+
+```
+Status: 503
+{"error": "Service is temporarily disabled"}
+```
+
+Affected: `/api/debate`, `/api/debate/create`, `/api/debate/takeover`, `/api/debates`, `/api/subscription`
+
+---
+
+## Environment Variables
+
+| Variable | Used By | Required |
+|----------|---------|----------|
+| `ANTHROPIC_API_KEY` | `/api/debate`, `/api/trending` | Yes |
+| `HELICONE_API_KEY` | `/api/debate`, `/api/debate/takeover` | Yes |
+| `CLOUDFLARE_ACCOUNT_ID` | All D1 queries | Yes |
+| `CLOUDFLARE_D1_DATABASE_ID` | All D1 queries | Yes |
+| `CLOUDFLARE_API_TOKEN` | All D1 queries | Yes |
+| `CLOUDFLARE_EMAIL` | All D1 queries | Yes |
+| `STRIPE_SECRET_KEY` | All Stripe endpoints | Yes |
+| `STRIPE_PRICE_ID` | `/api/stripe/create-checkout`, `/api/stripe/price` | Yes |
+| `STRIPE_WEBHOOK_SECRET` | `/api/stripe/webhook` | Yes |
+| `BRAVE_SEARCH_API_KEY` | `/api/trending` | Yes |
+| `NEXT_PUBLIC_APP_URL` | `/api/share`, `/api/embed` | Defaults to `https://debateai.org` |
+| `NEXT_PUBLIC_TEST_MODE` | `/api/debate`, `/api/debate/takeover` | No |
+| `LOCAL_DEV_BYPASS` | `/api/debate`, `/api/debate/takeover`, `/api/subscription` | No |
+
+---
+
+## SSE (Server-Sent Events) Protocol
+
+The debate and takeover endpoints use SSE for real-time streaming. Event types:
+
+| Type | Data | Description |
+|------|------|-------------|
+| `start` | `{}` | Stream initialized |
+| `search_start` | `{}` | AI is performing web search |
+| `chunk` | `{"content":"..."}` | Text fragment (buffered, ~8 chars) |
+| `citations` | `{"citations":[...]}` | Web search citations (up to 3) |
+| `complete` | `{"content":"full text","debateId":"...","citations":[...]}` | Final complete message |
+| `error` | `{"error":"..."}` | Stream error |
+| `[DONE]` | — | End-of-stream signal |
+
+### Client Example
+
+```typescript
+const response = await fetch('/api/debate', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ debateId, character, topic, userArgument, previousMessages }),
+});
+
+const reader = response.body!.getReader();
+const decoder = new TextDecoder();
+
+while (true) {
+  const { done, value } = await reader.read();
+  if (done) break;
+
+  const text = decoder.decode(value);
+  for (const line of text.split('\n')) {
+    if (!line.startsWith('data: ')) continue;
+    const data = line.slice(6);
+    if (data === '[DONE]') return;
+    const event = JSON.parse(data);
+    // Handle event.type: 'chunk', 'citations', 'complete', etc.
+  }
+}
+```
