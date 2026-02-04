@@ -159,7 +159,48 @@ export default function Home() {
 
   const startDailyDebate = async () => {
     if (!dailyDebate) return;
-    router.push('/debate');
+    
+    if (!isSignedIn) {
+      sessionStorage.setItem('pendingDebate', JSON.stringify({
+        userInput: '',
+        topic: dailyDebate.topic,
+        persona: dailyDebate.persona,
+        fromLandingPage: true
+      }));
+      openSignIn({ afterSignInUrl: '/' });
+      return;
+    }
+    
+    setIsStarting(true);
+    const debateId = crypto.randomUUID();
+    
+    try {
+      const response = await fetch('/api/debate/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          character: 'custom',
+          opponentStyle: dailyDebate.persona,
+          topic: dailyDebate.topic,
+          debateId
+        })
+      });
+      
+      if (response.ok) {
+        track('debate_created', { debateId, topic: dailyDebate.topic, opponent: dailyDebate.persona, source: 'daily_debate' });
+        sessionStorage.setItem('isInstantDebate', 'true');
+        router.push(`/debate/${debateId}`);
+      } else {
+        const error = await response.json();
+        if (response.status === 429 && error.error === 'debate_limit_exceeded') {
+          setShowUpgradeModal(true);
+        }
+        setIsStarting(false);
+      }
+    } catch (error) {
+      console.error('Error starting daily debate:', error);
+      setIsStarting(false);
+    }
   };
 
   const charCount = userInput.length;
