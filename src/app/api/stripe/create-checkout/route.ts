@@ -137,11 +137,7 @@ export async function POST(request: Request) {
     // More detailed error information for Stripe connection issues
     if (error.type === 'StripeConnectionError') {
       return NextResponse.json(
-        { 
-          error: 'Unable to connect to payment service. Please try again later.',
-          details: error.message,
-          type: 'connection'
-        },
+        { error: 'Unable to connect to payment service. Please try again later.' },
         { status: 503 }
       );
     }
