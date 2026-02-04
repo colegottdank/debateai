@@ -62,13 +62,13 @@ export async function GET() {
     }
   } catch (error: any) {
     console.error('Price endpoint error:', error);
+    console.error('Price endpoint error details:', error);
     return NextResponse.json({
       amount: 2000,
       currency: 'usd',
       formatted: '$20.00',
       interval: 'month',
       isFallback: true,
-      error: error.message
     });
   }
 }

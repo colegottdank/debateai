@@ -138,7 +138,7 @@ export async function POST(
   } catch (error) {
     console.error('Post message error:', error);
     return NextResponse.json(
-      { error: 'Failed to send message', details: error instanceof Error ? error.message : 'Unknown error' },
+      { error: 'Failed to send message' },
       { status: 500 }
     );
   }

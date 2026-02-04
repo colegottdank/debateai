@@ -22,7 +22,6 @@ export async function POST(request: NextRequest) {
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
     
     console.log('🔑 Webhook secret configured:', !!webhookSecret);
-    console.log('🔑 Secret starts with:', webhookSecret?.substring(0, 10));
     
     if (!webhookSecret) {
       console.error('❌ STRIPE_WEBHOOK_SECRET not configured');
@@ -151,7 +150,7 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('Webhook handler error:', error);
     return NextResponse.json(
-      { error: error.message || 'Webhook handler failed' },
+      { error: 'Webhook handler failed' },
       { status: 500 }
     );
   }
