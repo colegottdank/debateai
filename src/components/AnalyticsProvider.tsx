@@ -12,7 +12,12 @@ import { registerProvider } from '@/lib/analytics';
 export default function AnalyticsProvider() {
   useEffect(() => {
     registerProvider((event, properties) => {
-      vercelTrack(event, properties);
+      // Our analytics events only use strings, numbers, booleans — all valid
+      // for Vercel Analytics. Cast through unknown to satisfy the type boundary.
+      vercelTrack(
+        event,
+        properties as Record<string, string | number | boolean | null>
+      );
     });
   }, []);
 
