@@ -8,19 +8,11 @@ import { websiteJsonLd } from '@/lib/jsonld';
 import "./globals.css";
 
 /**
- * Force dynamic rendering for all pages. Prevents static prerendering of
- * pages that depend on ClerkProvider (which needs NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY).
- * The /_not-found page is still statically prerendered by Next.js regardless —
- * AuthProvider handles that case by skipping Clerk when the key is missing.
- */
-export const dynamic = 'force-dynamic';
-
-/**
  * Wrapper that renders ClerkProvider only when the publishable key is available.
  * During `next build`, static pages like `/_not-found` are prerendered without
  * runtime env vars — ClerkProvider throws if the key is missing.
  * This wrapper lets those pages build without Clerk, while all runtime pages
- * still get full auth.
+ * still get full auth (the key is always available at runtime on Vercel).
  */
 function AuthProvider({ children }: { children: React.ReactNode }) {
   const clerkKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
