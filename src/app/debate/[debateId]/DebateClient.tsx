@@ -267,6 +267,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
   const [userInput, setUserInput] = useState("");
   const instantDebateActiveRef = useRef(false);
   const [isLoadingDebate, setIsLoadingDebate] = useState(!initialDebate);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [isAILoading, setIsAILoading] = useState(false);
   const [isUserLoading, setIsUserLoading] = useState(false);
   const [isAITakeover, setIsAITakeover] = useState(false);
@@ -317,9 +318,13 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
           if (!instantDebateActiveRef.current) {
             setMessages(data.debate.messages || []);
           }
+          setLoadError(null);
+        } else {
+          setLoadError(`Failed to load debate: ${response.statusText || 'Unknown error'}`);
         }
       } catch (error) {
         console.error("Failed to load debate:", error);
+        setLoadError("Network error. Please check your connection and try again.");
       } finally {
         setIsLoadingDebate(false);
       }
@@ -656,6 +661,45 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
       }
     }
   };
+
+  // Error state - show error with retry
+  if (loadError) {
+    return (
+      <div className="min-h-dvh flex flex-col overflow-hidden">
+        <Header />
+        <div className="flex-1 flex items-center justify-center px-4">
+          <div className="text-center max-w-md">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[var(--error)]/10 flex items-center justify-center">
+              <svg className="w-8 h-8 text-[var(--error)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+              </svg>
+            </div>
+            <h2 className="text-xl font-semibold text-[var(--text)] mb-2">Failed to load debate</h2>
+            <p className="text-[var(--text-secondary)] mb-6">{loadError}</p>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={() => {
+                  setLoadError(null);
+                  setIsLoadingDebate(true);
+                  // Re-trigger the useEffect by changing a dependency
+                  window.location.reload();
+                }}
+                className="px-5 py-2.5 rounded-xl bg-[var(--accent)] text-white font-medium hover:bg-[var(--accent-hover)] transition-colors"
+              >
+                Try Again
+              </button>
+              <a
+                href="/history"
+                className="px-5 py-2.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)] text-[var(--text)] font-medium hover:bg-[var(--bg-sunken)] transition-colors"
+              >
+                Back to History
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Loading state - skeleton loader
   if (!isDevMode && (isSignedIn === undefined || isLoadingDebate)) {
