@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import { d1 } from '@/lib/d1';
 import { getOpponentById } from '@/lib/opponents';
+import { createRateLimiter, getClientIp } from '@/lib/rate-limit';
+
+// 30 requests per minute per IP (embeds are heavier — full HTML responses)
+const limiter = createRateLimiter({ maxRequests: 30, windowMs: 60_000 });
 
 /**
  * GET /api/embed/[debateId]
@@ -14,11 +18,21 @@ import { getOpponentById } from '@/lib/opponents';
  *
  * Usage:
  *   <iframe src="https://debateai.org/api/embed/DEBATE_ID" width="600" height="400"></iframe>
+ *
+ * Rate limited: 30 req/min per IP.
  */
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ debateId: string }> }
 ) {
+  const ip = getClientIp(request);
+  const rateLimit = limiter.check(ip);
+  if (!rateLimit.allowed) {
+    return new NextResponse('Too Many Requests', {
+      status: 429,
+      headers: { ...rateLimit.headers, 'Content-Type': 'text/plain' },
+    });
+  }
   try {
     const { debateId } = await params;
     const { searchParams } = new URL(request.url);

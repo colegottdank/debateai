@@ -1,10 +1,23 @@
 import { ImageResponse } from "@vercel/og";
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { d1 } from "@/lib/d1";
+import { createRateLimiter, getClientIp } from "@/lib/rate-limit";
 
 export const runtime = "edge";
 
+// 20 requests per minute per IP (image generation is expensive)
+const limiter = createRateLimiter({ maxRequests: 20, windowMs: 60_000 });
+
 export async function GET(request: NextRequest) {
+  const ip = getClientIp(request);
+  const rateLimit = limiter.check(ip);
+  if (!rateLimit.allowed) {
+    return new NextResponse("Too Many Requests", {
+      status: 429,
+      headers: rateLimit.headers,
+    });
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const debateId = searchParams.get("debateId");
