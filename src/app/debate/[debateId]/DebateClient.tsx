@@ -7,6 +7,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { getOpponentById } from "@/lib/opponents";
 import Header from "@/components/Header";
 import UpgradeModal from "@/components/UpgradeModal";
+import { track } from "@/lib/analytics";
 import ShareButtons from "@/components/ShareButtons";
 import ShareModal from "@/components/ShareModal";
 
@@ -519,6 +520,13 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
     setUserInput("");
     setIsUserLoading(true);
     setIsAutoScrollEnabled(true);
+    
+    // Track message sent
+    track('debate_message_sent', {
+      debateId,
+      messageIndex: messages.length,
+      aiAssisted: isAITakeover,
+    });
     
     // Reset textarea height
     if (textareaRef.current) {
