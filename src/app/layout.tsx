@@ -3,6 +3,7 @@ import { ClerkProvider } from '@clerk/nextjs';
 import { Geist, Geist_Mono, Playfair_Display } from "next/font/google";
 import { ThemeProvider } from '@/components/ThemeProvider';
 import ArtisticBackground from '@/components/backgrounds/ArtisticBackground';
+import { websiteJsonLd } from '@/lib/jsonld';
 import "./globals.css";
 
 const geistSans = Geist({
@@ -68,6 +69,12 @@ export default function RootLayout({
     <ClerkProvider>
       <html lang="en" suppressHydrationWarning>
         <head>
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify(websiteJsonLd()),
+            }}
+          />
           <script
             dangerouslySetInnerHTML={{
               __html: `

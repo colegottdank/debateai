@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
 import { d1 } from '@/lib/d1';
 import { getOpponentById } from '@/lib/opponents';
+import { debateJsonLd } from '@/lib/jsonld';
 import DebateClient from './DebateClient';
 
 // Server component — fetches debate data for SSR
@@ -36,6 +37,24 @@ export default async function DebatePage({
 
   return (
     <>
+      {/* JSON-LD structured data for search engines */}
+      {debate && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(
+              debateJsonLd({
+                id: debate.id as string,
+                topic,
+                opponentName,
+                messages,
+                createdAt: debate.created_at as string | undefined,
+              })
+            ),
+          }}
+        />
+      )}
+
       {/* SSR content — visible to crawlers even before JS loads */}
       {debate && (
         <noscript>
