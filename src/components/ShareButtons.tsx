@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useToast } from './Toast';
+import { track } from '@/lib/analytics';
 
 interface ShareButtonsProps {
   debateId: string;
@@ -24,6 +25,7 @@ export default function ShareButtons({ debateId, topic, className = '', onOpenMo
     try {
       setIsCopying(true);
       await navigator.clipboard.writeText(debateUrl);
+      track('debate_shared', { debateId, method: 'copy_link' });
       showToast('Link copied to clipboard!', 'success');
     } catch (err) {
       console.error('Failed to copy:', err);
@@ -34,6 +36,7 @@ export default function ShareButtons({ debateId, topic, className = '', onOpenMo
   };
   
   const handleTwitterShare = () => {
+    track('debate_shared', { debateId, method: 'twitter' });
     const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(debateUrl)}`;
     window.open(twitterUrl, '_blank', 'width=550,height=420');
   };
