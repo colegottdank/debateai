@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import Header from '@/components/Header';
 
 export const metadata = {
   title: 'Page Not Found | DebateAI',
@@ -9,7 +8,12 @@ export const metadata = {
 export default function NotFoundPage() {
   return (
     <div className="min-h-dvh flex flex-col relative overflow-hidden">
-      <Header />
+      {/* Minimal header — no Clerk dependency for static prerender */}
+      <header className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
+        <Link href="/" className="text-xl font-bold text-[var(--text)]">
+          🧠 DebateAI
+        </Link>
+      </header>
       
       <main className="flex-1 flex items-center justify-center px-5 py-12">
         <div className="text-center max-w-md">
