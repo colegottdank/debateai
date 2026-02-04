@@ -1,12 +1,13 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 
 type Theme = 'light' | 'dark';
 
 interface ThemeContextType {
   theme: Theme;
   toggleTheme: () => void;
+  setTheme: (theme: Theme) => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -20,55 +21,69 @@ export function useTheme() {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>('dark');
+  const [theme, setThemeState] = useState<Theme>('dark');
   const [mounted, setMounted] = useState(false);
 
-  useEffect(() => {
-    // Check localStorage and system preference on mount
-    const stored = localStorage.getItem('theme');
-    if (stored === 'light' || stored === 'dark') {
-      setTheme(stored);
-      // Use add/remove instead of toggle for reliability
-      if (stored === 'dark') {
-        document.documentElement.classList.remove('light');
-        document.documentElement.classList.add('dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-        document.documentElement.classList.add('light');
-      }
-    } else {
-      // Check system preference
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      const initialTheme = prefersDark ? 'dark' : 'light';
-      setTheme(initialTheme);
-      if (initialTheme === 'dark') {
-        document.documentElement.classList.remove('light');
-        document.documentElement.classList.add('dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-        document.documentElement.classList.add('light');
-      }
-    }
-    setMounted(true);
+  // Apply theme to DOM
+  const applyTheme = useCallback((newTheme: Theme) => {
+    const root = document.documentElement;
+    root.classList.remove('light', 'dark');
+    root.classList.add(newTheme);
   }, []);
 
-  const toggleTheme = () => {
+  useEffect(() => {
+    // Check localStorage first
+    const stored = localStorage.getItem('theme') as Theme | null;
+    
+    if (stored === 'light' || stored === 'dark') {
+      setThemeState(stored);
+      applyTheme(stored);
+    } else {
+      // Fall back to system preference
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const initialTheme = prefersDark ? 'dark' : 'light';
+      setThemeState(initialTheme);
+      applyTheme(initialTheme);
+    }
+    
+    setMounted(true);
+  }, [applyTheme]);
+
+  // Listen for system preference changes
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    
+    const handleChange = (e: MediaQueryListEvent) => {
+      // Only update if user hasn't set a preference
+      if (!localStorage.getItem('theme')) {
+        const newTheme = e.matches ? 'dark' : 'light';
+        setThemeState(newTheme);
+        applyTheme(newTheme);
+      }
+    };
+    
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, [applyTheme]);
+
+  const setTheme = useCallback((newTheme: Theme) => {
+    setThemeState(newTheme);
+    localStorage.setItem('theme', newTheme);
+    applyTheme(newTheme);
+  }, [applyTheme]);
+
+  const toggleTheme = useCallback(() => {
     const newTheme = theme === 'dark' ? 'light' : 'dark';
     setTheme(newTheme);
-    localStorage.setItem('theme', newTheme);
-    // Use add/remove instead of toggle for reliability
-    if (newTheme === 'dark') {
-      document.documentElement.classList.remove('light');
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      document.documentElement.classList.add('light');
-    }
-  };
+  }, [theme, setTheme]);
 
-  // Always provide the context, but control the actual theme application
+  // Prevent hydration mismatch by not rendering theme-dependent UI until mounted
+  if (!mounted) {
+    return <>{children}</>;
+  }
+
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+    <ThemeContext.Provider value={{ theme, toggleTheme, setTheme }}>
       {children}
     </ThemeContext.Provider>
   );

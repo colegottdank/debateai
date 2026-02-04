@@ -8,6 +8,7 @@ import { getDailyDebate } from '@/lib/daily-debates';
 import Header from '@/components/Header';
 import UpgradeModal from '@/components/UpgradeModal';
 import { useSubscription } from '@/lib/useSubscription';
+import { track } from '@/lib/analytics';
 
 const TOPIC_EXAMPLES = [
   "Should AI be regulated?",
@@ -83,6 +84,7 @@ export default function Home() {
             });
             
             if (response.ok) {
+              track('debate_created', { debateId, topic: pendingDebate.topic, opponent: pendingDebate.persona, source: 'daily_debate' });
               sessionStorage.setItem('firstArgument', pendingDebate.userInput);
               sessionStorage.setItem('isInstantDebate', 'true');
               router.push(`/debate/${debateId}`);
@@ -138,6 +140,7 @@ export default function Home() {
       });
       
       if (response.ok) {
+        track('debate_created', { debateId, topic: topic.trim(), opponent: 'Devil\'s Advocate', source: 'quick_start' });
         sessionStorage.setItem('firstArgument', userInput);
         sessionStorage.setItem('isInstantDebate', 'true');
         router.push(`/debate/${debateId}`);
