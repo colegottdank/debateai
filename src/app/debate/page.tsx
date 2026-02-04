@@ -71,7 +71,7 @@ export default function DebatePage() {
   const remaining = (text: string, max: number) => max - text.length;
 
   return (
-    <div className="h-screen flex flex-col relative overflow-hidden">
+    <div className="min-h-dvh flex flex-col relative overflow-hidden">
       <UpgradeModal
         isOpen={upgradeModal.isOpen}
         onClose={() => setUpgradeModal(prev => ({ ...prev, isOpen: false }))}

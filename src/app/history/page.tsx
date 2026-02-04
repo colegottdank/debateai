@@ -73,7 +73,7 @@ export default function HistoryPage() {
   };
 
   return (
-    <div className="h-screen flex flex-col relative overflow-hidden">
+    <div className="min-h-dvh flex flex-col relative overflow-hidden">
       <Header />
       
       <main className="flex-1 px-5 py-6 overflow-y-auto">

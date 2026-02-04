@@ -7,6 +7,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { getOpponentById } from "@/lib/opponents";
 import Header from "@/components/Header";
 import UpgradeModal from "@/components/UpgradeModal";
+import ShareButtons from "@/components/ShareButtons";
 
 // Streaming indicator
 const StreamingIndicator = memo(() => (
@@ -644,22 +645,25 @@ export default function DebatePage() {
   const canSend = userInput.trim().length > 0 && !isUserLoading && !isAILoading;
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden">
+    <div className="min-h-dvh flex flex-col overflow-hidden">
       <Header />
 
       {/* Topic Header - Fixed */}
       {debate && (
         <div className="flex-shrink-0 z-10 border-b border-[var(--border)] bg-[var(--bg)]/95 backdrop-blur supports-[backdrop-filter]:bg-[var(--bg)]/80">
           <div className="max-w-3xl mx-auto px-4 sm:px-6 py-3">
-            <div className="flex items-center justify-center gap-2 text-sm">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--accent)]">Topic</span>
-              <h1 className="font-medium text-[var(--text)] truncate max-w-[200px] sm:max-w-[300px]">{debate.topic}</h1>
-              {(debate.opponentStyle || opponent) && (
-                <>
-                  <span className="text-[var(--border-strong)]">·</span>
-                  <span className="text-[var(--text-secondary)]">vs {debate.opponentStyle || opponent?.name}</span>
-                </>
-              )}
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-2 text-sm flex-1 min-w-0">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--accent)] flex-shrink-0">Topic</span>
+                <h1 className="font-medium text-[var(--text)] truncate">{debate.topic}</h1>
+                {(debate.opponentStyle || opponent) && (
+                  <>
+                    <span className="text-[var(--border-strong)] flex-shrink-0">·</span>
+                    <span className="text-[var(--text-secondary)] truncate">vs {debate.opponentStyle || opponent?.name}</span>
+                  </>
+                )}
+              </div>
+              <ShareButtons debateId={debateId} topic={debate.topic} />
             </div>
           </div>
         </div>

@@ -134,7 +134,7 @@ export default function Home() {
   const maxChars = 2000;
 
   return (
-    <div className="h-screen flex flex-col relative overflow-hidden">
+    <div className="min-h-dvh flex flex-col relative overflow-hidden">
       <Header />
 
       <main className="flex-1 flex flex-col items-center justify-center px-5 py-4 relative z-10">
