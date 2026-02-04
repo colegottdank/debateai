@@ -7,6 +7,30 @@ import ArtisticBackground from '@/components/backgrounds/ArtisticBackground';
 import { websiteJsonLd } from '@/lib/jsonld';
 import "./globals.css";
 
+/**
+ * Force dynamic rendering for all pages. Prevents static prerendering of
+ * pages that depend on ClerkProvider (which needs NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY).
+ * The /_not-found page is still statically prerendered by Next.js regardless —
+ * AuthProvider handles that case by skipping Clerk when the key is missing.
+ */
+export const dynamic = 'force-dynamic';
+
+/**
+ * Wrapper that renders ClerkProvider only when the publishable key is available.
+ * During `next build`, static pages like `/_not-found` are prerendered without
+ * runtime env vars — ClerkProvider throws if the key is missing.
+ * This wrapper lets those pages build without Clerk, while all runtime pages
+ * still get full auth.
+ */
+function AuthProvider({ children }: { children: React.ReactNode }) {
+  const clerkKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+  if (!clerkKey) {
+    // Build-time prerender (no env vars) — skip Clerk
+    return <>{children}</>;
+  }
+  return <ClerkProvider>{children}</ClerkProvider>;
+}
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -67,7 +91,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider>
+    <AuthProvider>
       <html lang="en" suppressHydrationWarning>
         <head>
           <script
@@ -111,6 +135,6 @@ export default function RootLayout({
           </ThemeProvider>
         </body>
       </html>
-    </ClerkProvider>
+    </AuthProvider>
   );
 }
