@@ -77,11 +77,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setTheme(newTheme);
   }, [theme, setTheme]);
 
-  // Prevent hydration mismatch by not rendering theme-dependent UI until mounted
-  if (!mounted) {
-    return <>{children}</>;
-  }
-
+  // Always provide context so children can call useTheme() during SSR/SSG.
+  // Before mount, theme defaults to 'dark' and toggles are no-ops.
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme, setTheme }}>
       {children}
