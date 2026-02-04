@@ -142,34 +142,7 @@ export default async function BlogPostPage({
               </div>
             )}
 
-            {/* CTA */}
-            <div className="mt-12 p-6 rounded-xl bg-[var(--accent)]/5 border border-[var(--accent)]/20 text-center">
-              <h3 className="text-lg font-semibold text-[var(--text)] mb-2">
-                Ready to test your arguments?
-              </h3>
-              <p className="text-sm text-[var(--text-secondary)] mb-4">
-                Challenge AI opponents trained in every debate style.
-              </p>
-              <Link
-                href="/"
-                className="inline-flex items-center gap-2 h-10 px-5 rounded-xl bg-[var(--accent)] text-white text-sm font-medium shadow-lg shadow-[var(--accent)]/25 hover:shadow-xl hover:shadow-[var(--accent)]/40 transition-all"
-              >
-                Start a Debate
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M13 7l5 5m0 0l-5 5m5-5H6"
-                  />
-                </svg>
-              </Link>
-            </div>
+            {/* Auto-CTA removed — Echo's posts have contextual inline CTAs */}
           </article>
         </main>
       </div>
