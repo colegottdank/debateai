@@ -2,15 +2,17 @@
 
 interface SkeletonProps {
   className?: string;
+  style?: React.CSSProperties;
 }
 
-export function Skeleton({ className = '' }: SkeletonProps) {
+export function Skeleton({ className = '', style }: SkeletonProps) {
   return (
     <div 
       className={`
         animate-pulse bg-[var(--bg-sunken)] rounded-lg
         ${className}
       `}
+      style={style}
       aria-hidden="true"
     />
   );
