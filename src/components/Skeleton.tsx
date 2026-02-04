@@ -78,8 +78,8 @@ export function SkeletonMessage({ isUser = false }: { isUser?: boolean }) {
             <Skeleton className="h-4 w-16" />
             <div className="space-y-1.5">
               <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-5/6" /
-              <Skeleton className="h-4 w-4/6" /
+              <Skeleton className="h-4 w-5/6" />
+              <Skeleton className="h-4 w-4/6" />
             </div>
           </div>
         </div>

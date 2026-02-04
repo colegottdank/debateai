@@ -1,11 +1,30 @@
 import type { Metadata } from "next";
 import { ClerkProvider } from '@clerk/nextjs';
+import { Analytics } from '@vercel/analytics/next';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 import { Geist, Geist_Mono, Playfair_Display } from "next/font/google";
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { ToastProvider } from '@/components/Toast';
 import ArtisticBackground from '@/components/backgrounds/ArtisticBackground';
+import AnalyticsProvider from '@/components/AnalyticsProvider';
 import { websiteJsonLd } from '@/lib/jsonld';
 import "./globals.css";
+
+/**
+ * Wrapper that renders ClerkProvider only when the publishable key is available.
+ * During `next build`, static pages like `/_not-found` are prerendered without
+ * runtime env vars — ClerkProvider throws if the key is missing.
+ * This wrapper lets those pages build without Clerk, while all runtime pages
+ * still get full auth (the key is always available at runtime on Vercel).
+ */
+function AuthProvider({ children }: { children: React.ReactNode }) {
+  const clerkKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+  if (!clerkKey) {
+    // Build-time prerender (no env vars) — skip Clerk
+    return <>{children}</>;
+  }
+  return <ClerkProvider>{children}</ClerkProvider>;
+}
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -67,7 +86,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider>
+    <AuthProvider>
       <html lang="en" suppressHydrationWarning>
         <head>
           <script
@@ -109,8 +128,11 @@ export default function RootLayout({
               </main>
             </ToastProvider>
           </ThemeProvider>
+          <AnalyticsProvider />
+          <Analytics />
+          <SpeedInsights />
         </body>
       </html>
-    </ClerkProvider>
+    </AuthProvider>
   );
 }
