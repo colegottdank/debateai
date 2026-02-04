@@ -7,8 +7,10 @@ import { useParams, useSearchParams } from "next/navigation";
 import { getOpponentById } from "@/lib/opponents";
 import Header from "@/components/Header";
 import UpgradeModal from "@/components/UpgradeModal";
+import { track } from "@/lib/analytics";
 import ShareButtons from "@/components/ShareButtons";
 import ShareModal from "@/components/ShareModal";
+import { DebatePageSkeleton } from "@/components/Skeleton";
 
 export interface DebateClientProps {
   initialDebate?: {
@@ -520,6 +522,13 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
     setIsUserLoading(true);
     setIsAutoScrollEnabled(true);
     
+    // Track message sent
+    track('debate_message_sent', {
+      debateId,
+      messageIndex: messages.length,
+      aiAssisted: isAITakeover,
+    });
+    
     // Reset textarea height
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
@@ -648,18 +657,13 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
     }
   };
 
-  // Loading state
+  // Loading state - skeleton loader
   if (!isDevMode && (isSignedIn === undefined || isLoadingDebate)) {
     return (
-      <div className="min-h-screen flex flex-col">
+      <>
         <Header />
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <div className="w-8 h-8 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin mx-auto mb-4"/>
-            <p className="text-[var(--text-secondary)]">Loading debate...</p>
-          </div>
-        </div>
-      </div>
+        <DebatePageSkeleton />
+      </>
     );
   }
 

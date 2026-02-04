@@ -76,16 +76,19 @@ export default function RootLayout({
               __html: JSON.stringify(websiteJsonLd()),
             }}
           />
+          <meta name="theme-color" content="#0c0a09" media="(prefers-color-scheme: dark)" />
+          <meta name="theme-color" content="#fafaf9" media="(prefers-color-scheme: light)" />
           <script
             dangerouslySetInnerHTML={{
               __html: `
                 (function() {
-                  const theme = localStorage.getItem('theme');
-                  if (theme === 'light') {
-                    document.documentElement.classList.add('light');
+                  const stored = localStorage.getItem('theme');
+                  if (stored === 'light' || stored === 'dark') {
+                    document.documentElement.classList.add(stored);
                   } else {
-                    // Default to dark if no preference or dark is set
-                    document.documentElement.classList.add('dark');
+                    // Check system preference
+                    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                    document.documentElement.classList.add(prefersDark ? 'dark' : 'light');
                   }
                 })();
               `,
@@ -96,9 +99,14 @@ export default function RootLayout({
           className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} antialiased`}
         >
           <ArtisticBackground />
+          <a href="#main-content" className="skip-link">
+            Skip to main content
+          </a>
           <ThemeProvider>
             <ToastProvider>
-              {children}
+              <main id="main-content" tabIndex={-1}>
+                {children}
+              </main>
             </ToastProvider>
           </ThemeProvider>
         </body>
