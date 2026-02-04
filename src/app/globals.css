@@ -128,8 +128,34 @@ body {
   font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, sans-serif;
   line-height: 1.6;
   min-height: 100vh;
-  transition: background-color var(--duration-slow) var(--ease),
-              color var(--duration-slow) var(--ease);
+}
+
+/* Smooth theme transitions */
+*,
+*::before,
+*::after {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-timing-function: var(--ease);
+  transition-duration: var(--duration);
+}
+
+/* Disable transitions for users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+/* Skeleton loading - reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse {
+    animation: none !important;
+    opacity: 0.6;
+  }
 }
 
 h1, h2, h3, h4 {
@@ -290,6 +316,56 @@ h1, h2, h3, h4 {
     transform: translateY(-3px);
     opacity: 1;
   }
+}
+
+/* ============================================
+   FOCUS STYLES (Accessibility)
+   ============================================ */
+/* Default focus-visible for keyboard navigation */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Remove default outline for mouse users, keep for keyboard */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Interactive elements focus styles */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+[tabindex]:not([tabindex="-1"]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 0.375rem;
+}
+
+/* High contrast focus for dark mode */
+.dark button:focus-visible,
+.dark a:focus-visible,
+.dark input:focus-visible,
+.dark textarea:focus-visible {
+  outline-color: var(--accent);
+  box-shadow: 0 0 0 4px rgba(232, 179, 163, 0.2);
+}
+
+/* Skip link for keyboard users */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: var(--accent);
+  color: white;
+  padding: 8px 16px;
+  z-index: 100;
+  transition: top 0.3s;
+}
+
+.skip-link:focus {
+  top: 0;
 }
 
 /* ============================================

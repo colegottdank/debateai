@@ -1,5 +1,5 @@
 import { ImageResponse } from "@vercel/og";
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { d1 } from "@/lib/d1";
 import { createRateLimiter, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
 
@@ -7,6 +7,9 @@ import { createRateLimiter, getClientIp, rateLimitResponse } from "@/lib/rate-li
 const limiter = createRateLimiter({ maxRequests: 20, windowMs: 60_000 });
 
 export const runtime = "edge";
+
+// 20 requests per minute per IP (image generation is expensive)
+const limiter = createRateLimiter({ maxRequests: 20, windowMs: 60_000 });
 
 export async function GET(request: NextRequest) {
   const rl = limiter.check(getClientIp(request));

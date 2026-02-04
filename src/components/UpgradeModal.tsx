@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { SignedOut, SignInButton } from '@clerk/nextjs';
 import { useUser } from '@/lib/useTestUser';
+import { track } from '@/lib/analytics';
 
 interface UpgradeModalProps {
   isOpen: boolean;
@@ -19,12 +20,17 @@ export default function UpgradeModal({ isOpen, onClose, trigger = 'button', limi
   useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
-    if (isOpen) document.body.style.overflow = 'hidden';
-    else document.body.style.overflow = '';
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+      track('upgrade_modal_shown', { trigger: trigger === 'feature' ? 'button' : (trigger === 'rate-limit-debate' || trigger === 'rate-limit-message' ? trigger.replace('-', '_') as any : 'button') });
+    } else {
+      document.body.style.overflow = '';
+    }
     return () => { document.body.style.overflow = ''; };
-  }, [isOpen]);
+  }, [isOpen, trigger]);
 
   const handleUpgrade = async () => {
+    track('upgrade_clicked', { source: trigger });
     try {
       setIsUpgrading(true);
       const response = await fetch('/api/stripe/create-checkout', {

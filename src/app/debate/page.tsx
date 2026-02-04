@@ -7,6 +7,7 @@ import Link from 'next/link';
 import UpgradeModal from '@/components/UpgradeModal';
 import Header from '@/components/Header';
 import { useSubscription } from '@/lib/useSubscription';
+import { track } from '@/lib/analytics';
 
 export default function DebatePage() {
   const { isSignedIn } = useUser();
@@ -47,6 +48,7 @@ export default function DebatePage() {
       });
       
       if (response.ok) {
+        track('debate_created', { debateId, topic, opponent: opponentStyle, source: 'custom_setup' });
         router.push(`/debate/${debateId}`);
       } else {
         const error = await response.json();
@@ -71,7 +73,7 @@ export default function DebatePage() {
   const remaining = (text: string, max: number) => max - text.length;
 
   return (
-    <div className="h-screen flex flex-col relative overflow-hidden">
+    <div className="min-h-dvh flex flex-col relative overflow-hidden">
       <UpgradeModal
         isOpen={upgradeModal.isOpen}
         onClose={() => setUpgradeModal(prev => ({ ...prev, isOpen: false }))}
