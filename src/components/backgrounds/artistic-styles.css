@@ -160,16 +160,6 @@
    LIGHT MODE ADJUSTMENTS - Clean White Background
    ============================================ */
 
-.light {
-  /* Clean light theme */
-  --bg: #fafafa;
-  --bg-elevated: #ffffff;
-  --bg-sunken: #f0f0f0;
-  --text: #1a1a1a;
-  --text-secondary: #666666;
-  --text-tertiary: #999999;
-}
-
 .light .gradient-mesh {
   background: 
     radial-gradient(ellipse 60% 35% at 20% 20%, rgba(201, 102, 74, 0.12) 0%, transparent 50%),
