@@ -3,21 +3,25 @@
  *
  * Per-instance (not distributed) — suitable for Vercel serverless.
  * Each function instance maintains its own window. This catches
- * abuse from single IPs without requiring Redis/external state.
+ * abuse from single IPs/users without requiring Redis/external state.
+ *
+ * Supports both IP-based (public endpoints) and user-based (authed endpoints) limiting.
  *
  * Usage:
  *   const limiter = createRateLimiter({ maxRequests: 30, windowMs: 60_000 });
  *
- *   export async function GET(request: Request) {
- *     const ip = getClientIp(request);
- *     const result = limiter.check(ip);
- *     if (!result.allowed) {
- *       return new Response('Too Many Requests', {
- *         status: 429,
- *         headers: result.headers,
- *       });
- *     }
- *     // ... handle request
+ *   // IP-based (public endpoints)
+ *   const ip = getClientIp(request);
+ *   const result = limiter.check(ip);
+ *
+ *   // User-based (authed endpoints)
+ *   const result = limiter.check(`user:${userId}`);
+ *
+ *   if (!result.allowed) {
+ *     return new Response('Too Many Requests', {
+ *       status: 429,
+ *       headers: result.headers,
+ *     });
  *   }
  */
 
@@ -119,4 +123,20 @@ export function getClientIp(request: Request): string {
   if (realIp) return realIp;
 
   return 'unknown';
+}
+
+/**
+ * Helper to return a 429 response with rate limit headers.
+ */
+export function rateLimitResponse(result: RateLimitResult): Response {
+  return new Response(
+    JSON.stringify({ error: 'Too many requests. Please try again later.' }),
+    {
+      status: 429,
+      headers: {
+        'Content-Type': 'application/json',
+        ...result.headers,
+      },
+    }
+  );
 }

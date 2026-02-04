@@ -34,8 +34,11 @@ export async function GET(
       const isOwner = userId ? result.debate.user_id === userId : false;
       const isAuthenticated = !!userId;
       
+      // Strip sensitive fields from public response
+      const { user_id, ...safeDebate } = result.debate as Record<string, unknown>;
+      
       return NextResponse.json({ 
-        debate: result.debate,
+        debate: safeDebate,
         isOwner,
         isAuthenticated 
       });
@@ -138,7 +141,7 @@ export async function POST(
   } catch (error) {
     console.error('Post message error:', error);
     return NextResponse.json(
-      { error: 'Failed to send message', details: error instanceof Error ? error.message : 'Unknown error' },
+      { error: 'Failed to send message' },
       { status: 500 }
     );
   }

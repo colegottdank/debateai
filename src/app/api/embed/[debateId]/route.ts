@@ -91,7 +91,10 @@ export async function GET(
     });
   } catch (error) {
     console.error('Embed API error:', error);
-    return new NextResponse('Internal Server Error', { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to generate embed' },
+      { status: 500 }
+    );
   }
 }
 

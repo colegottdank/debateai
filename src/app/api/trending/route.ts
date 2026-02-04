@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
+import { createRateLimiter, getClientIp, rateLimitResponse } from '@/lib/rate-limit';
+
+// 10 requests per minute per IP (calls Claude API when cache is cold)
+const limiter = createRateLimiter({ maxRequests: 10, windowMs: 60_000 });
 
 // Cache trending topics for 1 hour
 let cachedTopics: TrendingTopic[] | null = null;
@@ -120,7 +124,10 @@ Make questions punchy and debatable. Avoid boring policy questions. Go for takes
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const rl = limiter.check(getClientIp(request));
+  if (!rl.allowed) return rateLimitResponse(rl);
+
   // Check cache
   if (cachedTopics && Date.now() - cacheTime < CACHE_DURATION) {
     return NextResponse.json({ 

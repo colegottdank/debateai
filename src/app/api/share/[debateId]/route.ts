@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { d1 } from '@/lib/d1';
 import { getOpponentById } from '@/lib/opponents';
-import { createRateLimiter, getClientIp } from '@/lib/rate-limit';
+import { createRateLimiter, getClientIp, rateLimitResponse } from '@/lib/rate-limit';
 
 // 60 requests per minute per IP
 const limiter = createRateLimiter({ maxRequests: 60, windowMs: 60_000 });
@@ -21,15 +21,8 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ debateId: string }> }
 ) {
-  const ip = getClientIp(request);
-  const rateLimit = limiter.check(ip);
-  if (!rateLimit.allowed) {
-    return NextResponse.json(
-      { error: 'Too many requests. Please try again later.' },
-      { status: 429, headers: rateLimit.headers }
-    );
-  }
-
+  const rl = limiter.check(getClientIp(request));
+  if (!rl.allowed) return rateLimitResponse(rl);
   try {
     const { debateId } = await params;
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://debateai.org';

@@ -16,7 +16,7 @@ export async function GET() {
     }
 
     // LOCAL DEVELOPMENT BYPASS - always return premium for local testing
-    if (process.env.NODE_ENV === 'development' || process.env.LOCAL_DEV_BYPASS === 'true') {
+    if (process.env.NODE_ENV === 'development' || (process.env.NODE_ENV !== 'production' && process.env.LOCAL_DEV_BYPASS === 'true')) {
       return NextResponse.json({
         isPremium: true,
         isSubscribed: true,

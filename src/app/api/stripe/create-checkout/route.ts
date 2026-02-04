@@ -137,45 +137,30 @@ export async function POST(request: Request) {
     // More detailed error information for Stripe connection issues
     if (error.type === 'StripeConnectionError') {
       return NextResponse.json(
-        { 
-          error: 'Unable to connect to payment service. Please try again later.',
-          details: error.message,
-          type: 'connection'
-        },
+        { error: 'Unable to connect to payment service. Please try again later.' },
         { status: 503 }
       );
     }
     
     if (error.type === 'StripeAPIError') {
+      console.error('Stripe API error details:', error.message);
       return NextResponse.json(
-        { 
-          error: 'Payment service error. Please check your configuration.',
-          details: error.message,
-          type: 'api'
-        },
+        { error: 'Payment service error. Please try again later.' },
         { status: 500 }
       );
     }
     
-    // Check for specific error messages
+    // Check for specific error messages (log details, return generic)
     if (error.message?.includes('No such price')) {
+      console.error('Stripe price not found:', error.message);
       return NextResponse.json(
-        { 
-          error: 'Invalid price configuration. Please contact support.',
-          details: 'Price ID not found in Stripe',
-          type: 'configuration'
-        },
+        { error: 'Payment configuration error. Please contact support.' },
         { status: 500 }
       );
     }
     
     return NextResponse.json(
-      { 
-        error: error.message || 'Failed to create checkout session',
-        type: error.type || 'unknown',
-        code: error.code,
-        details: error.message
-      },
+      { error: 'Failed to create checkout session' },
       { status: 500 }
     );
   }
