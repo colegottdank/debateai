@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { ClerkProvider } from '@clerk/nextjs';
 import { Geist, Geist_Mono, Playfair_Display } from "next/font/google";
 import { ThemeProvider } from '@/components/ThemeProvider';
+import { ToastProvider } from '@/components/Toast';
 import ArtisticBackground from '@/components/backgrounds/ArtisticBackground';
 import { websiteJsonLd } from '@/lib/jsonld';
 import "./globals.css";
@@ -96,7 +97,9 @@ export default function RootLayout({
         >
           <ArtisticBackground />
           <ThemeProvider>
-            {children}
+            <ToastProvider>
+              {children}
+            </ToastProvider>
           </ThemeProvider>
         </body>
       </html>
