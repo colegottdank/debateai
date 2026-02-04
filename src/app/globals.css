@@ -150,6 +150,14 @@ body {
   }
 }
 
+/* Skeleton loading - reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse {
+    animation: none !important;
+    opacity: 0.6;
+  }
+}
+
 h1, h2, h3, h4 {
   font-weight: 600;
   letter-spacing: -0.02em;
