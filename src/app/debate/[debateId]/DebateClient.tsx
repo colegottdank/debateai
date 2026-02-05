@@ -10,7 +10,9 @@ import UpgradeModal from "@/components/UpgradeModal";
 import { track } from "@/lib/analytics";
 import ShareButtons from "@/components/ShareButtons";
 import ShareModal from "@/components/ShareModal";
+import DebateScoreCard from "@/components/DebateScoreCard";
 import { DebatePageSkeleton } from "@/components/Skeleton";
+import type { DebateScore } from "@/lib/scoring";
 
 export interface DebateClientProps {
   initialDebate?: {
@@ -275,6 +277,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [rateLimitData, setRateLimitData] = useState<{ current: number; limit: number } | undefined>();
+  const [debateScore, setDebateScore] = useState<DebateScore | null>(null);
   
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -285,6 +288,10 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
   useEffect(() => {
     // If we already have data from SSR, no need to fetch
     if (initialDebate && !isDevMode) {
+      // Load existing score from SSR data
+      if (initialDebate.score_data && typeof initialDebate.score_data === 'object' && 'debateScore' in initialDebate.score_data) {
+        setDebateScore((initialDebate.score_data as Record<string, unknown>).debateScore as DebateScore);
+      }
       return;
     }
 
@@ -317,6 +324,10 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
           // (prevents React StrictMode's second effect run from overwriting)
           if (!instantDebateActiveRef.current) {
             setMessages(data.debate.messages || []);
+          }
+          // Load existing score if debate was previously scored
+          if (data.debate.score_data?.debateScore) {
+            setDebateScore(data.debate.score_data.debateScore);
           }
           setLoadError(null);
         } else {
@@ -762,6 +773,26 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
               isUserLoading={isUserLoading && idx === messages.length - 1}
             />
           ))}
+
+          {/* Score Card — show after messages when not streaming */}
+          {!isAILoading && !isUserLoading && messages.filter(m => m.role === 'user').length >= 2 && (
+            <DebateScoreCard
+              debateId={debateId}
+              score={debateScore}
+              onScoreGenerated={(score) => {
+                setDebateScore(score);
+                track('debate_scored', {
+                  debateId,
+                  winner: score.winner,
+                  userScore: score.userScore,
+                  aiScore: score.aiScore,
+                });
+              }}
+              opponentName={opponent?.name || debate?.opponentStyle || "AI"}
+              messageCount={messages.filter(m => m.role === 'user').length}
+            />
+          )}
+
           <div ref={messagesEndRef} />
         </div>
       </div>

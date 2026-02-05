@@ -41,6 +41,13 @@ export interface AnalyticsEvents {
     messageCount: number;
   };
 
+  debate_scored: {
+    debateId: string;
+    winner: 'user' | 'ai' | 'draw';
+    userScore: number;
+    aiScore: number;
+  };
+
   // Sharing
   debate_shared: {
     debateId: string;
