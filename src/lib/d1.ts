@@ -363,7 +363,7 @@ class D1Client {
       const messages = result.debate.messages as Array<{ role: string; content: string }> || [];
       // Count only user messages (not system or AI messages)
       const userMessageCount = messages.filter(m => m.role === 'user').length;
-      const limit = 5; // Free tier limit per debate - paywall after 5 messages
+      const limit = 10; // Free tier limit per debate - paywall after 10 user messages (21 total msgs)
       
       return {
         success: true,
