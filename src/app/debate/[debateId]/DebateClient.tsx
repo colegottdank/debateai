@@ -583,9 +583,16 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
           if (response.status === 429 && error.upgrade_required) {
             setRateLimitData({ current: error.current, limit: error.limit });
             setShowUpgradeModal(true);
-            // Remove the user message we just added and the placeholder AI message
-            setMessages(prev => prev.slice(0, -2));
-            setUserInput(messageText); // Restore input
+            // Remove only the placeholder AI message, keep user's message visible
+            // This is less jarring than removing both messages
+            setMessages(prev => {
+              const lastMsg = prev[prev.length - 1];
+              if (lastMsg && lastMsg.role === 'ai') {
+                return prev.slice(0, -1);
+              }
+              return prev;
+            });
+            setUserInput(messageText); // Restore input for retry
           }
           throw new Error(error.error || 'Failed to send message');
         }
