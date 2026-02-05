@@ -126,11 +126,16 @@ export async function POST(request: Request) {
 
         try {
           const response = await openai.chat.completions.create({
-            model: "claude-sonnet-4:online/anthropic",
+            model: "claude-haiku-4-5:online/anthropic",
             max_tokens: 1000, // Allow substantive responses for takeover
             temperature: 0.7,
             messages: messages,
             stream: true,
+          }, {
+            headers: {
+              "Helicone-User-Id": userId,
+              "Helicone-RateLimit-Policy": "100;w=86400;s=user", // 100 requests/day per user
+            },
           });
 
           let buffer = "";
