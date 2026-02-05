@@ -12,7 +12,6 @@ const isPublicRoute = createRouteMatcher([
   '/api/og',             // Public OG image generation
   '/api/trending',       // Public trending endpoint
   '/api/stats',          // Public platform stats
-  '/api/admin/analysis', // Temporary analysis endpoint (key-protected)
   '/blog',            // Public blog index
   '/blog/(.*)',        // Public blog posts
   '/debate',  // Allow access to debate setup page (will handle auth client-side)
