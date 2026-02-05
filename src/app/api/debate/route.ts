@@ -129,7 +129,7 @@ export async function POST(request: Request) {
           // Use Anthropic directly with web search tool
           const stream = anthropic.messages.stream({
             model: "claude-sonnet-4-20250514",
-            max_tokens: 600,
+            max_tokens: 1000,
             system: systemPrompt,
             messages: messages,
             tools: [

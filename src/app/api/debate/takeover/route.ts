@@ -127,7 +127,7 @@ export async function POST(request: Request) {
         try {
           const response = await openai.chat.completions.create({
             model: "claude-sonnet-4:online/anthropic",
-            max_tokens: 600, // Strictly enforce brevity for takeover
+            max_tokens: 1000, // Allow substantive responses for takeover
             temperature: 0.7,
             messages: messages,
             stream: true,
