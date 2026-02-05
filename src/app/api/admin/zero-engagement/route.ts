@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
   // Messages are stored as JSON array in debates.messages column
   // Zero engagement = debates where messages has only 1 entry (system welcome)
   const allDebates = await d1.query(`
-    SELECT id, user_id, topic, created_at, status, messages
+    SELECT id, user_id, topic, created_at, messages
     FROM debates
     ORDER BY created_at DESC
   `);
@@ -28,7 +28,6 @@ export async function GET(req: NextRequest) {
     user_id: string;
     topic: string;
     created_at: string;
-    status: string;
     messages: string;
   }
 
@@ -37,7 +36,6 @@ export async function GET(req: NextRequest) {
     userId: string;
     topic: string;
     createdAt: string;
-    status: string;
     messageCount: number;
     userMessageCount: number;
     roles: string[];
@@ -60,7 +58,6 @@ export async function GET(req: NextRequest) {
         userId: row.user_id,
         topic: row.topic,
         createdAt: row.created_at,
-        status: row.status,
         messageCount: msgs.length,
         userMessageCount: userMsgCount,
         roles: msgs.map(m => m.role),
@@ -84,8 +81,8 @@ export async function GET(req: NextRequest) {
     percentZeroEngagement: ((zeroEngagement.length / allDebates.result.length) * 100).toFixed(1),
     uniqueUsersWithZeroEngagement: Object.keys(userCounts).length,
     userBreakdown,
-    sampleTopics: zeroEngagement.slice(0, 40).map(({ id, userId, topic, createdAt, status, messageCount, roles }) => ({
-      id, userId, topic, createdAt, status, messageCount, roles,
+    sampleTopics: zeroEngagement.slice(0, 40).map(({ id, userId, topic, createdAt, messageCount, roles }) => ({
+      id, userId, topic, createdAt, messageCount, roles,
     })),
   });
 }
