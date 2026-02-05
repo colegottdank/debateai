@@ -93,7 +93,9 @@ export async function POST(request: Request) {
     // Get the appropriate system prompt from our centralized prompts
     // Always use the persona-based prompt (either custom or daily)
     const persona = opponentStyle || getDailyPersona();
-    const systemPrompt = getDebatePrompt(persona, topic);
+    // Detect first response: no previous messages means this is the opening exchange
+    const isFirstResponse = !previousMessages || previousMessages.length === 0;
+    const systemPrompt = getDebatePrompt(persona, topic, isFirstResponse);
 
     // Build conversation history for Anthropic SDK format
     const messages: Anthropic.MessageParam[] = [];
