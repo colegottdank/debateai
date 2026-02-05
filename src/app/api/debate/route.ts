@@ -56,6 +56,19 @@ export async function POST(request: Request) {
       );
     }
 
+    // Deduplicate debate creation: if no debateId and same user+topic within 30s, reuse existing
+    if (!debateId) {
+      const dup = await d1.findRecentDuplicate(userId, topic, 30);
+      if (dup.found && dup.debateId) {
+        // Return the existing debate ID so the client uses it instead of creating a duplicate
+        return NextResponse.json({
+          deduplicated: true,
+          debateId: dup.debateId,
+          message: "A debate on this topic was just created. Resuming that debate.",
+        });
+      }
+    }
+
     // Check message limit
     const isTestMode = process.env.NEXT_PUBLIC_TEST_MODE === "true";
     const isLocalDev =

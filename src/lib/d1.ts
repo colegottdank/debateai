@@ -402,6 +402,25 @@ class D1Client {
     
     return result;
   }
+
+  /**
+   * Find a recent debate by the same user with the same topic (within windowSeconds).
+   * Used to deduplicate rapid duplicate debate creation (e.g., double-click, back button).
+   */
+  async findRecentDuplicate(userId: string, topic: string, windowSeconds = 30) {
+    const result = await this.query(
+      `SELECT id, messages FROM debates
+       WHERE user_id = ? AND topic = ? AND created_at >= datetime('now', '-' || ? || ' seconds')
+       ORDER BY created_at DESC LIMIT 1`,
+      [userId, topic, windowSeconds]
+    );
+
+    if (result.success && result.result && result.result.length > 0) {
+      const debate = result.result[0] as Record<string, unknown>;
+      return { found: true, debateId: debate.id as string };
+    }
+    return { found: false, debateId: null };
+  }
 }
 
 // Export singleton instance

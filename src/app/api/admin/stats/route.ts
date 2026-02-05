@@ -11,6 +11,10 @@ const ADMIN_USER_IDS = new Set([
 let statsCache: { data: AdminStats; timestamp: number } | null = null;
 const CACHE_TTL = 2 * 60 * 1000;
 
+// Filter conditions: exclude test users and 0-message debates (no real engagement)
+const REAL_DEBATES = "user_id != 'test-user-123' AND json_array_length(messages) > 1";
+const REAL_USERS = "user_id != 'test-user-123'";
+
 interface AdminStats {
   // Core counts
   totalDebates: number;
@@ -92,11 +96,11 @@ export async function GET() {
       topOpponentsResult,
       dailyTrendResult,
     ] = await Promise.all([
-      // Total debates
-      d1.query('SELECT COUNT(*) as total FROM debates', []),
+      // Total debates (excluding test users and 0-message debates)
+      d1.query(`SELECT COUNT(*) as total FROM debates WHERE ${REAL_DEBATES}`, []),
 
-      // Total unique users (from debates table — includes all who debated)
-      d1.query('SELECT COUNT(DISTINCT user_id) as total FROM debates', []),
+      // Total unique users (excluding test users)
+      d1.query(`SELECT COUNT(DISTINCT user_id) as total FROM debates WHERE ${REAL_USERS}`, []),
 
       // Premium users (active subscription)
       d1.query(
@@ -106,49 +110,49 @@ export async function GET() {
 
       // Debates today
       d1.query(
-        "SELECT COUNT(*) as total FROM debates WHERE created_at >= date('now')",
+        `SELECT COUNT(*) as total FROM debates WHERE ${REAL_DEBATES} AND created_at >= date('now')`,
         []
       ),
 
       // Debates this week
       d1.query(
-        "SELECT COUNT(*) as total FROM debates WHERE created_at >= date('now', '-7 days')",
+        `SELECT COUNT(*) as total FROM debates WHERE ${REAL_DEBATES} AND created_at >= date('now', '-7 days')`,
         []
       ),
 
       // Debates this month
       d1.query(
-        "SELECT COUNT(*) as total FROM debates WHERE created_at >= date('now', '-30 days')",
+        `SELECT COUNT(*) as total FROM debates WHERE ${REAL_DEBATES} AND created_at >= date('now', '-30 days')`,
         []
       ),
 
       // Active users today (distinct users who created debates today)
       d1.query(
-        "SELECT COUNT(DISTINCT user_id) as total FROM debates WHERE created_at >= date('now')",
+        `SELECT COUNT(DISTINCT user_id) as total FROM debates WHERE ${REAL_USERS} AND created_at >= date('now')`,
         []
       ),
 
       // Active users this week
       d1.query(
-        "SELECT COUNT(DISTINCT user_id) as total FROM debates WHERE created_at >= date('now', '-7 days')",
+        `SELECT COUNT(DISTINCT user_id) as total FROM debates WHERE ${REAL_USERS} AND created_at >= date('now', '-7 days')`,
         []
       ),
 
-      // Average messages per debate
+      // Average messages per debate (only real debates)
       d1.query(
-        "SELECT AVG(json_array_length(messages)) as avg_msgs FROM debates WHERE messages IS NOT NULL",
+        `SELECT AVG(json_array_length(messages)) as avg_msgs FROM debates WHERE ${REAL_DEBATES} AND messages IS NOT NULL`,
         []
       ),
 
       // Total messages across all debates
       d1.query(
-        "SELECT SUM(json_array_length(messages)) as total FROM debates WHERE messages IS NOT NULL",
+        `SELECT SUM(json_array_length(messages)) as total FROM debates WHERE ${REAL_DEBATES} AND messages IS NOT NULL`,
         []
       ),
 
       // Debates with > 4 messages (multiple rounds of actual debate)
       d1.query(
-        "SELECT COUNT(*) as total FROM debates WHERE json_array_length(messages) > 4",
+        `SELECT COUNT(*) as total FROM debates WHERE ${REAL_DEBATES} AND json_array_length(messages) > 4`,
         []
       ),
 
@@ -178,13 +182,13 @@ export async function GET() {
 
       // Top 10 topics
       d1.query(
-        'SELECT topic, COUNT(*) as count FROM debates WHERE topic IS NOT NULL GROUP BY topic ORDER BY count DESC LIMIT 10',
+        `SELECT topic, COUNT(*) as count FROM debates WHERE ${REAL_DEBATES} AND topic IS NOT NULL GROUP BY topic ORDER BY count DESC LIMIT 10`,
         []
       ),
 
       // Top 10 opponents
       d1.query(
-        "SELECT COALESCE(json_extract(score_data, '$.opponentStyle'), opponent) as opponent, COUNT(*) as count FROM debates GROUP BY opponent ORDER BY count DESC LIMIT 10",
+        `SELECT COALESCE(json_extract(score_data, '$.opponentStyle'), opponent) as opponent, COUNT(*) as count FROM debates WHERE ${REAL_DEBATES} GROUP BY opponent ORDER BY count DESC LIMIT 10`,
         []
       ),
 
@@ -195,7 +199,7 @@ export async function GET() {
            COUNT(*) as debates,
            COUNT(DISTINCT user_id) as users
          FROM debates
-         WHERE created_at >= date('now', '-7 days')
+         WHERE ${REAL_DEBATES} AND created_at >= date('now', '-7 days')
          GROUP BY date(created_at)
          ORDER BY date ASC`,
         []

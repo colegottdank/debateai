@@ -5,6 +5,10 @@ import { createRateLimiter, getClientIp, rateLimitResponse } from '@/lib/rate-li
 // 10 requests per minute per IP (lightweight but no reason to hammer)
 const limiter = createRateLimiter({ maxRequests: 10, windowMs: 60_000 });
 
+// Filter conditions: exclude test users and 0-message debates (no real engagement)
+const REAL_DEBATES_FILTER = "user_id != 'test-user-123' AND json_array_length(messages) > 1";
+const REAL_USERS_FILTER = "user_id != 'test-user-123'";
+
 // Cache stats for 5 minutes to avoid hammering D1
 let statsCache: { data: StatsResponse; timestamp: number } | null = null;
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
@@ -51,39 +55,39 @@ export async function GET(request: Request) {
       avgMsgsResult,
       topTopicsResult,
     ] = await Promise.all([
-      // Total debates
-      d1.query('SELECT COUNT(*) as total FROM debates', []),
+      // Total debates (excluding test users and 0-message debates)
+      d1.query(`SELECT COUNT(*) as total FROM debates WHERE ${REAL_DEBATES_FILTER}`, []),
 
       // Debates with score_data (completed/scored)
       d1.query(
-        'SELECT COUNT(*) as total FROM debates WHERE score_data IS NOT NULL AND score_data != \'null\'',
+        `SELECT COUNT(*) as total FROM debates WHERE ${REAL_DEBATES_FILTER} AND score_data IS NOT NULL AND score_data != 'null'`,
         []
       ),
 
-      // Unique users
-      d1.query('SELECT COUNT(DISTINCT user_id) as total FROM debates', []),
+      // Unique users (excluding test users)
+      d1.query(`SELECT COUNT(DISTINCT user_id) as total FROM debates WHERE ${REAL_USERS_FILTER}`, []),
 
       // Debates created today (UTC)
       d1.query(
-        'SELECT COUNT(*) as total FROM debates WHERE created_at >= date(\'now\')',
+        `SELECT COUNT(*) as total FROM debates WHERE ${REAL_DEBATES_FILTER} AND created_at >= date('now')`,
         []
       ),
 
       // Debates created this week (UTC)
       d1.query(
-        'SELECT COUNT(*) as total FROM debates WHERE created_at >= date(\'now\', \'-7 days\')',
+        `SELECT COUNT(*) as total FROM debates WHERE ${REAL_DEBATES_FILTER} AND created_at >= date('now', '-7 days')`,
         []
       ),
 
-      // Average messages per debate
+      // Average messages per debate (only real debates with engagement)
       d1.query(
-        'SELECT AVG(json_array_length(messages)) as avg_msgs FROM debates WHERE messages IS NOT NULL',
+        `SELECT AVG(json_array_length(messages)) as avg_msgs FROM debates WHERE ${REAL_DEBATES_FILTER} AND messages IS NOT NULL`,
         []
       ),
 
       // Top 10 topics by frequency
       d1.query(
-        'SELECT topic, COUNT(*) as count FROM debates WHERE topic IS NOT NULL GROUP BY topic ORDER BY count DESC LIMIT 10',
+        `SELECT topic, COUNT(*) as count FROM debates WHERE ${REAL_DEBATES_FILTER} AND topic IS NOT NULL GROUP BY topic ORDER BY count DESC LIMIT 10`,
         []
       ),
     ]);
