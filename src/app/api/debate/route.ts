@@ -128,8 +128,8 @@ export async function POST(request: Request) {
 
           // Use Anthropic directly with web search tool
           const stream = anthropic.messages.stream({
-            model: "claude-sonnet-4-20250514",
-            max_tokens: 600,
+            model: "claude-haiku-4-5-20251001",
+            max_tokens: 1000,
             system: systemPrompt,
             messages: messages,
             tools: [
@@ -139,6 +139,11 @@ export async function POST(request: Request) {
                 max_uses: 1, // Limit to 1 search to reduce cost
               },
             ],
+          }, {
+            headers: {
+              "Helicone-User-Id": userId,
+              "Helicone-RateLimit-Policy": "100;w=86400;s=user", // 100 requests/day per user
+            },
           });
 
           let accumulatedContent = "";
