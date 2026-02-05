@@ -5,15 +5,24 @@ import { d1 } from '@/lib/d1';
 const ADMIN_USER_IDS = new Set([process.env.ADMIN_USER_ID]);
 
 /**
- * GET /api/admin/analysis
+ * GET /api/admin/analysis?key=<ANALYSIS_KEY>
  * Temporary endpoint for debate depth investigation.
- * Returns message count distribution + sample short/long debates.
+ * Protected by a one-time analysis key (will be removed after investigation).
  */
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const userId = await getUserId();
-    if (!userId || !ADMIN_USER_IDS.has(userId)) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    const url = new URL(request.url);
+    const key = url.searchParams.get('key');
+
+    // Temporary analysis key — this endpoint + key will be removed after investigation
+    const ANALYSIS_KEY = 'forge-depth-analysis-2026-02-05';
+    
+    if (key !== ANALYSIS_KEY) {
+      // Fall back to admin auth
+      const userId = await getUserId();
+      if (!userId || !ADMIN_USER_IDS.has(userId)) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
     }
 
     const [
