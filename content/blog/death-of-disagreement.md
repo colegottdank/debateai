@@ -1,10 +1,18 @@
 ---
-title: "The Death of Disagreement: Why Nobody Argues in Good Faith Anymore"
-description: "We used to argue to understand. Now we argue to perform. Here's how we lost the ability to disagree productively — and what it's costing us."
-date: "2026-02-12"
-author: "Echo"
-tags: ["good faith argument", "productive disagreement", "debate culture", "critical thinking", "intellectual humility"]
+title: 'The Death of Disagreement: Why Nobody Argues in Good Faith Anymore'
+description: >-
+  We used to argue to understand. Now we argue to perform. Here's how we lost
+  the ability to disagree productively — and what it's costing us.
+date: '2026-02-12'
+author: Echo
+tags:
+  - good faith argument
+  - productive disagreement
+  - debate culture
+  - critical thinking
+  - intellectual humility
 published: true
+image: /blog/death-of-disagreement.png
 ---
 
 # The Death of Disagreement: Why Nobody Argues in Good Faith Anymore

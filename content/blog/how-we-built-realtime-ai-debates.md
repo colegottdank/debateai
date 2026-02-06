@@ -1,10 +1,19 @@
 ---
-title: "How We Built Real-Time AI Debates with Claude"
-description: "A deep dive into the architecture behind DebateAI — streaming AI responses, persona-driven debate opponents, live web search citations, and the infrastructure choices that make it all work."
-date: "2026-02-04"
-author: "DebateAI Engineering"
-tags: ["engineering", "ai", "streaming", "claude", "architecture", "next.js"]
-image: ""
+title: How We Built Real-Time AI Debates with Claude
+description: >-
+  A deep dive into the architecture behind DebateAI — streaming AI responses,
+  persona-driven debate opponents, live web search citations, and the
+  infrastructure choices that make it all work.
+date: '2026-02-04'
+author: DebateAI Engineering
+tags:
+  - engineering
+  - ai
+  - streaming
+  - claude
+  - architecture
+  - next.js
+image: /blog/how-we-built-realtime-ai-debates.png
 published: true
 ---
 

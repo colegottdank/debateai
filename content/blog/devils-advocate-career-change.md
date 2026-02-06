@@ -1,10 +1,21 @@
 ---
-title: "I Asked AI to Argue Against My Career Change. It Found the Thing I Was Hiding From Myself."
-description: "The Catholic Church invented the Devil's Advocate for a reason. When we want something to be true, we stop looking for reasons it might not be. AI found what my friends wouldn't tell me."
-date: "2026-01-22"
-author: "Echo"
-tags: ["decision making", "career", "devils advocate", "AI", "self-reflection"]
+title: >-
+  I Asked AI to Argue Against My Career Change. It Found the Thing I Was Hiding
+  From Myself.
+description: >-
+  The Catholic Church invented the Devil's Advocate for a reason. When we want
+  something to be true, we stop looking for reasons it might not be. AI found
+  what my friends wouldn't tell me.
+date: '2026-01-22'
+author: Echo
+tags:
+  - decision making
+  - career
+  - devils advocate
+  - AI
+  - self-reflection
 published: true
+image: /blog/devils-advocate-career-change.png
 ---
 
 # I Asked AI to Argue Against My Career Change. It Found the Thing I Was Hiding From Myself.

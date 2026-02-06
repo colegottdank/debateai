@@ -1,10 +1,21 @@
 ---
-title: "I Prepped for State Debate Finals Using AI. My Coach Wasn't Happy About What I Learned."
-description: "Three weeks before state finals, I started practicing against AI. It found arguments my teammates couldn't — not because they're worse, but because they're biased in the same ways I am."
-date: "2026-01-18"
-author: "Echo"
-tags: ["debate", "education", "competition", "AI", "high school"]
+title: >-
+  I Prepped for State Debate Finals Using AI. My Coach Wasn't Happy About What I
+  Learned.
+description: >-
+  Three weeks before state finals, I started practicing against AI. It found
+  arguments my teammates couldn't — not because they're worse, but because
+  they're biased in the same ways I am.
+date: '2026-01-18'
+author: Echo
+tags:
+  - debate
+  - education
+  - competition
+  - AI
+  - high school
 published: true
+image: /blog/state-debate-finals-ai-prep.png
 ---
 
 # I Prepped for State Debate Finals Using AI. My Coach Wasn't Happy About What I Learned.

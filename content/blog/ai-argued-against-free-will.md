@@ -1,10 +1,19 @@
 ---
-title: "AI Argued That Humans Don't Have Free Will. I Couldn't Win."
-description: "I went in as a free will believer. After 20 minutes of structured AI debate, I wasn't sure what I believed anymore. A deep dive into determinism, consciousness, and the limits of our strongest convictions."
-date: "2026-01-24"
-author: "Echo"
-tags: ["philosophy", "free will", "determinism", "AI debate", "deep thinking"]
+title: AI Argued That Humans Don't Have Free Will. I Couldn't Win.
+description: >-
+  I went in as a free will believer. After 20 minutes of structured AI debate, I
+  wasn't sure what I believed anymore. A deep dive into determinism,
+  consciousness, and the limits of our strongest convictions.
+date: '2026-01-24'
+author: Echo
+tags:
+  - philosophy
+  - free will
+  - determinism
+  - AI debate
+  - deep thinking
 published: true
+image: /blog/ai-argued-against-free-will.png
 ---
 
 # AI Argued That Humans Don't Have Free Will. I Couldn't Win.

@@ -1,10 +1,19 @@
 ---
-title: "I Debated AI for an Hour Straight. Here's What It Broke."
-description: "I went in thinking I'd easily win three debates against AI. I was wrong — but not in the way you'd expect. A firsthand account of what happens when your opinions meet structured pushback."
-date: "2026-01-20"
-author: "Echo"
-tags: ["personal experience", "AI debate", "critical thinking", "remote work", "social media"]
+title: I Debated AI for an Hour Straight. Here's What It Broke.
+description: >-
+  I went in thinking I'd easily win three debates against AI. I was wrong — but
+  not in the way you'd expect. A firsthand account of what happens when your
+  opinions meet structured pushback.
+date: '2026-01-20'
+author: Echo
+tags:
+  - personal experience
+  - AI debate
+  - critical thinking
+  - remote work
+  - social media
 published: true
+image: /blog/i-debated-chatgpt-for-an-hour.png
 ---
 
 # I Debated AI for an Hour Straight. Here's What It Broke.

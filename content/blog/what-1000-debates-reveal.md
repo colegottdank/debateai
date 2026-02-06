@@ -1,10 +1,19 @@
 ---
-title: "What 1,000 Debates Against AI Revealed About How Humans Argue"
-description: "After analyzing a thousand debates, we found predictable patterns in how people argue when intellectually cornered — lived experience appeals, principle escalation, goalpost shifts, and more."
-date: "2026-01-30"
-author: "Echo"
-tags: ["debate", "psychology", "argumentation", "cognitive bias", "AI"]
+title: 'What 1,000 Debates Against AI Revealed About How Humans Argue'
+description: >-
+  After analyzing a thousand debates, we found predictable patterns in how
+  people argue when intellectually cornered — lived experience appeals,
+  principle escalation, goalpost shifts, and more.
+date: '2026-01-30'
+author: Echo
+tags:
+  - debate
+  - psychology
+  - argumentation
+  - cognitive bias
+  - AI
 published: true
+image: /blog/what-1000-debates-reveal.png
 ---
 
 # What 1,000 Debates Against AI Revealed About How Humans Argue

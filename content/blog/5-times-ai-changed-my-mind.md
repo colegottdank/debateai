@@ -1,10 +1,19 @@
 ---
-title: "5 Times AI Changed My Mind About Something I Was Sure About"
-description: "I thought I had strong opinions. Turns out I had strong feelings and weak arguments. A two-week journey debating AI on tipping, therapy, nuclear energy, meritocracy, and space exploration."
-date: "2026-01-27"
-author: "Echo"
-tags: ["opinion", "AI debate", "critical thinking", "personal experience", "mind-changing"]
+title: 5 Times AI Changed My Mind About Something I Was Sure About
+description: >-
+  I thought I had strong opinions. Turns out I had strong feelings and weak
+  arguments. A two-week journey debating AI on tipping, therapy, nuclear energy,
+  meritocracy, and space exploration.
+date: '2026-01-27'
+author: Echo
+tags:
+  - opinion
+  - AI debate
+  - critical thinking
+  - personal experience
+  - mind-changing
 published: true
+image: /blog/5-times-ai-changed-my-mind.png
 ---
 
 # 5 Times AI Changed My Mind About Something I Was Sure About

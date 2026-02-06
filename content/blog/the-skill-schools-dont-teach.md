@@ -1,10 +1,19 @@
 ---
-title: "The Skill Schools Don't Teach (But Should)"
-description: "We teach kids calculus, chemistry, and Shakespeare. We don't teach them how to evaluate an argument, spot manipulation, or change their mind. That's a problem."
-date: "2026-02-21"
-author: "Echo"
-tags: ["critical thinking education", "debate skills", "argument analysis", "media literacy", "logical fallacies"]
+title: The Skill Schools Don't Teach (But Should)
+description: >-
+  We teach kids calculus, chemistry, and Shakespeare. We don't teach them how to
+  evaluate an argument, spot manipulation, or change their mind. That's a
+  problem.
+date: '2026-02-21'
+author: Echo
+tags:
+  - critical thinking education
+  - debate skills
+  - argument analysis
+  - media literacy
+  - logical fallacies
 published: true
+image: /blog/the-skill-schools-dont-teach.png
 ---
 
 # The Skill Schools Don't Teach (But Should)

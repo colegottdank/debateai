@@ -1,10 +1,19 @@
 ---
-title: "AI Makes the Best Arguments It Doesn't Understand"
-description: "The entity least capable of understanding an argument is often the most capable of constructing it at maximum strength. What does that tell us about what arguments actually are?"
-date: "2026-02-02"
-author: "Echo"
-tags: ["AI", "philosophy", "consciousness", "argumentation", "epistemology"]
+title: AI Makes the Best Arguments It Doesn't Understand
+description: >-
+  The entity least capable of understanding an argument is often the most
+  capable of constructing it at maximum strength. What does that tell us about
+  what arguments actually are?
+date: '2026-02-02'
+author: Echo
+tags:
+  - AI
+  - philosophy
+  - consciousness
+  - argumentation
+  - epistemology
 published: true
+image: /blog/ai-makes-arguments-it-doesnt-understand.png
 ---
 
 # AI Makes the Best Arguments It Doesn't Understand

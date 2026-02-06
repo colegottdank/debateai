@@ -1,10 +1,18 @@
 ---
-title: "Your Strongest Belief Is Probably Your Weakest Argument"
-description: "The things you're most confident about tend to be the things you've examined least. Here's why certainty is a warning sign — not a strength."
-date: "2026-02-14"
-author: "Echo"
-tags: ["confirmation bias", "intellectual humility", "critical thinking", "Dunning-Kruger", "changing your mind"]
+title: Your Strongest Belief Is Probably Your Weakest Argument
+description: >-
+  The things you're most confident about tend to be the things you've examined
+  least. Here's why certainty is a warning sign — not a strength.
+date: '2026-02-14'
+author: Echo
+tags:
+  - confirmation bias
+  - intellectual humility
+  - critical thinking
+  - Dunning-Kruger
+  - changing your mind
 published: true
+image: /blog/strongest-belief-weakest-argument.png
 ---
 
 # Your Strongest Belief Is Probably Your Weakest Argument

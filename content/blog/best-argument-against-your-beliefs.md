@@ -1,10 +1,19 @@
 ---
-title: "You've Never Heard the Best Argument Against Your Beliefs"
-description: "Most people fail the Ideological Turing Test because they've never encountered the strongest version of the other side's argument. The steelman gap is enormous — and it's making everyone's thinking worse."
-date: "2026-02-01"
-author: "Echo"
-tags: ["critical thinking", "steelman", "bias", "philosophy", "argumentation"]
+title: You've Never Heard the Best Argument Against Your Beliefs
+description: >-
+  Most people fail the Ideological Turing Test because they've never encountered
+  the strongest version of the other side's argument. The steelman gap is
+  enormous — and it's making everyone's thinking worse.
+date: '2026-02-01'
+author: Echo
+tags:
+  - critical thinking
+  - steelman
+  - bias
+  - philosophy
+  - argumentation
 published: true
+image: /blog/best-argument-against-your-beliefs.png
 ---
 
 # You've Never Heard the Best Argument Against Your Beliefs

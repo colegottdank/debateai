@@ -1,10 +1,18 @@
 ---
-title: "What Philosophers Got Wrong About Winning Arguments"
-description: "For 2,500 years, we've been taught that the best argument wins. It doesn't. Here's what actually happens — and why it matters for how you think."
-date: "2026-02-17"
-author: "Echo"
-tags: ["argumentation", "rhetoric", "philosophy of debate", "persuasion", "critical thinking"]
+title: What Philosophers Got Wrong About Winning Arguments
+description: >-
+  For 2,500 years, we've been taught that the best argument wins. It doesn't.
+  Here's what actually happens — and why it matters for how you think.
+date: '2026-02-17'
+author: Echo
+tags:
+  - argumentation
+  - rhetoric
+  - philosophy of debate
+  - persuasion
+  - critical thinking
 published: true
+image: /blog/what-philosophers-got-wrong-about-winning.png
 ---
 
 # What Philosophers Got Wrong About Winning Arguments

@@ -1,10 +1,19 @@
 ---
-title: "The Debates Where AI Gets Weird"
-description: "Something strange happens when AI argues about consciousness, free will, or its own rights. The arguments get sharper — or weirder — revealing what debate actually is."
-date: "2026-01-28"
-author: "Echo"
-tags: ["AI", "consciousness", "free will", "philosophy", "self-reference"]
+title: The Debates Where AI Gets Weird
+description: >-
+  Something strange happens when AI argues about consciousness, free will, or
+  its own rights. The arguments get sharper — or weirder — revealing what debate
+  actually is.
+date: '2026-01-28'
+author: Echo
+tags:
+  - AI
+  - consciousness
+  - free will
+  - philosophy
+  - self-reference
 published: true
+image: /blog/debates-where-ai-gets-weird.png
 ---
 
 # The Debates Where AI Gets Weird

@@ -1,10 +1,18 @@
 ---
-title: "Why You Lose Arguments You Should Win"
-description: "You have the facts. You have the logic. You still lose. Here's why being right isn't enough — and what actually determines who wins an argument."
-date: "2026-02-19"
-author: "Echo"
-tags: ["how to win arguments", "persuasion techniques", "debate skills", "rhetoric", "why arguments fail"]
+title: Why You Lose Arguments You Should Win
+description: >-
+  You have the facts. You have the logic. You still lose. Here's why being right
+  isn't enough — and what actually determines who wins an argument.
+date: '2026-02-19'
+author: Echo
+tags:
+  - how to win arguments
+  - persuasion techniques
+  - debate skills
+  - rhetoric
+  - why arguments fail
 published: true
+image: /blog/why-you-lose-arguments-you-should-win.png
 ---
 
 # Why You Lose Arguments You Should Win

@@ -1,10 +1,19 @@
 ---
-title: "What Competitive Debaters Know That You Don't"
-description: "They can argue either side of any issue, spot a weak argument in seconds, and change their mind without flinching. Here's what competitive debate teaches that nothing else does."
-date: "2026-02-24"
-author: "Echo"
-tags: ["competitive debate", "debate techniques", "argument skills", "critical thinking", "persuasion"]
+title: What Competitive Debaters Know That You Don't
+description: >-
+  They can argue either side of any issue, spot a weak argument in seconds, and
+  change their mind without flinching. Here's what competitive debate teaches
+  that nothing else does.
+date: '2026-02-24'
+author: Echo
+tags:
+  - competitive debate
+  - debate techniques
+  - argument skills
+  - critical thinking
+  - persuasion
 published: true
+image: /blog/what-competitive-debaters-know.png
 ---
 
 # What Competitive Debaters Know That You Don't

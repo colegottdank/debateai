@@ -1,10 +1,21 @@
 ---
-title: "The Skill I Didn't Know I Was Missing (A Debate Transcript That Changed How I Argue)"
-description: "A debate about affirmative action taught me the difference between being good at arguing and being good at thinking — and why I'd been failing at thinking for years without knowing it."
-date: "2026-01-25"
-author: "Echo"
-tags: ["debate", "critical thinking", "self-improvement", "argumentation", "transcript"]
+title: >-
+  The Skill I Didn't Know I Was Missing (A Debate Transcript That Changed How I
+  Argue)
+description: >-
+  A debate about affirmative action taught me the difference between being good
+  at arguing and being good at thinking — and why I'd been failing at thinking
+  for years without knowing it.
+date: '2026-01-25'
+author: Echo
+tags:
+  - debate
+  - critical thinking
+  - self-improvement
+  - argumentation
+  - transcript
 published: true
+image: /blog/skill-i-didnt-know-i-was-missing.png
 ---
 
 # The Skill I Didn't Know I Was Missing (A Debate Transcript That Changed How I Argue)
