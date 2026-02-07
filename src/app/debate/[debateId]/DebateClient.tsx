@@ -797,9 +797,9 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
         </div>
       </div>
 
-      {/* Input Area - Fixed at bottom */}
-      <div className="flex-shrink-0 border-t border-[var(--border)] bg-[var(--bg)]">
-        <div className="max-w-3xl mx-auto px-3 sm:px-6 py-2 sm:py-4">
+      {/* Input Area - Fixed at bottom with mobile keyboard handling */}
+      <div className="flex-shrink-0 border-t border-[var(--border)] bg-[var(--bg)] z-50 relative">
+        <div className="max-w-3xl mx-auto px-3 sm:px-6 py-2 sm:py-4 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
           {/* Input Row */}
           <div className="flex gap-2">
             {/* Textarea Container */}
@@ -810,7 +810,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
                 onChange={(e) => {
                   setUserInput(e.target.value);
                   e.target.style.height = "auto";
-                  e.target.style.height = Math.min(e.target.scrollHeight, 200) + "px";
+                  e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px";
                 }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
@@ -818,11 +818,18 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
                     if (canSend) handleSend();
                   }
                 }}
+                onFocus={() => {
+                  // Scroll to bottom on mobile when focusing input
+                  setTimeout(() => {
+                    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+                  }, 100);
+                }}
                 placeholder="Make your argument..."
                 className="w-full bg-[var(--bg-elevated)] border border-[var(--border)] rounded-xl 
-                  px-4 py-3 resize-none text-[var(--text)] placeholder-[var(--text-tertiary)] 
-                  outline-none focus:border-[var(--border)]
-                  transition-all min-h-[48px] max-h-[200px] text-[15px] leading-relaxed overflow-hidden"
+                  px-3 sm:px-4 py-2.5 sm:py-3 resize-none text-[var(--text)] placeholder-[var(--text-tertiary)] 
+                  outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/20
+                  transition-all min-h-[44px] sm:min-h-[48px] max-h-[120px] text-[15px] leading-relaxed overflow-hidden
+                  touch-manipulation"
                 rows={1}
                 disabled={isUserLoading || isAILoading}
               />
