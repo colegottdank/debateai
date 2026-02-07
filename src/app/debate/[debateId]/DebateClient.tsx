@@ -799,7 +799,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
 
       {/* Input Area - Fixed at bottom */}
       <div className="flex-shrink-0 border-t border-[var(--border)] bg-[var(--bg)]">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-4">
+        <div className="max-w-3xl mx-auto px-3 sm:px-6 py-2 sm:py-4">
           {/* Input Row */}
           <div className="flex gap-2">
             {/* Textarea Container */}
@@ -821,7 +821,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
                 placeholder="Make your argument..."
                 className="w-full bg-[var(--bg-elevated)] border border-[var(--border)] rounded-xl 
                   px-4 py-3 resize-none text-[var(--text)] placeholder-[var(--text-tertiary)] 
-                  outline-none focus:border-[var(--accent)]/50 focus:ring-1 focus:ring-[var(--accent)]/20
+                  outline-none focus:border-[var(--border)]
                   transition-all min-h-[48px] max-h-[200px] text-[15px] leading-relaxed overflow-hidden"
                 rows={1}
                 disabled={isUserLoading || isAILoading}
@@ -875,8 +875,8 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
             </div>
           </div>
           
-          {/* Keyboard Hints */}
-          <div className="mt-2 flex items-center justify-center gap-4 text-[11px] text-[var(--text-tertiary)]">
+          {/* Keyboard Hints - hidden on mobile */}
+          <div className="hidden sm:flex mt-2 items-center justify-center gap-4 text-[11px] text-[var(--text-tertiary)]">
             <span className="flex items-center gap-1">
               <kbd className="px-1.5 py-0.5 rounded bg-[var(--bg-sunken)] border border-[var(--border)] text-[var(--text-secondary)] font-mono text-[10px]">Enter</kbd>
               to send
