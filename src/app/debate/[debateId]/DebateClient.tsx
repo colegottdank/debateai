@@ -8,6 +8,7 @@ import { getOpponentById } from "@/lib/opponents";
 import Header from "@/components/Header";
 import UpgradeModal from "@/components/UpgradeModal";
 import { track } from "@/lib/analytics";
+import { useToast } from "@/components/Toast";
 import ShareButtons from "@/components/ShareButtons";
 import ShareModal from "@/components/ShareModal";
 import DebateScoreCard from "@/components/DebateScoreCard";
@@ -204,8 +205,8 @@ const Message = memo(
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
                     <span>
-                      {msg.failedReason === 'rate_limit' 
-                        ? 'Message limit reached' 
+                      {msg.failedReason === 'rate_limit'
+                        ? 'Message limit reached'
                         : 'Failed to send'}
                     </span>
                   </div>
@@ -303,6 +304,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
   const params = useParams();
   const searchParams = useSearchParams();
   const { user, isSignedIn } = useSafeUser();
+  const { showToast } = useToast();
   const debateId = params.debateId as string;
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -321,13 +323,13 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
   const [showShareModal, setShowShareModal] = useState(false);
   const [rateLimitData, setRateLimitData] = useState<{ current: number; limit: number } | undefined>();
   const [debateScore, setDebateScore] = useState<DebateScore | null>(null);
-  
+
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Dev mode check from URL
   const isDevMode = searchParams.get('dev') === 'true';
 
-  // Load debate — skip fetch if server provided initial data
+  // Load debate - skip fetch if server provided initial data
   useEffect(() => {
     // If we already have data from SSR, no need to fetch
     if (initialDebate && !isDevMode) {
@@ -357,7 +359,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
         setIsLoadingDebate(false);
         return;
       }
-      
+
       try {
         const response = await fetch(`/api/debate/${debateId}`);
         if (response.ok) {
@@ -379,6 +381,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
       } catch (error) {
         console.error("Failed to load debate:", error);
         setLoadError("Network error. Please check your connection and try again.");
+        showToast("Failed to load debate. Check your connection.", "error");
       } finally {
         setIsLoadingDebate(false);
       }
@@ -391,7 +394,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
   useEffect(() => {
     const isInstant = sessionStorage.getItem('isInstantDebate') === 'true';
     const firstArgument = sessionStorage.getItem('firstArgument');
-    
+
     if (isInstant && firstArgument && debate && !isLoadingDebate) {
       // Mark instant debate as active - prevents loadDebate from overwriting messages
       instantDebateActiveRef.current = true;
@@ -417,7 +420,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
           setTimeout(() => {
             setIsUserLoading(false);
             setIsAILoading(true);
-            
+
             setTimeout(() => {
               const aiMessage = {
                 role: "ai",
@@ -455,6 +458,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
               if (response.status === 429 && error.upgrade_required) {
                 setRateLimitData({ current: error.current, limit: error.limit });
                 setShowUpgradeModal(true);
+                showToast("Message limit reached. Upgrade for unlimited debates!", "info", 5000);
                 // Mark user message as failed, remove AI placeholder
                 setMessages(prev => {
                   const newMsgs = [...prev];
@@ -534,6 +538,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
             }
           } catch (error) {
             console.error("Failed to send first message:", error);
+            showToast("Failed to start debate. Please try again.", "error");
             // Remove placeholder if there was an error
             setMessages(prev => {
               const lastMsg = prev[prev.length - 1];
@@ -547,7 +552,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
           }
         }
       };
-      
+
       sendFirstMessage();
     }
   }, [debate, isLoadingDebate, debateId, isDevMode]);
@@ -567,7 +572,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const handleScroll = () => {
     if (scrollTimeoutRef.current) return;
-    
+
     scrollTimeoutRef.current = setTimeout(() => {
       scrollTimeoutRef.current = null;
       if (scrollContainerRef.current) {
@@ -581,39 +586,39 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
   // Send message handler
   const handleSend = async () => {
     if (!userInput.trim() || isUserLoading || isAILoading) return;
-    
+
     const messageText = userInput.trim();
-    
+
     // Add user message immediately
-    const userMessage = { 
-      role: "user", 
+    const userMessage = {
+      role: "user",
       content: messageText,
-      aiAssisted: isAITakeover 
+      aiAssisted: isAITakeover
     };
-    
+
     setMessages(prev => [...prev, userMessage]);
     setUserInput("");
     setIsUserLoading(true);
     setIsAutoScrollEnabled(true);
-    
+
     // Track message sent
     track('debate_message_sent', {
       debateId,
       messageIndex: messages.length,
       aiAssisted: isAITakeover,
     });
-    
+
     // Reset textarea height
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
     }
-    
+
     if (isDevMode) {
       // Simulate API delay
       setTimeout(() => {
         setIsUserLoading(false);
         setIsAILoading(true);
-        
+
         // Simulate AI response after a delay
         setTimeout(() => {
           const aiMessage = {
@@ -652,6 +657,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
           if (response.status === 429 && error.upgrade_required) {
             setRateLimitData({ current: error.current, limit: error.limit });
             setShowUpgradeModal(true);
+            showToast("Message limit reached. Upgrade for unlimited debates!", "info", 5000);
             // Mark user message as failed with inline retry option
             setMessages(prev => {
               const newMsgs = [...prev];
@@ -733,6 +739,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
         }
       } catch (error) {
         console.error("Failed to send message:", error);
+        showToast("Failed to send message. Please try again.", "error");
         // Remove placeholder if there was an error and it's empty
         setMessages(prev => {
           const lastMsg = prev[prev.length - 1];
@@ -750,7 +757,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
   // Error state - show error with retry
   if (loadError) {
     return (
-      <div className="min-h-dvh flex flex-col overflow-hidden">
+      <div className="h-dvh flex flex-col overflow-hidden">
         <Header />
         <div className="flex-1 flex items-center justify-center px-4">
           <div className="text-center max-w-md">
@@ -799,7 +806,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
   const canSend = userInput.trim().length > 0 && !isUserLoading && !isAILoading;
 
   return (
-    <div className="min-h-dvh flex flex-col overflow-hidden">
+    <div className="h-dvh flex flex-col overflow-hidden bg-[var(--bg)]">
       <Header />
 
       {/* Topic Header - Fixed */}
@@ -824,9 +831,9 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
       )}
 
       {/* Messages - Scrollable */}
-      <div 
+      <div
         ref={scrollContainerRef}
-        className="flex-1 overflow-y-auto min-h-0"
+        className="flex-1 overflow-y-auto min-h-0 max-h-[calc(100dvh-180px)] sm:max-h-none"
         onScroll={handleScroll}
       >
         <div className="pb-4">
@@ -846,7 +853,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
             />
           ))}
 
-          {/* Score Card — show after messages when not streaming */}
+          {/* Score Card - show after messages when not streaming */}
           {!isAILoading && !isUserLoading && messages.filter(m => m.role === 'user').length >= 2 && (
             <DebateScoreCard
               debateId={debateId}
@@ -897,8 +904,8 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
                   }, 100);
                 }}
                 placeholder="Make your argument..."
-                className="w-full bg-[var(--bg-elevated)] border border-[var(--border)] rounded-xl 
-                  px-3 sm:px-4 py-2.5 sm:py-3 resize-none text-[var(--text)] placeholder-[var(--text-tertiary)] 
+                className="w-full bg-[var(--bg-elevated)] border border-[var(--border)] rounded-xl
+                  px-3 sm:px-4 py-2.5 sm:py-3 resize-none text-[var(--text)] placeholder-[var(--text-tertiary)]
                   outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/20
                   transition-all min-h-[44px] sm:min-h-[48px] max-h-[120px] text-[15px] leading-relaxed overflow-hidden
                   touch-manipulation"
@@ -906,7 +913,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
                 disabled={isUserLoading || isAILoading}
               />
             </div>
-            
+
             {/* Buttons - Fixed size, centered vertically */}
             <div className="flex items-center gap-1.5 flex-shrink-0 self-center">
               {/* AI Takeover Button */}
@@ -917,8 +924,8 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
                 className={`
                   w-10 h-10 rounded-lg border flex items-center justify-center
                   transition-all duration-200 flex-shrink-0
-                  ${isAITakeover 
-                    ? 'border-[var(--accent)] text-[var(--accent)] bg-[var(--accent)]/10' 
+                  ${isAITakeover
+                    ? 'border-[var(--accent)] text-[var(--accent)] bg-[var(--accent)]/10'
                     : 'border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--accent)] hover:border-[var(--accent)]/30'
                   }
                   disabled:opacity-40 disabled:cursor-not-allowed
@@ -927,11 +934,11 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
                 aria-pressed={isAITakeover}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} 
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
                     d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
                 </svg>
               </button>
-              
+
               {/* Send Button */}
               <button
                 type="button"
@@ -940,8 +947,8 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
                 className={`
                   w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0
                   transition-all duration-200
-                  ${canSend 
-                    ? 'bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)] cursor-pointer' 
+                  ${canSend
+                    ? 'bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)] cursor-pointer'
                     : 'bg-[var(--bg-sunken)] text-[var(--text-tertiary)] cursor-not-allowed'
                   }
                 `}
@@ -953,7 +960,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
               </button>
             </div>
           </div>
-          
+
           {/* Keyboard Hints - hidden on mobile */}
           <div className="hidden sm:flex mt-2 items-center justify-center gap-4 text-[11px] text-[var(--text-tertiary)]">
             <span className="flex items-center gap-1">
@@ -968,7 +975,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
         </div>
       </div>
 
-      <UpgradeModal 
+      <UpgradeModal
         isOpen={showUpgradeModal}
         onClose={() => setShowUpgradeModal(false)}
         trigger="rate-limit-message"
