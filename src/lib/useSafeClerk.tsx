@@ -9,8 +9,6 @@ import React, { useState, useEffect } from 'react';
 import {
   useUser as useClerkUser,
   useClerk as useClerkClerk,
-  SignedIn as ClerkSignedIn,
-  SignedOut as ClerkSignedOut,
   SignInButton as ClerkSignInButton,
   UserButton as ClerkUserButton,
 } from '@clerk/nextjs';
@@ -54,16 +52,19 @@ function useClerkAvailable(): boolean {
 
 /**
  * Safe wrapper for useUser that returns undefined when Clerk context is missing.
+ * Hook is called unconditionally to satisfy React's rules of hooks.
  */
 export function useSafeUser() {
+  // Check availability first (but don't return early - hooks must be unconditional)
   const clerkAvailable = checkClerkAvailability();
   
-  if (!clerkAvailable) {
-    return { isSignedIn: undefined, isLoaded: true, user: undefined };
-  }
-  
+  // Always call the hook unconditionally to satisfy React's rules of hooks
+  // If ClerkProvider is missing, this will throw and we catch it
   try {
-    return useClerkUser();
+    const result = useClerkUser();
+    // If we got here but Clerk wasn't supposed to be available, something's off
+    // but return the result anyway
+    return clerkAvailable ? result : { isSignedIn: undefined, isLoaded: true, user: undefined };
   } catch {
     // ClerkProvider not available (build-time prerender or missing provider)
     return { isSignedIn: undefined, isLoaded: true, user: undefined };
@@ -72,30 +73,26 @@ export function useSafeUser() {
 
 /**
  * Safe wrapper for useClerk that returns no-op functions when Clerk context is missing.
+ * Hook is called unconditionally to satisfy React's rules of hooks.
  */
 export function useSafeClerk() {
+  // Check availability first (but don't return early - hooks must be unconditional)
   const clerkAvailable = checkClerkAvailability();
   
-  if (!clerkAvailable) {
-    return {
-      openSignIn: () => {},
-      openSignUp: () => {},
-      openUserProfile: () => {},
-      signOut: async () => {},
-      loaded: true,
-    };
-  }
+  const noopResult = {
+    openSignIn: () => {},
+    openSignUp: () => {},
+    openUserProfile: () => {},
+    signOut: async () => {},
+    loaded: true,
+  };
   
+  // Always call the hook unconditionally to satisfy React's rules of hooks
   try {
-    return useClerkClerk();
+    const result = useClerkClerk();
+    return clerkAvailable ? result : noopResult;
   } catch {
-    return {
-      openSignIn: () => {},
-      openSignUp: () => {},
-      openUserProfile: () => {},
-      signOut: async () => {},
-      loaded: true,
-    };
+    return noopResult;
   }
 }
 
