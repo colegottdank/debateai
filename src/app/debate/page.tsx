@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useUser, useClerk } from '@clerk/nextjs';
+import { useSafeUser, useSafeClerk } from '@/lib/useSafeClerk';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import UpgradeModal from '@/components/UpgradeModal';
@@ -10,8 +10,8 @@ import { useSubscription } from '@/lib/useSubscription';
 import { track } from '@/lib/analytics';
 
 export default function DebatePage() {
-  const { isSignedIn } = useUser();
-  const { openSignIn } = useClerk();
+  const { isSignedIn } = useSafeUser();
+  const { openSignIn } = useSafeClerk();
   const router = useRouter();
   const { isPremium, debatesUsed, debatesLimit } = useSubscription();
   const [opponentStyle, setOpponentStyle] = useState('');

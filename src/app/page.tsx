@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useUser, useClerk } from '@clerk/nextjs';
+import { useSafeUser, useSafeClerk } from '@/lib/useSafeClerk';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getDailyDebate } from '@/lib/daily-debates';
@@ -19,8 +19,8 @@ const TOPIC_EXAMPLES = [
 
 export default function Home() {
   const router = useRouter();
-  const { isSignedIn } = useUser();
-  const { openSignIn } = useClerk();
+  const { isSignedIn } = useSafeUser();
+  const { openSignIn } = useSafeClerk();
   const { isPremium, debatesUsed, debatesLimit } = useSubscription();
   const [dailyDebate, setDailyDebate] = useState<{ persona: string; topic: string; description?: string } | null>(null);
   const [topic, setTopic] = useState('');

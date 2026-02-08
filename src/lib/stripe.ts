@@ -20,7 +20,7 @@ export function getStripe(): Stripe {
   }
 
   _stripe = new Stripe(stripeKey, {
-    apiVersion: "2025-08-27.basil",
+    apiVersion: "2026-01-28.clover",
   });
   
   return _stripe;

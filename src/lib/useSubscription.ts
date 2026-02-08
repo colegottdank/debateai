@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useUser } from '@clerk/nextjs';
+import { useSafeUser } from '@/lib/useSafeClerk';
 
 interface SubscriptionData {
   isPremium: boolean;
@@ -9,7 +9,7 @@ interface SubscriptionData {
 }
 
 export function useSubscription(): SubscriptionData {
-  const { isSignedIn } = useUser();
+  const { isSignedIn } = useSafeUser();
   const [subscriptionData, setSubscriptionData] = useState<SubscriptionData>({
     isPremium: false,
     isLoading: true,
