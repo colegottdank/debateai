@@ -5,7 +5,7 @@
  */
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   useUser as useClerkUser,
   useClerk as useClerkClerk,
@@ -15,22 +15,58 @@ import {
   UserButton as ClerkUserButton,
 } from '@clerk/nextjs';
 
+// Module-level cache for Clerk availability check
+let clerkAvailabilityCache: boolean | null = null;
+
 /**
- * Check if Clerk is available (has publishable key configured)
+ * Check if Clerk context is actually available by trying to use the hook.
+ * This works because useUser throws if ClerkProvider is missing.
  */
-function isClerkAvailable(): boolean {
-  return typeof window !== 'undefined' || !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+function checkClerkAvailability(): boolean {
+  if (clerkAvailabilityCache !== null) {
+    return clerkAvailabilityCache;
+  }
+  
+  // Check build-time env var first
+  if (!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) {
+    clerkAvailabilityCache = false;
+    return false;
+  }
+  
+  // If env var exists, assume Clerk is available (runtime check happens in hooks)
+  clerkAvailabilityCache = true;
+  return true;
+}
+
+/**
+ * Hook to check Clerk availability at runtime.
+ * Uses a state update to handle hydration mismatch safely.
+ */
+function useClerkAvailable(): boolean {
+  const [isAvailable, setIsAvailable] = useState(false);
+  
+  useEffect(() => {
+    setIsAvailable(checkClerkAvailability());
+  }, []);
+  
+  return isAvailable;
 }
 
 /**
  * Safe wrapper for useUser that returns undefined when Clerk context is missing.
  */
 export function useSafeUser() {
+  const clerkAvailable = checkClerkAvailability();
+  
+  if (!clerkAvailable) {
+    return { isSignedIn: undefined, isLoaded: true, user: undefined };
+  }
+  
   try {
     return useClerkUser();
   } catch {
-    // ClerkProvider not available (build-time prerender)
-    return { isSignedIn: undefined, isLoaded: false, user: undefined };
+    // ClerkProvider not available (build-time prerender or missing provider)
+    return { isSignedIn: undefined, isLoaded: true, user: undefined };
   }
 }
 
@@ -38,16 +74,27 @@ export function useSafeUser() {
  * Safe wrapper for useClerk that returns no-op functions when Clerk context is missing.
  */
 export function useSafeClerk() {
-  try {
-    return useClerkClerk();
-  } catch {
-    // ClerkProvider not available (build-time prerender)
+  const clerkAvailable = checkClerkAvailability();
+  
+  if (!clerkAvailable) {
     return {
       openSignIn: () => {},
       openSignUp: () => {},
       openUserProfile: () => {},
       signOut: async () => {},
-      loaded: false,
+      loaded: true,
+    };
+  }
+  
+  try {
+    return useClerkClerk();
+  } catch {
+    return {
+      openSignIn: () => {},
+      openSignUp: () => {},
+      openUserProfile: () => {},
+      signOut: async () => {},
+      loaded: true,
     };
   }
 }
@@ -56,29 +103,47 @@ export function useSafeClerk() {
  * Safe SignedIn component that renders nothing when Clerk is unavailable.
  */
 export function SafeSignedIn({ children }: { children: React.ReactNode }) {
-  if (!isClerkAvailable()) {
+  const clerkAvailable = useClerkAvailable();
+  const { isSignedIn } = useSafeUser();
+  
+  if (!clerkAvailable || !isSignedIn) {
     return null;
   }
-  return <ClerkSignedIn>{children}</ClerkSignedIn>;
+  
+  return <>{children}</>;
 }
 
 /**
- * Safe SignedOut component that renders children (as fallback) when Clerk is unavailable.
+ * Safe SignedOut component that renders children when Clerk is unavailable or user is signed out.
  */
 export function SafeSignedOut({ children }: { children: React.ReactNode }) {
-  if (!isClerkAvailable()) {
+  const clerkAvailable = useClerkAvailable();
+  const { isSignedIn } = useSafeUser();
+  
+  // If Clerk isn't available, render children (as if signed out)
+  if (!clerkAvailable) {
     return <>{children}</>;
   }
-  return <ClerkSignedOut>{children}</ClerkSignedOut>;
+  
+  // If Clerk is available and user is signed in, don't render
+  if (isSignedIn) {
+    return null;
+  }
+  
+  // User is signed out, render children
+  return <>{children}</>;
 }
 
 /**
- * Safe SignInButton that renders a disabled button when Clerk is unavailable.
+ * Safe SignInButton that renders children when Clerk is unavailable.
  */
 export function SafeSignInButton({ children, mode }: { children: React.ReactNode; mode?: 'modal' | 'redirect' }) {
-  if (!isClerkAvailable()) {
+  const clerkAvailable = useClerkAvailable();
+  
+  if (!clerkAvailable) {
     return <>{children}</>;
   }
+  
   return <ClerkSignInButton mode={mode}>{children}</ClerkSignInButton>;
 }
 
@@ -86,8 +151,11 @@ export function SafeSignInButton({ children, mode }: { children: React.ReactNode
  * Safe UserButton that renders nothing when Clerk is unavailable.
  */
 export function SafeUserButton({ appearance }: { appearance?: Record<string, unknown> }) {
-  if (!isClerkAvailable()) {
+  const clerkAvailable = useClerkAvailable();
+  
+  if (!clerkAvailable) {
     return null;
   }
+  
   return <ClerkUserButton appearance={appearance} />;
 }

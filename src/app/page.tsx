@@ -226,11 +226,12 @@ export default function Home() {
           </div>
 
           {/* Quick Start Options */}
-          <div className="flex flex-col sm:flex-row gap-3 justify-center mb-8 animate-fade-up delay-100">
+          <div className="flex flex-col gap-3 justify-center mb-6 animate-fade-up delay-100">
+            {/* Primary: Instant Debate */}
             <button
               onClick={startDailyDebate}
               disabled={isStarting}
-              className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-[var(--bg-elevated)]/50 border border-[var(--border)]/30 text-[var(--text)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border)]/50 transition-all duration-200 text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+              className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-[var(--accent)] text-white font-medium shadow-lg shadow-[var(--accent)]/25 hover:shadow-xl hover:shadow-[var(--accent)]/30 hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none"
             >
               {isStarting ? (
                 <>
@@ -238,50 +239,55 @@ export default function Home() {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
                   </svg>
-                  <span>Starting...</span>
+                  <span>Starting debate...</span>
                 </>
               ) : (
                 <>
-                  <svg className="w-4 h-4 text-[var(--accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z"/>
                   </svg>
-                  <span className="truncate max-w-[280px]">
-                    {dailyDebate ? `Quick Start: ${dailyDebate.topic}` : 'Quick Start — Today\'s Topic'}
-                  </span>
+                  <span>⚡ Start Instant Debate</span>
                 </>
               )}
             </button>
             
-            <Link
-              href="/history"
-              className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-[var(--bg-elevated)]/50 border border-[var(--border)]/30 text-[var(--text)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border)]/50 transition-all duration-200 text-sm font-medium"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-              </svg>
-              Continue a Debate
-            </Link>
-          </div>
-
-          <div className="relative mb-6 animate-fade-up delay-150">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-[var(--border)]/30"></div>
-            </div>
-            <div className="relative flex justify-center">
-              <span className="px-4 text-xs text-[var(--text-tertiary)] bg-[var(--bg)] cursor-default select-none">
-                or start your own
-              </span>
+            {/* Subtext explaining what happens */}
+            <p className="text-center text-xs text-[var(--text-tertiary)] -mt-1">
+              We'll pick today's topic and start immediately — no setup needed
+            </p>
+            
+            {/* Secondary options */}
+            <div className="flex flex-col sm:flex-row gap-2 mt-2">
+              <Link
+                href="/history"
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[var(--bg-elevated)]/50 border border-[var(--border)]/30 text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border)]/50 transition-all duration-200 text-sm"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                Continue Previous
+              </Link>
+              
+              <button
+                onClick={() => topicInputRef.current?.focus()}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[var(--bg-elevated)]/50 border border-[var(--border)]/30 text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border)]/50 transition-all duration-200 text-sm"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                </svg>
+                Pick Your Own Topic
+              </button>
             </div>
           </div>
 
           {/* Main Input Form */}
-          <form onSubmit={startDebate} className="animate-fade-up delay-200 space-y-4">
+          <form onSubmit={startDebate} className="animate-fade-up delay-200 space-y-3">
             {/* Topic Input */}
             <div className="relative">
               <div className="absolute -inset-0.5 bg-gradient-to-r from-[var(--accent)]/20 to-[var(--accent-light)]/20 rounded-2xl blur-lg opacity-50" />
               <div 
                 className={`
-                  relative artistic-card transition-all duration-300
+                  relative artistic-card transition-all duration-200
                   ${isTopicFocused ? 'shadow-[0_0_40px_-10px_rgba(201,102,74,0.3)]' : ''}
                 `}
               >
@@ -304,19 +310,19 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Argument Input - Progressive Disclosure */}
+            {/* Argument Input - Show immediately when topic has content */}
             <div 
               className={`
-                relative transition-all duration-500 ease-out
+                relative transition-all duration-300 ease-out
                 ${showArgumentInput 
                   ? 'opacity-100 translate-y-0 max-h-[500px]' 
-                  : 'opacity-0 translate-y-4 max-h-0 overflow-hidden pointer-events-none'
+                  : 'opacity-0 translate-y-2 max-h-0 overflow-hidden pointer-events-none'
                 }
               `}
             >
               <div 
                 className={`
-                  relative artistic-card transition-all duration-300
+                  relative artistic-card transition-all duration-200
                   ${isInputFocused ? 'shadow-[0_0_30px_-10px_rgba(201,102,74,0.2)]' : ''}
                 `}
               >
@@ -347,7 +353,7 @@ export default function Home() {
                       <kbd className="px-1.5 py-0.5 rounded bg-[var(--bg-sunken)]/50 border border-[var(--border)]/30 text-[9px] font-mono">⌘</kbd>
                       <span>+</span>
                       <kbd className="px-1.5 py-0.5 rounded bg-[var(--bg-sunken)]/50 border border-[var(--border)]/30 text-[9px] font-mono">Enter</kbd>
-                      <span>to submit</span>
+                      <span>to start</span>
                     </span>
                   </div>
                 </div>
@@ -357,10 +363,10 @@ export default function Home() {
             {/* CTA Button - Show when argument input visible */}
             <div 
               className={`
-                transition-all duration-500 ease-out
+                transition-all duration-300 ease-out
                 ${showArgumentInput 
                   ? 'opacity-100 translate-y-0' 
-                  : 'opacity-0 translate-y-4 pointer-events-none h-0 overflow-hidden'
+                  : 'opacity-0 translate-y-2 pointer-events-none h-0 overflow-hidden'
                 }
               `}
             >
@@ -368,7 +374,7 @@ export default function Home() {
                 type="submit"
                 disabled={!canStart}
                 className={`
-                  w-full h-12 px-6 rounded-xl font-medium text-base transition-all duration-300 flex items-center justify-center gap-2
+                  w-full h-12 px-6 rounded-xl font-medium text-base transition-all duration-200 flex items-center justify-center gap-2
                   ${canStart
                     ? 'bg-[var(--accent)] text-white shadow-lg shadow-[var(--accent)]/30 hover:shadow-xl hover:shadow-[var(--accent)]/40 hover:-translate-y-0.5'
                     : 'bg-[var(--bg-sunken)] text-[var(--text-tertiary)] cursor-not-allowed'
@@ -381,11 +387,11 @@ export default function Home() {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
                     </svg>
-                    <span>Starting...</span>
+                    <span>Starting debate...</span>
                   </>
                 ) : (
                   <>
-                    <span>Start Your Challenge</span>
+                    <span>Start Debate</span>
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6"/>
                     </svg>
