@@ -112,6 +112,17 @@ export default async function BlogPostPage({
               </div>
             </header>
 
+            {/* Hero Image */}
+            {post.image && (
+              <div className="mb-8 -mx-5 sm:mx-0">
+                <img 
+                  src={post.image} 
+                  alt={post.title}
+                  className="w-full aspect-[2/1] object-cover rounded-none sm:rounded-xl"
+                />
+              </div>
+            )}
+
             {/* Content */}
             <div
               className="prose prose-invert max-w-none
