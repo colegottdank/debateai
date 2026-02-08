@@ -799,7 +799,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
   const canSend = userInput.trim().length > 0 && !isUserLoading && !isAILoading;
 
   return (
-    <div className="min-h-dvh flex flex-col overflow-hidden">
+    <div className="min-h-dvh flex flex-col overflow-hidden bg-[var(--bg)]">
       <Header />
 
       {/* Topic Header - Fixed */}
