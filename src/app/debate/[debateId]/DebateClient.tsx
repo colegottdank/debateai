@@ -826,10 +826,10 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
       {/* Messages - Scrollable */}
       <div 
         ref={scrollContainerRef}
-        className="flex-1 overflow-y-auto min-h-0"
+        className="flex-1 overflow-y-auto min-h-0 flex flex-col"
         onScroll={handleScroll}
       >
-        <div className="pb-4">
+        <div className="mt-auto pb-4">
           {messages.filter((msg) => msg && msg.role).map((msg, idx) => (
             <Message
               key={idx}
