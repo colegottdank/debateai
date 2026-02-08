@@ -87,11 +87,21 @@ export default function BlogIndex() {
                     <div className="absolute -inset-1 bg-gradient-to-r from-[var(--accent)]/0 to-[var(--accent)]/0 group-hover:from-[var(--accent)]/10 group-hover:to-[var(--accent-light)]/10 rounded-2xl blur opacity-0 group-hover:opacity-100 transition-all duration-300" />
                     <div className="relative artistic-card p-6 sm:p-8 hover:border-[var(--accent)]/30 transition-all duration-300">
                       <div className="flex flex-col sm:flex-row gap-6">
-                        {/* Image placeholder */}
-                        <div className="sm:w-1/3 aspect-[16/10] rounded-xl bg-gradient-to-br from-[var(--accent)]/20 to-[var(--accent-light)]/10 flex items-center justify-center shrink-0">
-                          <svg className="w-12 h-12 text-[var(--accent)]/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                          </svg>
+                        {/* Hero Image */}
+                        <div className="sm:w-1/3 aspect-[16/10] rounded-xl bg-gradient-to-br from-[var(--accent)]/20 to-[var(--accent-light)]/10 overflow-hidden shrink-0">
+                          {posts[0].image ? (
+                            <img 
+                              src={posts[0].image} 
+                              alt={posts[0].title}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <svg className="w-12 h-12 text-[var(--accent)]/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                              </svg>
+                            </div>
+                          )}
                         </div>
                         
                         <div className="flex-1 flex flex-col justify-center">
