@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test:unit": "node --test 'tests/unit/*.mjs'"
+    "test:unit": "node --test tests/unit/*.mjs"
   },
   "dependencies": {
     "@anthropic-ai/claude-code": "^1.0.98",
