@@ -8,6 +8,7 @@ import { getOpponentById } from "@/lib/opponents";
 import Header from "@/components/Header";
 import UpgradeModal from "@/components/UpgradeModal";
 import { track } from "@/lib/analytics";
+import { useToast } from "@/components/Toast";
 import ShareButtons from "@/components/ShareButtons";
 import ShareModal from "@/components/ShareModal";
 import DebateScoreCard from "@/components/DebateScoreCard";
@@ -303,6 +304,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
   const params = useParams();
   const searchParams = useSearchParams();
   const { user, isSignedIn } = useSafeUser();
+  const { showToast } = useToast();
   const debateId = params.debateId as string;
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -379,6 +381,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
       } catch (error) {
         console.error("Failed to load debate:", error);
         setLoadError("Network error. Please check your connection and try again.");
+        showToast("Failed to load debate. Check your connection.", "error");
       } finally {
         setIsLoadingDebate(false);
       }
@@ -455,6 +458,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
               if (response.status === 429 && error.upgrade_required) {
                 setRateLimitData({ current: error.current, limit: error.limit });
                 setShowUpgradeModal(true);
+                showToast("Message limit reached. Upgrade for unlimited debates!", "info", 5000);
                 // Mark user message as failed, remove AI placeholder
                 setMessages(prev => {
                   const newMsgs = [...prev];
@@ -534,6 +538,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
             }
           } catch (error) {
             console.error("Failed to send first message:", error);
+            showToast("Failed to start debate. Please try again.", "error");
             // Remove placeholder if there was an error
             setMessages(prev => {
               const lastMsg = prev[prev.length - 1];
@@ -652,6 +657,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
           if (response.status === 429 && error.upgrade_required) {
             setRateLimitData({ current: error.current, limit: error.limit });
             setShowUpgradeModal(true);
+            showToast("Message limit reached. Upgrade for unlimited debates!", "info", 5000);
             // Mark user message as failed with inline retry option
             setMessages(prev => {
               const newMsgs = [...prev];
@@ -733,6 +739,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
         }
       } catch (error) {
         console.error("Failed to send message:", error);
+        showToast("Failed to send message. Please try again.", "error");
         // Remove placeholder if there was an error and it's empty
         setMessages(prev => {
           const lastMsg = prev[prev.length - 1];
