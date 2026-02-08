@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useUser, useClerk } from '@clerk/nextjs';
+import { useSafeUser, useSafeClerk } from '@/lib/useSafeClerk';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import UpgradeModal from '@/components/UpgradeModal';
@@ -20,8 +20,8 @@ interface Debate {
 
 export default function HistoryPage() {
   const router = useRouter();
-  const { isSignedIn } = useUser();
-  const { openSignIn } = useClerk();
+  const { isSignedIn } = useSafeUser();
+  const { openSignIn } = useSafeClerk();
   const { isPremium, debatesUsed, debatesLimit } = useSubscription();
   const [debates, setDebates] = useState<Debate[]>([]);
   const [isLoading, setIsLoading] = useState(true);

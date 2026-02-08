@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, memo } from "react";
 import React from "react";
-import { useUser } from "@clerk/nextjs";
+import { useSafeUser } from "@/lib/useSafeClerk";
 import { useParams, useSearchParams } from "next/navigation";
 import { getOpponentById } from "@/lib/opponents";
 import Header from "@/components/Header";
@@ -302,7 +302,7 @@ const SEARCH_MESSAGES = [
 export default function DebateClient({ initialDebate = null, initialMessages = [] }: DebateClientProps = {}) {
   const params = useParams();
   const searchParams = useSearchParams();
-  const { user, isSignedIn } = useUser();
+  const { user, isSignedIn } = useSafeUser();
   const debateId = params.debateId as string;
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);

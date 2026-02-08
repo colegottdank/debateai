@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { SignedOut, SignInButton } from '@clerk/nextjs';
+import { SafeSignedOut, SafeSignInButton } from '@/lib/useSafeClerk';
 import { useUser } from '@/lib/useTestUser';
 import { track } from '@/lib/analytics';
 
@@ -134,11 +134,11 @@ export default function UpgradeModal({ isOpen, onClose, trigger = 'button', limi
             </div>
 
             <div className="space-y-2.5">
-              <SignedOut>
-                <SignInButton mode="modal">
+              <SafeSignedOut>
+                <SafeSignInButton mode="modal">
                   <button className="w-full btn btn-primary btn-lg">Sign in to upgrade</button>
-                </SignInButton>
-              </SignedOut>
+                </SafeSignInButton>
+              </SafeSignedOut>
               
               {user && (
                 <>

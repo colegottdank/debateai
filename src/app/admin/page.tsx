@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useUser } from "@clerk/nextjs";
+import { useSafeUser } from "@/lib/useSafeClerk";
 import Link from "next/link";
 import Header from "@/components/Header";
 
@@ -52,7 +52,7 @@ function MiniBar({ value, max }: { value: number; max: number }) {
 }
 
 export default function AdminPage() {
-  const { isSignedIn, isLoaded } = useUser();
+  const { isSignedIn, isLoaded } = useSafeUser();
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
