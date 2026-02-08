@@ -388,7 +388,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
     };
 
     loadDebate();
-  }, [debateId, isDevMode, initialDebate]);
+  }, [debateId, isDevMode, initialDebate, showToast]);
 
   // Handle instant debate from landing page
   useEffect(() => {
@@ -555,7 +555,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
 
       sendFirstMessage();
     }
-  }, [debate, isLoadingDebate, debateId, isDevMode]);
+  }, [debate, isLoadingDebate, debateId, isDevMode, showToast]);
 
   // Auto-scroll - use instant scroll during streaming to prevent bouncing
   useEffect(() => {
