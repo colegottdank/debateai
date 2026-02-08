@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { SignInButton, SignedIn, SignedOut, UserButton } from '@clerk/nextjs';
+import { SafeSignedIn, SafeSignedOut, SafeSignInButton, SafeUserButton } from '@/lib/useSafeClerk';
 import ThemeToggle from './ThemeToggle';
 import UpgradeModal from './UpgradeModal';
 import { useSubscription } from '@/lib/useSubscription';
@@ -42,7 +42,7 @@ export default function Header() {
                 Blog
               </Link>
 
-              <SignedIn>
+              <SafeSignedIn>
                 <Link
                   href="/history"
                   className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text)] rounded-lg hover:bg-[var(--bg-sunken)] transition-all"
@@ -64,25 +64,25 @@ export default function Header() {
                     Upgrade
                   </button>
                 )}
-              </SignedIn>
+              </SafeSignedIn>
 
               <div className="flex items-center gap-1 pl-2 ml-2 border-l border-[var(--border)]">
-                <SignedIn>
-                  <UserButton 
+                <SafeSignedIn>
+                  <SafeUserButton 
                     appearance={{
                       elements: {
                         avatarBox: "w-8 h-8 rounded-lg"
                       }
                     }}
                   />
-                </SignedIn>
-                <SignedOut>
-                  <SignInButton mode="modal">
+                </SafeSignedIn>
+                <SafeSignedOut>
+                  <SafeSignInButton mode="modal">
                     <button className="btn btn-primary btn-sm">
                       Sign In
                     </button>
-                  </SignInButton>
-                </SignedOut>
+                  </SafeSignInButton>
+                </SafeSignedOut>
                 
                 <ThemeToggle />
               </div>

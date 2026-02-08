@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, memo } from "react";
 import React from "react";
-import { useUser } from "@clerk/nextjs";
+import { useSafeUser } from "@/lib/useSafeClerk";
 import { useParams, useSearchParams } from "next/navigation";
 import { getOpponentById } from "@/lib/opponents";
 import Header from "@/components/Header";
@@ -94,6 +94,7 @@ const Message = memo(
     debate,
     isAILoading,
     isUserLoading,
+    onRetry,
   }: {
     msg: {
       role: string;
@@ -101,14 +102,18 @@ const Message = memo(
       aiAssisted?: boolean;
       citations?: Array<{ id: number; url: string; title: string }>;
       isSearching?: boolean;
+      failed?: boolean;
+      failedReason?: 'rate_limit' | 'error';
     };
     opponent: any;
     debate: any;
     isAILoading: boolean;
     isUserLoading?: boolean;
+    onRetry?: () => void;
   }) => {
     const isUser = msg.role === "user";
     const isStreaming = (isUser && isUserLoading) || (!isUser && isAILoading);
+    const isFailed = msg.failed;
     const hasContent = msg.content && msg.content.length > 0;
     const [showCitations, setShowCitations] = useState(false);
     const [highlightedCitation, setHighlightedCitation] = useState<number | null>(null);
@@ -138,14 +143,16 @@ const Message = memo(
     };
 
     return (
-      <div className={`py-5 ${isUser ? '' : 'bg-[var(--bg-elevated)]/60 border-y border-[var(--border)]/30'}`}>
+      <div className={`py-5 ${isUser ? '' : 'bg-[var(--bg-elevated)]/60 border-y border-[var(--border)]/30'} ${isFailed ? 'opacity-80' : ''}`}>
         <div className="max-w-3xl mx-auto px-4 sm:px-6">
           <div className="flex gap-3">
             {/* Avatar */}
             <div className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-sm
-              ${isUser
-                ? 'bg-[var(--accent)]/10 text-[var(--accent)]'
-                : 'bg-[var(--bg-sunken)] border border-[var(--border)]/50'
+              ${isFailed
+                ? 'bg-[var(--error)]/10 text-[var(--error)] border border-[var(--error)]/30'
+                : isUser
+                  ? 'bg-[var(--accent)]/10 text-[var(--accent)]'
+                  : 'bg-[var(--bg-sunken)] border border-[var(--border)]/50'
               }`}
             >
               {isUser ? (
@@ -188,6 +195,42 @@ const Message = memo(
                   </div>
                 )}
               </div>
+
+              {/* Failed State Indicator */}
+              {isFailed && (
+                <div className="mt-2 flex items-center gap-3 text-sm">
+                  <div className="flex items-center gap-1.5 text-[var(--error)]">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <span>
+                      {msg.failedReason === 'rate_limit' 
+                        ? 'Message limit reached' 
+                        : 'Failed to send'}
+                    </span>
+                  </div>
+                  {onRetry && (
+                    <button
+                      onClick={onRetry}
+                      className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium
+                        bg-[var(--accent)]/10 text-[var(--accent)] hover:bg-[var(--accent)]/20 transition-colors"
+                    >
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                      </svg>
+                      Retry
+                    </button>
+                  )}
+                  {msg.failedReason === 'rate_limit' && (
+                    <button
+                      onClick={() => document.querySelector<HTMLButtonElement>('[data-upgrade-trigger]')?.click()}
+                      className="text-xs text-[var(--accent)] hover:underline"
+                    >
+                      Upgrade for more
+                    </button>
+                  )}
+                </div>
+              )}
 
               {/* Citations */}
               {msg.citations && msg.citations.length > 0 && (
@@ -259,7 +302,7 @@ const SEARCH_MESSAGES = [
 export default function DebateClient({ initialDebate = null, initialMessages = [] }: DebateClientProps = {}) {
   const params = useParams();
   const searchParams = useSearchParams();
-  const { user, isSignedIn } = useUser();
+  const { user, isSignedIn } = useSafeUser();
   const debateId = params.debateId as string;
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -412,8 +455,23 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
               if (response.status === 429 && error.upgrade_required) {
                 setRateLimitData({ current: error.current, limit: error.limit });
                 setShowUpgradeModal(true);
-                // Remove the placeholder AI message
-                setMessages(prev => prev.slice(0, -1));
+                // Mark user message as failed, remove AI placeholder
+                setMessages(prev => {
+                  const newMsgs = [...prev];
+                  // Remove AI placeholder (last message)
+                  newMsgs.pop();
+                  // Mark user message as failed (now last)
+                  if (newMsgs.length > 0 && newMsgs[newMsgs.length - 1].role === 'user') {
+                    newMsgs[newMsgs.length - 1] = {
+                      ...newMsgs[newMsgs.length - 1],
+                      failed: true,
+                      failedReason: 'rate_limit'
+                    };
+                  }
+                  return newMsgs;
+                });
+                setIsAILoading(false);
+                return; // Don't throw, we handled it gracefully
               }
               throw new Error(error.error || 'Failed to send message');
             }
@@ -594,16 +652,25 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
           if (response.status === 429 && error.upgrade_required) {
             setRateLimitData({ current: error.current, limit: error.limit });
             setShowUpgradeModal(true);
-            // Remove only the placeholder AI message, keep user's message visible
-            // This is less jarring than removing both messages
+            // Mark user message as failed with inline retry option
             setMessages(prev => {
-              const lastMsg = prev[prev.length - 1];
-              if (lastMsg && lastMsg.role === 'ai') {
-                return prev.slice(0, -1);
+              const newMsgs = [...prev];
+              // Remove AI placeholder (last message)
+              if (newMsgs.length > 0 && newMsgs[newMsgs.length - 1].role === 'ai') {
+                newMsgs.pop();
               }
-              return prev;
+              // Mark user message as failed (now last)
+              if (newMsgs.length > 0 && newMsgs[newMsgs.length - 1].role === 'user') {
+                newMsgs[newMsgs.length - 1] = {
+                  ...newMsgs[newMsgs.length - 1],
+                  failed: true,
+                  failedReason: 'rate_limit'
+                };
+              }
+              return newMsgs;
             });
-            setUserInput(messageText); // Restore input for retry
+            setIsAILoading(false);
+            return; // Don't throw, we handled it gracefully
           }
           throw new Error(error.error || 'Failed to send message');
         }
@@ -771,6 +838,11 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
               debate={debate}
               isAILoading={isAILoading && idx === messages.length - 1}
               isUserLoading={isUserLoading && idx === messages.length - 1}
+              onRetry={msg.failed ? () => {
+                // Remove the failed message and restore input for retry
+                setMessages(prev => prev.filter((_, i) => i !== idx));
+                setUserInput(msg.content);
+              } : undefined}
             />
           ))}
 

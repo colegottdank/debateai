@@ -1,6 +1,6 @@
 'use client';
 
-import { useUser as useClerkUser } from '@clerk/nextjs';
+import { useSafeUser } from '@/lib/useSafeClerk';
 
 // Mock user for test mode
 const mockUser = {
@@ -16,7 +16,7 @@ const mockUser = {
 };
 
 export function useUser() {
-  const clerkData = useClerkUser();
+  const clerkData = useSafeUser();
   
   // In test mode, return mock user
   if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_TEST_MODE === 'true') {
