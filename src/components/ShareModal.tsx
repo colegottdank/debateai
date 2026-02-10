@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useToast } from './Toast';
+import { track } from '@/lib/analytics';
 
 interface ShareModalProps {
   isOpen: boolean;
@@ -98,6 +99,7 @@ export default function ShareModal({ isOpen, onClose, debateId, topic, opponentN
         </svg>
       ),
       action: () => {
+        track('debate_shared', { debateId, method: 'twitter', source: 'modal' });
         const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(debateUrl)}`;
         window.open(url, '_blank', 'width=550,height=420');
       },
@@ -111,6 +113,7 @@ export default function ShareModal({ isOpen, onClose, debateId, topic, opponentN
         </svg>
       ),
       action: () => {
+        track('debate_shared', { debateId, method: 'reddit', source: 'modal' });
         const url = `https://www.reddit.com/submit?title=${encodeURIComponent(shareText)}&url=${encodeURIComponent(debateUrl)}`;
         window.open(url, '_blank');
       },
@@ -124,6 +127,7 @@ export default function ShareModal({ isOpen, onClose, debateId, topic, opponentN
         </svg>
       ),
       action: () => {
+        track('debate_shared', { debateId, method: 'linkedin', source: 'modal' });
         const url = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(debateUrl)}`;
         window.open(url, '_blank');
       },
@@ -137,6 +141,7 @@ export default function ShareModal({ isOpen, onClose, debateId, topic, opponentN
         </svg>
       ),
       action: () => {
+        track('debate_shared', { debateId, method: 'facebook', source: 'modal' });
         const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(debateUrl)}`;
         window.open(url, '_blank', 'width=626,height=436');
       },
@@ -150,6 +155,7 @@ export default function ShareModal({ isOpen, onClose, debateId, topic, opponentN
     try {
       setIsCopying(true);
       await navigator.clipboard.writeText(debateUrl);
+      track('debate_shared', { debateId, method: 'copy_link', source: 'modal' });
       showToast('Link copied to clipboard!', 'success');
     } catch (err) {
       console.error('Failed to copy:', err);
@@ -167,6 +173,7 @@ export default function ShareModal({ isOpen, onClose, debateId, topic, opponentN
           text: shareTextWithOpponent,
           url: debateUrl,
         });
+        track('debate_shared', { debateId, method: 'native_share', source: 'modal' });
         onClose();
       } catch (err) {
         console.log('Share cancelled');

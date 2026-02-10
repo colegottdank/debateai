@@ -52,6 +52,7 @@ export interface AnalyticsEvents {
   debate_shared: {
     debateId: string;
     method: 'copy_link' | 'twitter' | 'facebook' | 'linkedin' | 'reddit' | 'native_share';
+    source?: 'button' | 'modal';
   };
   share_button_clicked: {
     debateId: string;
