@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { d1 } from '@/lib/d1';
+import { withErrorHandler } from '@/lib/api-errors';
 
 // KPI baselines endpoint for Feb 7 measurement
 // Combines user and engagement metrics
@@ -7,8 +8,7 @@ import { d1 } from '@/lib/d1';
 const REAL_DEBATES = "user_id != 'test-user-123' AND json_array_length(messages) >= 2";
 const REAL_USERS = "user_id != 'test-user-123'";
 
-export async function GET() {
-  try {
+export const GET = withErrorHandler(async () => {
     const [
       // Debates
       totalDebatesResult,
@@ -93,9 +93,5 @@ export async function GET() {
       generatedAt: new Date().toISOString(),
     };
 
-    return NextResponse.json(kpis);
-  } catch (error) {
-    console.error('KPI metrics error:', error);
-    return NextResponse.json({ error: 'Failed to fetch KPIs' }, { status: 500 });
-  }
-}
+  return NextResponse.json(kpis);
+});

@@ -4,6 +4,8 @@ import { d1 } from "@/lib/d1";
 import { getDebatePrompt, getDailyPersona } from "@/lib/prompts";
 import { checkAppDisabled } from "@/lib/app-disabled";
 import { createRateLimiter, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
+import { errors, validateBody } from "@/lib/api-errors";
+import { sendMessageSchema } from "@/lib/api-schemas";
 import Anthropic from "@anthropic-ai/sdk";
 
 const anthropic = new Anthropic({
@@ -32,12 +34,21 @@ export async function POST(request: Request) {
     const userId = await getUserId();
 
     if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return errors.unauthorized();
     }
 
     // Per-user rate limit (protects Claude API costs)
     const userRl = userLimiter.check(`user:${userId}`);
     if (!userRl.allowed) return rateLimitResponse(userRl);
+
+    // Validate request body
+    let body;
+    try {
+      body = await validateBody(request, sendMessageSchema);
+    } catch (error) {
+      if (error instanceof NextResponse) return error;
+      return errors.badRequest("Invalid request body");
+    }
 
     const {
       debateId,
@@ -47,14 +58,7 @@ export async function POST(request: Request) {
       userArgument,
       previousMessages,
       isAIAssisted, // Flag to indicate if this was an AI-assisted message
-    } = await request.json();
-
-    if (!character || !topic || !userArgument) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      );
-    }
+    } = body;
 
     // Deduplicate debate creation: if no debateId and same user+topic within 30s, reuse existing
     if (!debateId) {
@@ -77,16 +81,7 @@ export async function POST(request: Request) {
     if (debateId && !isTestMode && !isLocalDev) {
       const messageLimit = await d1.checkDebateMessageLimit(debateId);
       if (!messageLimit.allowed) {
-        return NextResponse.json(
-          {
-            error: "message_limit_exceeded",
-            message: `You've reached your limit of ${messageLimit.limit} messages per debate. Upgrade to premium for unlimited messages!`,
-            current: messageLimit.count,
-            limit: messageLimit.limit,
-            upgrade_required: true,
-          },
-          { status: 429 }
-        );
+        return errors.messageLimit(messageLimit.count, messageLimit.limit);
       }
     }
 
@@ -353,7 +348,7 @@ export async function POST(request: Request) {
               await d1.saveDebate({
                 userId,
                 opponent: character,
-                topic: existingDebate.debate.topic || topic, // Preserve original topic
+                topic: (existingDebate.debate.topic as string) || topic, // Preserve original topic
                 messages: existingMessages,
                 debateId,
                 opponentStyle,
@@ -405,9 +400,6 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("Debate API error:", error);
-    return NextResponse.json(
-      { error: "Failed to generate debate response" },
-      { status: 500 }
-    );
+    return errors.internal("Failed to generate debate response");
   }
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getUserId } from '@/lib/auth-helper';
 import { d1 } from '@/lib/d1';
+import { withErrorHandler, errors } from '@/lib/api-errors';
 
 // Admin user IDs — only these users can access admin endpoints
 const ADMIN_USER_IDS = new Set([
@@ -58,23 +59,22 @@ interface AdminStats {
  * Protected admin endpoint — returns comprehensive platform metrics.
  * Requires authenticated user with admin role.
  */
-export async function GET() {
-  try {
-    const userId = await getUserId();
+export const GET = withErrorHandler(async () => {
+  const userId = await getUserId();
 
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+  if (!userId) {
+    throw errors.unauthorized();
+  }
 
-    // Check admin access
-    if (!ADMIN_USER_IDS.has(userId)) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+  // Check admin access
+  if (!ADMIN_USER_IDS.has(userId)) {
+    throw errors.forbidden('Admin access required');
+  }
 
-    // Return cache if fresh
-    if (statsCache && Date.now() - statsCache.timestamp < CACHE_TTL) {
-      return NextResponse.json({ ...statsCache.data, cached: true });
-    }
+  // Return cache if fresh
+  if (statsCache && Date.now() - statsCache.timestamp < CACHE_TTL) {
+    return NextResponse.json({ ...statsCache.data, cached: true });
+  }
 
     // Run all queries in parallel
     const [
@@ -251,15 +251,8 @@ export async function GET() {
       cached: false,
     };
 
-    // Update cache
-    statsCache = { data: stats, timestamp: Date.now() };
+  // Update cache
+  statsCache = { data: stats, timestamp: Date.now() };
 
-    return NextResponse.json(stats);
-  } catch (error) {
-    console.error('Admin stats error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch admin stats' },
-      { status: 500 }
-    );
-  }
-}
+  return NextResponse.json(stats);
+});

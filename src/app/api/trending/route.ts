@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { createRateLimiter, getClientIp, rateLimitResponse } from '@/lib/rate-limit';
+import { withErrorHandler } from '@/lib/api-errors';
 
 // 10 requests per minute per IP (calls Claude API when cache is cold)
 const limiter = createRateLimiter({ maxRequests: 10, windowMs: 60_000 });
@@ -27,7 +28,6 @@ interface NewsItem {
 }
 
 async function fetchTrendingNews(): Promise<NewsItem[]> {
-  // Use multiple sources for variety
   const queries = [
     'controversial news today',
     'debate politics 2024',
@@ -37,9 +37,8 @@ async function fetchTrendingNews(): Promise<NewsItem[]> {
   
   const allNews: NewsItem[] = [];
   
-  for (const query of queries.slice(0, 2)) { // Limit to avoid rate limits
+  for (const query of queries.slice(0, 2)) {
     try {
-      // Using Brave Search API via environment variable
       const response = await fetch(
         `https://api.search.brave.com/res/v1/news/search?q=${encodeURIComponent(query)}&count=5`,
         {
@@ -53,7 +52,7 @@ async function fetchTrendingNews(): Promise<NewsItem[]> {
       if (response.ok) {
         const data = await response.json();
         if (data.results) {
-          allNews.push(...data.results.map((r: any) => ({
+          allNews.push(...data.results.map((r: { title: string; description?: string; url: string; meta_url?: { hostname?: string } }) => ({
             title: r.title,
             description: r.description,
             url: r.url,
@@ -109,7 +108,6 @@ Make questions punchy and debatable. Avoid boring policy questions. Go for takes
     
     const text = response.content[0].type === 'text' ? response.content[0].text : '';
     
-    // Parse JSON, handling potential markdown code blocks
     let jsonText = text.trim();
     if (jsonText.startsWith('```')) {
       jsonText = jsonText.replace(/```json?\n?/g, '').replace(/```$/g, '').trim();
@@ -124,61 +122,7 @@ Make questions punchy and debatable. Avoid boring policy questions. Go for takes
   }
 }
 
-export async function GET(request: Request) {
-  const rl = limiter.check(getClientIp(request));
-  if (!rl.allowed) return rateLimitResponse(rl);
-
-  // Check cache
-  if (cachedTopics && Date.now() - cacheTime < CACHE_DURATION) {
-    return NextResponse.json({ 
-      topics: cachedTopics, 
-      cached: true,
-      cacheAge: Math.floor((Date.now() - cacheTime) / 1000 / 60) + ' minutes'
-    });
-  }
-  
-  try {
-    // Fetch news
-    const news = await fetchTrendingNews();
-    
-    if (news.length === 0) {
-      // Fallback to static trending if no news available
-      return NextResponse.json({ 
-        topics: getFallbackTopics(),
-        cached: false,
-        fallback: true
-      });
-    }
-    
-    // Convert to debate topics
-    const topics = await convertToDebateTopics(news);
-    
-    if (topics.length > 0) {
-      // Update cache
-      cachedTopics = topics;
-      cacheTime = Date.now();
-      
-      return NextResponse.json({ topics, cached: false });
-    } else {
-      return NextResponse.json({ 
-        topics: getFallbackTopics(),
-        cached: false,
-        fallback: true
-      });
-    }
-    
-  } catch (error) {
-    console.error('Trending topics error:', error);
-    return NextResponse.json({ 
-      topics: getFallbackTopics(),
-      error: 'Failed to fetch trending topics',
-      fallback: true
-    });
-  }
-}
-
 function getFallbackTopics(): TrendingTopic[] {
-  // Manually curated "evergreen hot" topics as fallback
   return [
     {
       id: 'ai-taking-jobs',
@@ -222,3 +166,46 @@ function getFallbackTopics(): TrendingTopic[] {
     },
   ];
 }
+
+export const GET = withErrorHandler(async (request: Request) => {
+  const rl = limiter.check(getClientIp(request));
+  if (!rl.allowed) {
+    return rateLimitResponse(rl) as unknown as NextResponse;
+  }
+
+  // Check cache
+  if (cachedTopics && Date.now() - cacheTime < CACHE_DURATION) {
+    return NextResponse.json({ 
+      topics: cachedTopics, 
+      cached: true,
+      cacheAge: Math.floor((Date.now() - cacheTime) / 1000 / 60) + ' minutes'
+    });
+  }
+  
+  // Fetch news
+  const news = await fetchTrendingNews();
+  
+  if (news.length === 0) {
+    return NextResponse.json({ 
+      topics: getFallbackTopics(),
+      cached: false,
+      fallback: true
+    });
+  }
+  
+  // Convert to debate topics
+  const topics = await convertToDebateTopics(news);
+  
+  if (topics.length > 0) {
+    cachedTopics = topics;
+    cacheTime = Date.now();
+    
+    return NextResponse.json({ topics, cached: false });
+  } else {
+    return NextResponse.json({ 
+      topics: getFallbackTopics(),
+      cached: false,
+      fallback: true
+    });
+  }
+});
