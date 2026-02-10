@@ -10,6 +10,7 @@ import { track } from "@/lib/analytics";
 import { useToast } from "@/components/Toast";
 import ShareButtons from "@/components/ShareButtons";
 import DebateScoreCard from "@/components/DebateScoreCard";
+import PostDebateEngagement from "@/components/PostDebateEngagement";
 import { DebatePageSkeleton } from "@/components/Skeleton";
 import type { DebateScore } from "@/lib/scoring";
 
@@ -876,6 +877,16 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
               }}
               opponentName={opponent?.name || debate?.opponentStyle || "AI"}
               messageCount={messages.filter(m => m.role === 'user').length}
+            />
+          )}
+
+          {/* Post-debate engagement — shown after scoring */}
+          {debateScore && (
+            <PostDebateEngagement
+              debateId={debateId}
+              topic={debate?.topic || ""}
+              opponentName={opponent?.name || debate?.opponentStyle || "AI"}
+              opponentId={opponent?.id}
             />
           )}
 

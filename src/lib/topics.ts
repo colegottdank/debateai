@@ -237,6 +237,42 @@ export function getAllTopics(): Topic[] {
   return TOPIC_CATEGORIES.flatMap(c => c.topics);
 }
 
+/**
+ * Get related topics for post-debate suggestions.
+ * Prioritizes topics from the same category, then fills from other categories.
+ * Excludes the current topic.
+ */
+export function getRelatedTopics(currentTopicQuestion: string, count: number = 3): Topic[] {
+  // Find which category the current topic belongs to
+  let currentCategory: string | null = null;
+  for (const cat of TOPIC_CATEGORIES) {
+    if (cat.topics.some(t => t.question === currentTopicQuestion)) {
+      currentCategory = cat.id;
+      break;
+    }
+  }
+
+  const allTopics = TOPIC_CATEGORIES.flatMap(c =>
+    c.topics.map(t => ({ ...t, categoryId: c.id }))
+  ).filter(t => t.question !== currentTopicQuestion);
+
+  // Separate same-category and other topics
+  const sameCategory = allTopics.filter(t => t.categoryId === currentCategory);
+  const otherCategories = allTopics.filter(t => t.categoryId !== currentCategory);
+
+  // Shuffle both pools
+  const shuffleSame = [...sameCategory].sort(() => Math.random() - 0.5);
+  const shuffleOther = [...otherCategories].sort(() => Math.random() - 0.5);
+
+  // Take 2 from same category (if available), 1 from other
+  const results: Topic[] = [];
+  const fromSame = Math.min(2, shuffleSame.length);
+  results.push(...shuffleSame.slice(0, fromSame));
+  results.push(...shuffleOther.slice(0, count - fromSame));
+
+  return results.slice(0, count);
+}
+
 export function getTopicById(id: string): Topic | null {
   for (const category of TOPIC_CATEGORIES) {
     const topic = category.topics.find(t => t.id === id);
