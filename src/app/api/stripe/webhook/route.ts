@@ -2,7 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
 import { d1 } from '@/lib/d1';
 import Stripe from 'stripe';
+import { errors } from '@/lib/api-errors';
 
+/**
+ * Stripe webhook handler.
+ * Note: Not using withErrorHandler - webhooks must return 200 quickly
+ * or Stripe will retry. We handle errors manually here.
+ */
 export async function POST(request: NextRequest) {
   console.log('🔔 Webhook endpoint called');
   
@@ -13,7 +19,7 @@ export async function POST(request: NextRequest) {
 
   if (!signature) {
     console.error('❌ No signature provided');
-    return NextResponse.json({ error: 'No signature' }, { status: 400 });
+    return errors.badRequest('No signature provided');
   }
 
   let event: Stripe.Event;
@@ -25,14 +31,15 @@ export async function POST(request: NextRequest) {
     
     if (!webhookSecret) {
       console.error('❌ STRIPE_WEBHOOK_SECRET not configured');
-      return NextResponse.json({ error: 'Webhook secret not configured' }, { status: 500 });
+      return errors.internal('Webhook secret not configured');
     }
     
     event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
     console.log('✅ Event constructed successfully:', event.type);
-  } catch (err: any) {
-    console.error('Webhook error:', err.message);
-    return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
+  } catch (err) {
+    const error = err as Error;
+    console.error('Webhook signature verification failed:', error.message);
+    return errors.badRequest('Invalid signature');
   }
 
   try {
@@ -45,36 +52,30 @@ export async function POST(request: NextRequest) {
         console.log('📦 Subscription ID:', session.subscription);
         
         if (clerkUserId && session.subscription) {
-          // Check if user already has an active subscription
-          const existingUser = await d1.getUser(clerkUserId);
-          if (existingUser?.subscription_status === 'active' && 
-              existingUser?.stripe_subscription_id && 
-              existingUser?.stripe_subscription_id !== session.subscription) {
-            // You might want to cancel the old subscription or handle this case
-          }
-          
           // Get subscription details
           const subscription = await stripe.subscriptions.retrieve(
             session.subscription as string
           );
           
-          // Save to database - ensure customer ID is saved
+          // Save to database
           console.log('💾 Saving user to D1:', {
             clerkUserId,
             customerId: session.customer,
             subscriptionId: subscription.id
           });
           
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const subAny = subscription as any;
           const updateResult = await d1.upsertUser({
             clerkUserId,
             stripeCustomerId: session.customer as string,
             stripeSubscriptionId: subscription.id,
             stripePlan: 'premium',
             subscriptionStatus: 'active',
-            currentPeriodEnd: (subscription as any).current_period_end 
-              ? new Date((subscription as any).current_period_end * 1000).toISOString()
+            currentPeriodEnd: subAny.current_period_end 
+              ? new Date(subAny.current_period_end * 1000).toISOString()
               : undefined,
-            cancelAtPeriodEnd: (subscription as any).cancel_at_period_end || false,
+            cancelAtPeriodEnd: subAny.cancel_at_period_end || false,
           });
           
           console.log('✅ D1 upsert result:', updateResult);
@@ -97,15 +98,17 @@ export async function POST(request: NextRequest) {
         const clerkUserId = subscription.metadata?.clerkUserId;
         
         if (clerkUserId) {
-          const periodEnd = (subscription as any).current_period_end 
-            ? new Date((subscription as any).current_period_end * 1000).toISOString()
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const subAny = subscription as any;
+          const periodEnd = subAny.current_period_end 
+            ? new Date(subAny.current_period_end * 1000).toISOString()
             : undefined;
             
           await d1.upsertUser({
             clerkUserId,
             subscriptionStatus: subscription.status,
             currentPeriodEnd: periodEnd,
-            cancelAtPeriodEnd: (subscription as any).cancel_at_period_end || false,
+            cancelAtPeriodEnd: subAny.cancel_at_period_end || false,
             stripePlan: subscription.status === 'active' ? 'premium' : undefined,
           });
         }
@@ -128,10 +131,10 @@ export async function POST(request: NextRequest) {
 
       case 'invoice.payment_failed': {
         const invoice = event.data.object as Stripe.Invoice;
-        const subscription = (invoice as any).subscription;
+        const subscriptionId = (invoice as { subscription?: string }).subscription;
         
-        if (subscription) {
-          const sub = await stripe.subscriptions.retrieve(subscription as string);
+        if (subscriptionId) {
+          const sub = await stripe.subscriptions.retrieve(subscriptionId);
           const clerkUserId = sub.metadata?.clerkUserId;
           
           if (clerkUserId) {
@@ -147,11 +150,10 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ received: true });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Webhook handler error:', error);
-    return NextResponse.json(
-      { error: 'Webhook handler failed' },
-      { status: 500 }
-    );
+    // Return 200 to prevent Stripe retries for unrecoverable errors
+    // Log the error but acknowledge receipt
+    return NextResponse.json({ received: true, error: 'Handler error logged' });
   }
 }

@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
 import { d1 } from '@/lib/d1';
+import { withErrorHandler } from '@/lib/api-errors';
 
 // Temporary endpoint for Feb 7 engagement metrics check
 // TODO: Remove after measurement check or move to admin
 
 const REAL_DEBATES_BASE = "user_id != 'test-user-123'";
 
-export async function GET() {
-  try {
+export const GET = withErrorHandler(async () => {
     // Run all engagement queries in parallel
     const [
       totalDebatesResult,
@@ -129,12 +129,5 @@ export async function GET() {
       generatedAt: new Date().toISOString(),
     };
 
-    return NextResponse.json(metrics);
-  } catch (error) {
-    console.error('Engagement metrics error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch engagement metrics' },
-      { status: 500 }
-    );
-  }
-}
+  return NextResponse.json(metrics);
+});
