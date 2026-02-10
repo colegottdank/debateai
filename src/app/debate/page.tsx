@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import UpgradeModal from '@/components/UpgradeModal';
 import Header from '@/components/Header';
+import { ArtisticCard } from '@/components/ui/ArtisticCard';
 import { useSubscription } from '@/lib/useSubscription';
 import { track } from '@/lib/analytics';
 
@@ -122,7 +123,7 @@ export default function DebatePage() {
             {/* Glow */}
             <div className="absolute -inset-0.5 bg-gradient-to-r from-[var(--accent)]/20 to-[var(--accent-light)]/20 rounded-2xl blur-lg opacity-50" />
             
-            <div className="relative artistic-card p-6 space-y-5">
+            <ArtisticCard className="relative p-6 space-y-5">
               {/* Opponent Field */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
@@ -197,7 +198,7 @@ export default function DebatePage() {
                   <kbd className="px-1.5 py-0.5 rounded bg-[var(--bg-sunken)]/50 border border-[var(--border)]/30 text-[9px] font-mono">Enter</kbd>
                 </p>
               </div>
-            </div>
+            </ArtisticCard>
           </div>
 
           {/* Footer Links */}
