@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { SafeSignedIn, SafeSignedOut, SafeSignInButton, SafeUserButton } from '@/lib/useSafeClerk';
 import ThemeToggle from './ThemeToggle';
 import UpgradeModal from './UpgradeModal';
+import MobileNav from './MobileNav';
 import { useSubscription } from '@/lib/useSubscription';
 
 export default function Header() {
@@ -89,6 +90,7 @@ export default function Header() {
                 </SafeSignedOut>
                 
                 <ThemeToggle />
+                <MobileNav />
               </div>
             </nav>
           </div>
