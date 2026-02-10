@@ -5,7 +5,7 @@ import { getDebatePrompt, getDailyPersona } from "@/lib/prompts";
 import { checkAppDisabled } from "@/lib/app-disabled";
 import { createRateLimiter, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
 import { errors, validateBody } from "@/lib/api-errors";
-import { sendMessageSchema } from "@/lib/api-schemas";
+import { sendMessageSchema, SendMessageInput } from "@/lib/api-schemas";
 import Anthropic from "@anthropic-ai/sdk";
 
 const anthropic = new Anthropic({
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
     if (!userRl.allowed) return rateLimitResponse(userRl);
 
     // Validate request body
-    let body;
+    let body: SendMessageInput;
     try {
       body = await validateBody(request, sendMessageSchema);
     } catch (error) {
@@ -52,12 +52,12 @@ export async function POST(request: Request) {
 
     const {
       debateId,
-      character, // This will be the opponent type or 'custom'
-      opponentStyle, // Custom opponent style description
+      character,
+      opponentStyle,
       topic,
       userArgument,
       previousMessages,
-      isAIAssisted, // Flag to indicate if this was an AI-assisted message
+      isAIAssisted,
     } = body;
 
     // Deduplicate debate creation: if no debateId and same user+topic within 30s, reuse existing
