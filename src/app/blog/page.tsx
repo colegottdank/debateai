@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getAllPosts, getPostBySlug } from '@/lib/blog';
 import Header from '@/components/Header';
+import { ArtisticCard } from '@/components/ui/ArtisticCard';
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://debateai.org';
 
@@ -85,7 +86,7 @@ export default function BlogIndex() {
                 >
                   <article className="relative">
                     <div className="absolute -inset-1 bg-gradient-to-r from-[var(--accent)]/0 to-[var(--accent)]/0 group-hover:from-[var(--accent)]/10 group-hover:to-[var(--accent-light)]/10 rounded-2xl blur opacity-0 group-hover:opacity-100 transition-all duration-300" />
-                    <div className="relative artistic-card p-6 sm:p-8 hover:border-[var(--accent)]/30 transition-all duration-300">
+                    <ArtisticCard className="relative p-6 sm:p-8 hover:border-[var(--accent)]/30 transition-all duration-300">
                       <div className="flex flex-col sm:flex-row gap-6">
                         {/* Hero Image */}
                         <div className="sm:w-1/3 aspect-[16/10] rounded-xl bg-gradient-to-br from-[var(--accent)]/20 to-[var(--accent-light)]/10 overflow-hidden shrink-0">
@@ -141,7 +142,7 @@ export default function BlogIndex() {
                           </div>
                         </div>
                       </div>
-                    </div>
+                    </ArtisticCard>
                   </article>
                 </Link>
               )}
@@ -158,7 +159,7 @@ export default function BlogIndex() {
                     >
                       <article className="relative h-full">
                         <div className="absolute -inset-1 bg-gradient-to-r from-[var(--accent)]/0 to-[var(--accent)]/0 group-hover:from-[var(--accent)]/10 group-hover:to-[var(--accent-light)]/10 rounded-2xl blur opacity-0 group-hover:opacity-100 transition-all duration-300" />
-                        <div className="relative artistic-card p-6 hover:border-[var(--accent)]/30 transition-all duration-300 h-full flex flex-col">
+                        <ArtisticCard className="relative p-6 hover:border-[var(--accent)]/30 transition-all duration-300 h-full flex flex-col">
                           {/* Tags */}
                           {post.tags.length > 0 && (
                             <div className="flex flex-wrap gap-1.5 mb-3">
@@ -191,7 +192,7 @@ export default function BlogIndex() {
                               })}
                             </time>
                           </div>
-                        </div>
+                        </ArtisticCard>
                       </article>
                     </Link>
                   ))}
