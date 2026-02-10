@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useToast } from './Toast';
+import { track } from '@/lib/analytics';
 
 interface ShareModalProps {
   isOpen: boolean;
@@ -98,6 +99,7 @@ export default function ShareModal({ isOpen, onClose, debateId, topic, opponentN
         </svg>
       ),
       action: () => {
+        track('debate_shared', { debateId, method: 'twitter', source: 'modal' });
         const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(debateUrl)}`;
         window.open(url, '_blank', 'width=550,height=420');
       },
@@ -111,6 +113,7 @@ export default function ShareModal({ isOpen, onClose, debateId, topic, opponentN
         </svg>
       ),
       action: () => {
+        track('debate_shared', { debateId, method: 'reddit', source: 'modal' });
         const url = `https://www.reddit.com/submit?title=${encodeURIComponent(shareText)}&url=${encodeURIComponent(debateUrl)}`;
         window.open(url, '_blank');
       },
@@ -124,6 +127,7 @@ export default function ShareModal({ isOpen, onClose, debateId, topic, opponentN
         </svg>
       ),
       action: () => {
+        track('debate_shared', { debateId, method: 'linkedin', source: 'modal' });
         const url = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(debateUrl)}`;
         window.open(url, '_blank');
       },
@@ -137,6 +141,7 @@ export default function ShareModal({ isOpen, onClose, debateId, topic, opponentN
         </svg>
       ),
       action: () => {
+        track('debate_shared', { debateId, method: 'facebook', source: 'modal' });
         const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(debateUrl)}`;
         window.open(url, '_blank', 'width=626,height=436');
       },
@@ -150,6 +155,7 @@ export default function ShareModal({ isOpen, onClose, debateId, topic, opponentN
     try {
       setIsCopying(true);
       await navigator.clipboard.writeText(debateUrl);
+      track('debate_shared', { debateId, method: 'copy_link', source: 'modal' });
       showToast('Link copied to clipboard!', 'success');
     } catch (err) {
       console.error('Failed to copy:', err);
@@ -167,6 +173,7 @@ export default function ShareModal({ isOpen, onClose, debateId, topic, opponentN
           text: shareTextWithOpponent,
           url: debateUrl,
         });
+        track('debate_shared', { debateId, method: 'native_share', source: 'modal' });
         onClose();
       } catch (err) {
         console.log('Share cancelled');
@@ -208,7 +215,7 @@ export default function ShareModal({ isOpen, onClose, debateId, topic, opponentN
               <button 
                 ref={closeButtonRef}
                 onClick={onClose}
-                className="p-2 rounded-lg text-[var(--text-tertiary)] hover:text-[var(--text)] hover:bg-[var(--bg-sunken)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50"
+                className="p-2 rounded-lg text-[var(--text-tertiary)] hover:text-[var(--text)] hover:bg-[var(--bg-sunken)] hover:scale-110 transition-all duration-150 ease-out focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50"
                 aria-label="Close share dialog"
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
@@ -259,7 +266,9 @@ export default function ShareModal({ isOpen, onClose, debateId, topic, opponentN
                     flex items-center gap-3 px-4 py-3 rounded-xl 
                     bg-[var(--bg-sunken)] border border-[var(--border)]/30
                     text-[var(--text)] font-medium text-sm
-                    transition-all duration-200
+                    hover:scale-[1.02] hover:shadow-md hover:border-[var(--border)]/50
+                    active:scale-[0.98]
+                    transition-all duration-150 ease-out
                     focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50
                     ${option.color}
                   `}
@@ -291,9 +300,11 @@ export default function ShareModal({ isOpen, onClose, debateId, topic, opponentN
                 className={`
                   px-4 py-2.5 rounded-xl font-medium text-sm
                   bg-[var(--accent)] text-white 
-                  hover:bg-[var(--accent-hover)] 
-                  transition-all duration-200
+                  hover:bg-[var(--accent-hover)] hover:scale-105 hover:shadow-lg hover:shadow-[var(--accent)]/20
+                  active:scale-95
+                  transition-all duration-150 ease-out
                   focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:ring-offset-2 focus:ring-offset-[var(--bg-elevated)]
+                  disabled:hover:scale-100 disabled:hover:shadow-none
                   ${isCopying ? 'scale-95' : ''}
                 `}
                 aria-label={isCopying ? 'Link copied' : 'Copy link to clipboard'}
@@ -310,8 +321,9 @@ export default function ShareModal({ isOpen, onClose, debateId, topic, opponentN
                 className="
                   w-full mt-3 px-4 py-3 rounded-xl font-medium text-sm
                   bg-[var(--accent)]/10 text-[var(--accent)] border border-[var(--accent)]/20
-                  hover:bg-[var(--accent)]/20 
-                  transition-all duration-200
+                  hover:bg-[var(--accent)]/20 hover:scale-[1.02] hover:shadow-md hover:shadow-[var(--accent)]/10
+                  active:scale-[0.98]
+                  transition-all duration-150 ease-out
                   flex items-center justify-center gap-2
                   focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50
                 "

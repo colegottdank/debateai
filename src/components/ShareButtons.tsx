@@ -42,9 +42,46 @@ export default function ShareButtons({ debateId, topic, className = '', onOpenMo
   };
   
   const showNativeShare = typeof navigator !== 'undefined' && !!navigator.share;
+  
+  const handleNativeShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'DebateAI',
+          text: shareText,
+          url: debateUrl,
+        });
+        track('debate_shared', { debateId, method: 'native_share' });
+      } catch (err) {
+        // User cancelled or share failed
+        console.log('Share cancelled');
+      }
+    }
+  };
 
   return (
     <div className={`flex items-center gap-1.5 ${className}`}>
+      {/* Native Share Button (Mobile) */}
+      {showNativeShare && (
+        <button
+          onClick={handleNativeShare}
+          className="
+            inline-flex items-center justify-center w-8 h-8 rounded-lg 
+            bg-[var(--accent)]/10 border border-[var(--accent)]/20 
+            text-[var(--accent)] 
+            hover:bg-[var(--accent)]/20 hover:scale-110 hover:shadow-md hover:shadow-[var(--accent)]/10
+            active:scale-95
+            transition-all duration-150 ease-out
+            focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50
+          "
+          aria-label="Share debate"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+          </svg>
+        </button>
+      )}
+      
       {/* Copy Link Button */}
       <button
         onClick={handleCopyLink}
@@ -52,9 +89,12 @@ export default function ShareButtons({ debateId, topic, className = '', onOpenMo
         className={`
           inline-flex items-center justify-center w-8 h-8 rounded-lg 
           bg-[var(--bg-elevated)] border border-[var(--border)]/30 
-          text-[var(--text-secondary)] hover:text-[var(--text)] hover:border-[var(--border)]/50 
-          transition-all duration-200
+          text-[var(--text-secondary)] 
+          hover:text-[var(--text)] hover:border-[var(--border)]/60 hover:bg-[var(--bg-sunken)] hover:scale-110 hover:shadow-md
+          active:scale-95
+          transition-all duration-150 ease-out
           focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50
+          disabled:hover:scale-100 disabled:hover:shadow-none
           ${isCopying ? 'scale-95' : ''}
         `}
         aria-label={isCopying ? 'Link copied' : 'Copy debate link to clipboard'}
@@ -71,8 +111,10 @@ export default function ShareButtons({ debateId, topic, className = '', onOpenMo
         className="
           inline-flex items-center justify-center w-8 h-8 rounded-lg 
           bg-[var(--bg-elevated)] border border-[var(--border)]/30 
-          text-[var(--text-secondary)] hover:text-[var(--text)] hover:border-[var(--border)]/50 
-          transition-all duration-200
+          text-[var(--text-secondary)] 
+          hover:text-[var(--text)] hover:border-[var(--border)]/60 hover:bg-[var(--bg-sunken)] hover:scale-110 hover:shadow-md
+          active:scale-95
+          transition-all duration-150 ease-out
           focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50
         "
         aria-label="Share on X (Twitter)"
@@ -89,8 +131,10 @@ export default function ShareButtons({ debateId, topic, className = '', onOpenMo
           className="
             inline-flex items-center justify-center w-8 h-8 rounded-lg 
             bg-[var(--accent)]/10 border border-[var(--accent)]/20 
-            text-[var(--accent)] hover:bg-[var(--accent)]/20 
-            transition-all duration-200
+            text-[var(--accent)] 
+            hover:bg-[var(--accent)]/20 hover:scale-110 hover:shadow-md hover:shadow-[var(--accent)]/10
+            active:scale-95
+            transition-all duration-150 ease-out
             focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50
           "
           aria-label="More sharing options"
