@@ -34,6 +34,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@next/bundle-analyzer": "^16.1.6",
     "@playwright/test": "^1.55.0",
     "@tailwindcss/postcss": "^4",
     "@types/marked": "^5.0.2",

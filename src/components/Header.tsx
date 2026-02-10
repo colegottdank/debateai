@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useState } from 'react';
 import { SafeSignedIn, SafeSignedOut, SafeSignInButton, SafeUserButton } from '@/lib/useSafeClerk';
 import ThemeToggle from './ThemeToggle';
@@ -19,10 +20,13 @@ export default function Header() {
             {/* Logo */}
             <Link href="/" className="flex items-center gap-2.5 group">
               <div className="relative w-8 h-8 rounded-lg overflow-hidden">
-                <img 
+                <Image 
                   src="/logo-icon.png" 
                   alt="DebateAI" 
+                  width={32}
+                  height={32}
                   className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  priority
                 />
               </div>
               <span className="text-[15px] font-semibold text-[var(--text)] tracking-tight">
