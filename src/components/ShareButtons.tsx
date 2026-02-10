@@ -68,8 +68,10 @@ export default function ShareButtons({ debateId, topic, className = '', onOpenMo
           className="
             inline-flex items-center justify-center w-8 h-8 rounded-lg 
             bg-[var(--accent)]/10 border border-[var(--accent)]/20 
-            text-[var(--accent)] hover:bg-[var(--accent)]/20 
-            transition-all duration-200
+            text-[var(--accent)] 
+            hover:bg-[var(--accent)]/20 hover:scale-110 hover:shadow-md hover:shadow-[var(--accent)]/10
+            active:scale-95
+            transition-all duration-150 ease-out
             focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50
           "
           aria-label="Share debate"
@@ -87,9 +89,12 @@ export default function ShareButtons({ debateId, topic, className = '', onOpenMo
         className={`
           inline-flex items-center justify-center w-8 h-8 rounded-lg 
           bg-[var(--bg-elevated)] border border-[var(--border)]/30 
-          text-[var(--text-secondary)] hover:text-[var(--text)] hover:border-[var(--border)]/50 
-          transition-all duration-200
+          text-[var(--text-secondary)] 
+          hover:text-[var(--text)] hover:border-[var(--border)]/60 hover:bg-[var(--bg-sunken)] hover:scale-110 hover:shadow-md
+          active:scale-95
+          transition-all duration-150 ease-out
           focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50
+          disabled:hover:scale-100 disabled:hover:shadow-none
           ${isCopying ? 'scale-95' : ''}
         `}
         aria-label={isCopying ? 'Link copied' : 'Copy debate link to clipboard'}
@@ -106,8 +111,10 @@ export default function ShareButtons({ debateId, topic, className = '', onOpenMo
         className="
           inline-flex items-center justify-center w-8 h-8 rounded-lg 
           bg-[var(--bg-elevated)] border border-[var(--border)]/30 
-          text-[var(--text-secondary)] hover:text-[var(--text)] hover:border-[var(--border)]/50 
-          transition-all duration-200
+          text-[var(--text-secondary)] 
+          hover:text-[var(--text)] hover:border-[var(--border)]/60 hover:bg-[var(--bg-sunken)] hover:scale-110 hover:shadow-md
+          active:scale-95
+          transition-all duration-150 ease-out
           focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50
         "
         aria-label="Share on X (Twitter)"
@@ -124,8 +131,10 @@ export default function ShareButtons({ debateId, topic, className = '', onOpenMo
           className="
             inline-flex items-center justify-center w-8 h-8 rounded-lg 
             bg-[var(--accent)]/10 border border-[var(--accent)]/20 
-            text-[var(--accent)] hover:bg-[var(--accent)]/20 
-            transition-all duration-200
+            text-[var(--accent)] 
+            hover:bg-[var(--accent)]/20 hover:scale-110 hover:shadow-md hover:shadow-[var(--accent)]/10
+            active:scale-95
+            transition-all duration-150 ease-out
             focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50
           "
           aria-label="More sharing options"
