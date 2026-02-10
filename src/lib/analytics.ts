@@ -14,6 +14,12 @@
  *   registerProvider((event, props) => {
  *     window.gtag?.('event', event, props);
  *   });
+ *
+ * Attribution:
+ *   All events are automatically enriched with UTM parameters and referrer
+ *   data captured on page load. See src/lib/utm.ts for details.
+ *   Fields added: utm_source, utm_medium, utm_campaign, utm_content,
+ *   utm_term, referrer, landing_page.
  */
 
 // ── Event definitions ────────────────────────────────────────────
@@ -72,7 +78,11 @@ export interface AnalyticsEvents {
     source: string;
   };
 
-  // Navigation
+  // Navigation & Attribution
+  session_started: {
+    landing_page: string;
+    // UTM params auto-attached by provider
+  };
   page_viewed: {
     path: string;
     title: string;
