@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { getPostBySlug, getAllPosts } from '@/lib/blog';
 import { articleJsonLd } from '@/lib/jsonld';
 import Header from '@/components/Header';
@@ -114,11 +115,14 @@ export default async function BlogPostPage({
 
             {/* Hero Image */}
             {post.image && (
-              <div className="mb-8 -mx-5 sm:mx-0">
-                <img 
+              <div className="mb-8 -mx-5 sm:mx-0 relative aspect-[2/1]">
+                <Image 
                   src={post.image} 
                   alt={post.title}
-                  className="w-full aspect-[2/1] object-cover rounded-none sm:rounded-xl"
+                  fill
+                  sizes="(max-width: 768px) 100vw, 768px"
+                  className="object-cover rounded-none sm:rounded-xl"
+                  priority
                 />
               </div>
             )}

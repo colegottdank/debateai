@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import Image from 'next/image';
 import { getAllPosts, getPostBySlug } from '@/lib/blog';
 import Header from '@/components/Header';
 
@@ -88,12 +89,15 @@ export default function BlogIndex() {
                     <div className="relative artistic-card p-6 sm:p-8 hover:border-[var(--accent)]/30 transition-all duration-300">
                       <div className="flex flex-col sm:flex-row gap-6">
                         {/* Hero Image */}
-                        <div className="sm:w-1/3 aspect-[16/10] rounded-xl bg-gradient-to-br from-[var(--accent)]/20 to-[var(--accent-light)]/10 overflow-hidden shrink-0">
+                        <div className="sm:w-1/3 aspect-[16/10] rounded-xl bg-gradient-to-br from-[var(--accent)]/20 to-[var(--accent-light)]/10 overflow-hidden shrink-0 relative">
                           {posts[0].image ? (
-                            <img 
+                            <Image 
                               src={posts[0].image} 
                               alt={posts[0].title}
-                              className="w-full h-full object-cover"
+                              fill
+                              sizes="(max-width: 640px) 100vw, 33vw"
+                              className="object-cover"
+                              priority
                             />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center">
