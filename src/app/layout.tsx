@@ -90,6 +90,11 @@ export default function RootLayout({
     <AuthProvider>
       <html lang="en" suppressHydrationWarning>
         <head>
+          {/* Preconnect to external services for faster resource loading */}
+          <link rel="preconnect" href="https://clerk.debateai.org" crossOrigin="anonymous" />
+          <link rel="dns-prefetch" href="https://clerk.debateai.org" />
+          <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+          
           <script
             type="application/ld+json"
             dangerouslySetInnerHTML={{
