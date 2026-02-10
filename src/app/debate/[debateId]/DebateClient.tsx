@@ -1,19 +1,21 @@
 "use client";
 
-import { useState, useEffect, useRef, memo } from "react";
+import { useState, useEffect, useRef, memo, lazy, Suspense } from "react";
 import React from "react";
 import { useSafeUser } from "@/lib/useSafeClerk";
 import { useParams, useSearchParams } from "next/navigation";
 import { getOpponentById } from "@/lib/opponents";
 import Header from "@/components/Header";
-import UpgradeModal from "@/components/UpgradeModal";
 import { track } from "@/lib/analytics";
 import { useToast } from "@/components/Toast";
 import ShareButtons from "@/components/ShareButtons";
-import ShareModal from "@/components/ShareModal";
 import DebateScoreCard from "@/components/DebateScoreCard";
 import { DebatePageSkeleton } from "@/components/Skeleton";
 import type { DebateScore } from "@/lib/scoring";
+
+// Lazy load modals - they're only shown on user interaction
+const UpgradeModal = lazy(() => import("@/components/UpgradeModal"));
+const ShareModal = lazy(() => import("@/components/ShareModal"));
 
 export interface DebateClientProps {
   initialDebate?: {
@@ -975,20 +977,29 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
         </div>
       </div>
 
-      <UpgradeModal
-        isOpen={showUpgradeModal}
-        onClose={() => setShowUpgradeModal(false)}
-        trigger="rate-limit-message"
-        limitData={rateLimitData}
-      />
+      {/* Lazy-loaded modals - only loaded when shown */}
+      {showUpgradeModal && (
+        <Suspense fallback={null}>
+          <UpgradeModal
+            isOpen={showUpgradeModal}
+            onClose={() => setShowUpgradeModal(false)}
+            trigger="rate-limit-message"
+            limitData={rateLimitData}
+          />
+        </Suspense>
+      )}
 
-      <ShareModal
-        isOpen={showShareModal}
-        onClose={() => setShowShareModal(false)}
-        debateId={debateId}
-        topic={debate?.topic || ''}
-        opponentName={opponent?.name || debate?.opponentStyle}
-      />
+      {showShareModal && (
+        <Suspense fallback={null}>
+          <ShareModal
+            isOpen={showShareModal}
+            onClose={() => setShowShareModal(false)}
+            debateId={debateId}
+            topic={debate?.topic || ''}
+            opponentName={opponent?.name || debate?.opponentStyle}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }
