@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { SafeSignedIn, SafeSignedOut, SafeSignInButton, SafeUserButton } from '@/lib/useSafeClerk';
+import { Button } from '@/components/ui/Button';
 import ThemeToggle from './ThemeToggle';
 import UpgradeModal from './UpgradeModal';
 import { useSubscription } from '@/lib/useSubscription';
@@ -54,15 +55,17 @@ export default function Header() {
                 </Link>
 
                 {!isLoading && !isPremium && (
-                  <button
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => setShowUpgradeModal(true)}
-                    className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[var(--accent)] bg-[var(--accent-subtle)] hover:bg-[var(--accent-faint)] rounded-lg transition-colors ml-1"
+                    className="hidden sm:flex text-[var(--accent)] hover:bg-[var(--accent-subtle)]"
                   >
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="w-3.5 h-3.5 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>
                     </svg>
                     Upgrade
-                  </button>
+                  </Button>
                 )}
               </SafeSignedIn>
 
@@ -78,9 +81,9 @@ export default function Header() {
                 </SafeSignedIn>
                 <SafeSignedOut>
                   <SafeSignInButton mode="modal">
-                    <button className="btn btn-primary btn-sm">
+                    <Button variant="primary" size="sm">
                       Sign In
-                    </button>
+                    </Button>
                   </SafeSignInButton>
                 </SafeSignedOut>
                 
