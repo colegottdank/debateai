@@ -10,6 +10,8 @@
 
 import { NextResponse } from 'next/server';
 import { z, ZodError } from 'zod';
+import { captureError } from '@/lib/sentry';
+import { logger } from '@/lib/logger';
 
 /** Standard API error response format */
 export interface ApiErrorResponse {
@@ -161,10 +163,22 @@ export function withErrorHandler<T>(
         return error;
       }
 
-      // Log unexpected errors
-      console.error('Unhandled API error:', error);
+      // Log and report unexpected errors
+      const url = request.url;
+      const method = request.method;
+      logger.error('api.unhandled_error', {
+        url,
+        method,
+        error: error instanceof Error ? error.message : String(error),
+      });
 
-      // Return generic internal error
+      // Report to Sentry with request context
+      captureError(error, {
+        tags: { api_route: url, method },
+        extra: { url, method },
+      });
+
+      // Return generic internal error (never leak details)
       return errors.internal();
     }
   };
