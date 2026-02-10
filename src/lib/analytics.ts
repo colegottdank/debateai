@@ -54,11 +54,19 @@ export interface AnalyticsEvents {
     aiScore: number;
   };
 
+  debate_rematch: {
+    debateId: string;
+    originalDebateId: string;
+    topic: string;
+    opponent: string;
+    source: 'rematch' | string; // rematch = same topic, topic-* = suggested topic
+  };
+
   // Sharing
   debate_shared: {
     debateId: string;
     method: 'copy_link' | 'twitter' | 'facebook' | 'linkedin' | 'reddit' | 'native_share';
-    source?: 'button' | 'modal';
+    source?: 'button' | 'modal' | 'post_debate';
   };
   share_button_clicked: {
     debateId: string;
