@@ -327,6 +327,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
   const [debateScore, setDebateScore] = useState<DebateScore | null>(null);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const hasUserInteracted = useRef(false);
 
   // Dev mode check from URL
   const isDevMode = searchParams.get('dev') === 'true';
@@ -400,6 +401,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
     if (isInstant && firstArgument && debate && !isLoadingDebate) {
       // Mark instant debate as active - prevents loadDebate from overwriting messages
       instantDebateActiveRef.current = true;
+      hasUserInteracted.current = true;
 
       // Clear session storage
       sessionStorage.removeItem('isInstantDebate');
@@ -559,8 +561,10 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
     }
   }, [debate, isLoadingDebate, debateId, isDevMode, showToast]);
 
-  // Auto-scroll - use instant scroll during streaming to prevent bouncing
+  // Auto-scroll - skip on initial SSR render so the page doesn't load scrolled past the top.
+  // Only scroll after the user starts interacting (sending messages).
   useEffect(() => {
+    if (!hasUserInteracted.current) return;
     if (isAutoScrollEnabled && messagesEndRef.current) {
       // Use 'instant' scroll during AI streaming to prevent layout bouncing
       const behavior = isAILoading ? 'instant' : 'smooth';
@@ -590,6 +594,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
     if (!userInput.trim() || isUserLoading || isAILoading) return;
 
     const messageText = userInput.trim();
+    hasUserInteracted.current = true;
 
     // Add user message immediately
     const userMessage = {

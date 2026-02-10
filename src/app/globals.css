@@ -1,6 +1,12 @@
 @import "tailwindcss";
 @import "../components/backgrounds/artistic-styles.css";
 
+/* Prevent horizontal scroll on mobile — gradient orbs extend past viewport */
+html,
+body {
+  overflow-x: hidden;
+}
+
 :root {
   /* ============================================
      DESIGN SYSTEM - DebateAI
