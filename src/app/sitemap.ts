@@ -1,6 +1,7 @@
 import type { MetadataRoute } from 'next';
 import { d1 } from '@/lib/d1';
 import { getAllPosts } from '@/lib/blog';
+import { getAllPages } from '@/lib/pages';
 
 // Force Node.js runtime for file system access
 export const runtime = 'nodejs';
@@ -73,5 +74,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     console.error('Sitemap: CWD:', process.cwd());
   }
 
-  return [...staticPages, ...blogPages, ...debatePages];
+  // SEO landing pages (compare, tools, guides)
+  let seoPages: MetadataRoute.Sitemap = [];
+
+  try {
+    const pages = getAllPages();
+    console.log(`Sitemap: Found ${pages.length} SEO pages`);
+    seoPages = pages.map((page) => ({
+      url: `${baseUrl}/${page.category}/${page.slug}`,
+      lastModified: new Date(page.date),
+      changeFrequency: 'monthly' as const,
+      priority: 0.8,
+    }));
+  } catch (error) {
+    console.error('Sitemap: Failed to load SEO pages:', error);
+  }
+
+  return [...staticPages, ...seoPages, ...blogPages, ...debatePages];
 }

@@ -85,8 +85,12 @@ export function debateJsonLd(debate: {
 }
 
 /**
- * Article schema for blog posts.
+ * Article schema for blog posts and SEO pages.
  * Enables rich results for articles in Google Search.
+ *
+ * @param post.slug - For blog posts use the slug (e.g. "my-post").
+ *   For SEO pages pass the full path segment (e.g. "compare/debateai-vs-chatgpt").
+ * @param post.basePath - Optional base path. Defaults to "/blog".
  */
 export function articleJsonLd(post: {
   slug: string;
@@ -96,8 +100,10 @@ export function articleJsonLd(post: {
   author: string;
   tags: string[];
   image?: string;
+  basePath?: string;
 }) {
-  const postUrl = `${BASE_URL}/blog/${post.slug}`;
+  const base = post.basePath ?? '/blog';
+  const postUrl = `${BASE_URL}${base}/${post.slug}`;
 
   return {
     '@context': 'https://schema.org',
