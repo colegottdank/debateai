@@ -433,3 +433,62 @@ textarea:focus-visible,
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-tertiary);
 }
+
+/* ============================================
+   BLOG CONTENT STYLES
+   ============================================ */
+.blog-content > p:first-of-type {
+  font-size: 1.125rem;
+  line-height: 1.75;
+  color: var(--text);
+  font-style: italic;
+  margin-bottom: 2rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.blog-content > p:first-of-type em,
+.blog-content > p:first-of-type i {
+  font-style: normal;
+}
+
+/* Remove extra top margin on paragraphs following headings */
+.blog-content h2 + p,
+.blog-content h3 + p {
+  margin-top: 0;
+}
+
+/* Style list markers with accent color */
+.blog-content ul > li::marker,
+.blog-content ol > li::marker {
+  color: var(--accent);
+}
+
+/* Ensure nested lists have proper indentation */
+.blog-content ul ul,
+.blog-content ol ol,
+.blog-content ul ol,
+.blog-content ol ul {
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+  padding-left: 1.5rem;
+}
+
+/* Style horizontal rules as section dividers */
+.blog-content hr {
+  margin: 2.5rem 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+  opacity: 0.5;
+}
+
+/* Strong text in lists (for numbered bold headings) */
+.blog-content li strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* Blockquote refinements */
+.blog-content blockquote p:last-child {
+  margin-bottom: 0;
+}
