@@ -13,8 +13,15 @@ const isPublicRoute = createRouteMatcher([
   '/api/trending',       // Public trending endpoint
   '/api/stats',          // Public platform stats
   '/api/metrics/(.*)',   // Metrics endpoints (temporary)
+  '/api/topics/(.*)',    // Public daily topic + history
+  '/api/health',         // Health check endpoint
+  '/api/cron/(.*)',      // Vercel cron endpoints (protected by CRON_SECRET)
   '/blog',            // Public blog index
   '/blog/(.*)',        // Public blog posts
+  '/compare/(.*)',    // SEO comparison pages
+  '/tools/(.*)',      // SEO tools pages
+  '/guides/(.*)',     // SEO guide pages
+  '/topics/(.*)',     // Topic history page
   '/debate',  // Allow access to debate setup page (will handle auth client-side)
   '/debate/(.*)',  // Allow debate pages to load and handle auth client-side
   '/history',  // Allow history page to load and handle auth client-side
