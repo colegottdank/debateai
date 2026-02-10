@@ -11,9 +11,15 @@ const nextConfig: NextConfig = {
   // - SentryProvider component for client
   // No withSentryConfig wrapper needed (causes issues with Next.js 15)
   
-  // Image optimization
+  // Image optimization - serve modern formats
   images: {
     formats: ['image/avif', 'image/webp'],
+  },
+  
+  // Experimental optimizations
+  experimental: {
+    // Optimize package imports for smaller bundles
+    optimizePackageImports: ['@clerk/nextjs', 'sonner'],
   },
 };
 
