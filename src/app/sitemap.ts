@@ -2,6 +2,9 @@ import type { MetadataRoute } from 'next';
 import { d1 } from '@/lib/d1';
 import { getAllPosts } from '@/lib/blog';
 
+// Force Node.js runtime for file system access
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 export const revalidate = 3600; // Regenerate every hour
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -57,6 +60,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   try {
     const posts = getAllPosts();
+    console.log(`Sitemap: Found ${posts.length} blog posts`);
     blogPages = posts.map((post) => ({
       url: `${baseUrl}/blog/${post.slug}`,
       lastModified: new Date(post.date),
@@ -65,6 +69,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }));
   } catch (error) {
     console.error('Sitemap: Failed to load blog posts:', error);
+    // Log additional debug info
+    console.error('Sitemap: CWD:', process.cwd());
   }
 
   return [...staticPages, ...blogPages, ...debatePages];

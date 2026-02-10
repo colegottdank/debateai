@@ -1,8 +1,59 @@
 import { Suspense } from 'react';
+import type { Metadata } from 'next';
 import { d1 } from '@/lib/d1';
 import { getOpponentById } from '@/lib/opponents';
 import { debateJsonLd } from '@/lib/jsonld';
 import DebateClient from './DebateClient';
+
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://debateai.org';
+
+// Generate dynamic metadata for SEO
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ debateId: string }>;
+}): Promise<Metadata> {
+  const { debateId } = await params;
+
+  try {
+    const result = await d1.getDebate(debateId);
+    if (result.success && result.debate) {
+      const debate = result.debate as Record<string, unknown>;
+      const topic = (debate.topic as string) || 'AI Debate';
+      const opponent = getOpponentById((debate.opponent || debate.character) as any);
+      const opponentName = (debate.opponentStyle as string) || opponent?.name || 'AI';
+
+      return {
+        title: `${topic} — Debate vs ${opponentName}`,
+        description: `Watch an AI debate about "${topic}". ${opponentName} argues the opposing position on DebateAI.`,
+        openGraph: {
+          title: `${topic} — AI Debate`,
+          description: `An intellectual debate about "${topic}" on DebateAI.`,
+          url: `${BASE_URL}/debate/${debateId}`,
+          type: 'article',
+          images: [{
+            url: `${BASE_URL}/api/og?topic=${encodeURIComponent(topic)}&opponent=${encodeURIComponent(opponentName)}`,
+            width: 1200,
+            height: 630,
+          }],
+        },
+        twitter: {
+          card: 'summary_large_image',
+          title: `${topic} — AI Debate`,
+          description: `An intellectual debate about "${topic}" on DebateAI.`,
+        },
+      };
+    }
+  } catch (error) {
+    console.error('generateMetadata: Failed to fetch debate:', error);
+  }
+
+  // Fallback metadata
+  return {
+    title: 'AI Debate',
+    description: 'An intellectual debate on DebateAI.',
+  };
+}
 
 // Server component — fetches debate data for SSR
 // Crawlers see real HTML content; client hydrates with full interactivity
