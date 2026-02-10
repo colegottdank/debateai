@@ -411,7 +411,11 @@ describe('rate limiting on API routes', () => {
       const src = readSrc(route);
       assert.ok(src.includes('createRateLimiter'), `${route} must import createRateLimiter`);
       assert.ok(src.includes('getClientIp'), `${route} must import getClientIp`);
-      assert.ok(src.includes('rateLimitResponse'), `${route} must import rateLimitResponse`);
+      // Accept either legacy rateLimitResponse or new errors.rateLimited pattern
+      assert.ok(
+        src.includes('rateLimitResponse') || src.includes('errors.rateLimited'),
+        `${route} must import rateLimitResponse or use errors.rateLimited`
+      );
     });
 
     it(`${route}: IP limit is ${expectedIpLimit}/min`, () => {
