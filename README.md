@@ -176,3 +176,5 @@ src/
 
 MIT
 <!-- E2E Test Mon Feb  9 11:47:55 PST 2026 -->
+
+<!-- E2E auto-merge test: 2026-02-09T22:57:00 -->
