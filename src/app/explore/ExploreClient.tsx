@@ -147,11 +147,24 @@ export default function ExploreClient() {
           {Array.from({ length: 6 }).map((_, i) => (
             <div
               key={i}
-              className="rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] p-4 animate-pulse"
+              className="rounded-xl border border-[var(--border)]/50 bg-[var(--bg-elevated)] p-4 sm:p-5"
             >
-              <div className="h-5 bg-[var(--bg-sunken)] rounded w-3/4 mb-3" />
-              <div className="h-3 bg-[var(--bg-sunken)] rounded w-1/2 mb-2" />
-              <div className="h-3 bg-[var(--bg-sunken)] rounded w-full" />
+              {/* Top row: topic + badge */}
+              <div className="flex items-start justify-between gap-3 mb-3">
+                <div className="h-5 bg-[var(--bg-sunken)] rounded animate-pulse w-3/4" />
+                <div className="h-5 bg-[var(--bg-sunken)] rounded animate-pulse w-16 flex-shrink-0" />
+              </div>
+              {/* Preview text */}
+              <div className="h-3 bg-[var(--bg-sunken)] rounded animate-pulse w-full mb-2" />
+              <div className="h-3 bg-[var(--bg-sunken)] rounded animate-pulse w-2/3 mb-4" />
+              {/* Meta row */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="h-3 bg-[var(--bg-sunken)] rounded animate-pulse w-20" />
+                  <div className="h-3 bg-[var(--bg-sunken)] rounded animate-pulse w-24" />
+                </div>
+                <div className="h-3 bg-[var(--bg-sunken)] rounded animate-pulse w-12" />
+              </div>
             </div>
           ))}
         </div>
@@ -159,17 +172,22 @@ export default function ExploreClient() {
 
       {/* Empty state */}
       {!loading && !error && debates.length === 0 && (
-        <div className="text-center py-16">
-          <div className="text-4xl mb-3">🏟️</div>
-          <h3 className="text-base font-semibold text-[var(--text)] mb-1">No debates yet</h3>
-          <p className="text-sm text-[var(--text-secondary)] mb-4">
-            Be the first to complete a debate and appear here!
+        <div className="text-center py-16 px-4">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[var(--bg-sunken)] border border-[var(--border)] flex items-center justify-center">
+            <span className="text-3xl">💬</span>
+          </div>
+          <h3 className="text-lg font-semibold text-[var(--text)] mb-2">No debates yet</h3>
+          <p className="text-sm text-[var(--text-secondary)] mb-6 max-w-sm mx-auto">
+            Be the first to complete a debate and inspire others with your arguments!
           </p>
           <Link
             href="/"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--accent)] text-white text-sm font-medium hover:bg-[var(--accent-hover)] transition-colors"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--accent)] text-white text-sm font-medium hover:bg-[var(--accent-hover)] transition-colors"
           >
-            Start a Debate →
+            <span>Start a Debate</span>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            </svg>
           </Link>
         </div>
       )}
