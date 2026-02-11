@@ -64,6 +64,19 @@ export interface AnalyticsEvents {
     debateId: string;
     location: 'topic_header' | 'score_screen' | 'embed';
   };
+  share_image_generated: {
+    debateId: string;
+  };
+  share_image_downloaded: {
+    debateId: string;
+  };
+  share_image_shared: {
+    debateId: string;
+    method: 'twitter' | 'download' | 'copy_link';
+  };
+  share_image_copied: {
+    debateId: string;
+  };
 
   // Engagement
   cta_clicked: {

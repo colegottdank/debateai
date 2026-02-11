@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { DebateScore } from "@/lib/scoring";
+import ShareImageModal from "./ShareImageModal";
 
 interface DebateScoreCardProps {
   debateId: string;
@@ -9,6 +10,8 @@ interface DebateScoreCardProps {
   onScoreGenerated?: (score: DebateScore) => void;
   opponentName?: string;
   messageCount: number; // total user messages — need >= 2 to score
+  messages?: Array<{ role: string; content: string }>;
+  topic?: string;
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -54,10 +57,13 @@ export default function DebateScoreCard({
   onScoreGenerated,
   opponentName = "AI",
   messageCount,
+  messages = [],
+  topic = "",
 }: DebateScoreCardProps) {
   const [score, setScore] = useState<DebateScore | null>(initialScore || null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showShareImageModal, setShowShareImageModal] = useState(false);
 
   const canScore = messageCount >= 2;
 
@@ -200,8 +206,40 @@ export default function DebateScoreCard({
             <div className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1 font-medium">💥 Key Moment</div>
             <p className="text-xs text-[var(--text-secondary)] leading-relaxed">{score.keyMoment}</p>
           </div>
+
+          {/* Share as Image Button */}
+          <button
+            onClick={() => setShowShareImageModal(true)}
+            className="
+              w-full mt-4 px-4 py-3 rounded-xl font-medium text-sm
+              bg-gradient-to-r from-orange-500 to-red-500 text-white
+              hover:from-orange-600 hover:to-red-600 hover:scale-[1.02] hover:shadow-lg
+              active:scale-[0.98]
+              transition-all duration-150 ease-out
+              flex items-center justify-center gap-2
+              focus:outline-none focus:ring-2 focus:ring-orange-500/50
+            "
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            Share as Image
+          </button>
         </div>
       </div>
+
+      {/* Share Image Modal */}
+      {showShareImageModal && (
+        <ShareImageModal
+          isOpen={showShareImageModal}
+          onClose={() => setShowShareImageModal(false)}
+          debateId={debateId}
+          topic={topic}
+          opponentName={opponentName}
+          messages={messages}
+          score={score ? { winner: score.winner, userScore: score.userScore, aiScore: score.aiScore } : null}
+        />
+      )}
     </div>
   );
 }

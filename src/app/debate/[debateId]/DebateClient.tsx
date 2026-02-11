@@ -871,6 +871,8 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
               }}
               opponentName={opponent?.name || debate?.opponentStyle || "AI"}
               messageCount={messages.filter(m => m.role === 'user').length}
+              messages={messages}
+              topic={debate?.topic || ""}
             />
           )}
 
