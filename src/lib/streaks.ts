@@ -287,6 +287,7 @@ export interface LeaderboardEntry {
   rank: number;
   userId: string;
   displayName: string | null;
+  username: string | null;
   totalDebates: number;
   totalWins: number;
   currentStreak: number;
@@ -338,9 +339,11 @@ export async function getLeaderboard(
        sk.current_streak,
        sk.longest_streak,
        sk.total_points,
-       sk.last_debate_date
+       sk.last_debate_date,
+       up.username
      FROM user_stats st
      JOIN user_streaks sk ON st.user_id = sk.user_id
+     LEFT JOIN user_profiles up ON st.user_id = up.user_id
      WHERE ${debatesCol} >= ?
      ORDER BY ${orderBy}
      LIMIT ?`,
@@ -375,6 +378,7 @@ export async function getLeaderboard(
       rank: idx + 1,
       userId: r.user_id as string,
       displayName: r.display_name as string | null,
+      username: (r.username as string) || null,
       totalDebates,
       totalWins,
       currentStreak,
