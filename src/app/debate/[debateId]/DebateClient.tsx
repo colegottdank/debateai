@@ -10,6 +10,7 @@ import { track } from "@/lib/analytics";
 import { useToast } from "@/components/Toast";
 import ShareButtons from "@/components/ShareButtons";
 import DebateScoreCard from "@/components/DebateScoreCard";
+import JudgeMessage from "@/components/JudgeMessage";
 import PostDebateEngagement from "@/components/PostDebateEngagement";
 import { DebatePageSkeleton } from "@/components/Skeleton";
 import type { DebateScore } from "@/lib/scoring";
@@ -372,12 +373,16 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
         character: "elon",
         messages: [
           { role: "user", content: "I think AI should be regulated to ensure safety and prevent misuse. We need guardrails in place before it's too late." },
-          { role: "ai", content: "I disagree. Regulation stifles innovation. We need to move fast and break things. The market will self-regulate. Look at how the tech industry has evolved - innovation happens when smart people are free to experiment, not when bureaucrats write rules about technology they don't understand." }
+          { role: "ai", content: "I disagree. Regulation stifles innovation. We need to move fast and break things. The market will self-regulate. Look at how the tech industry has evolved - innovation happens when smart people are free to experiment, not when bureaucrats write rules about technology they don't understand." },
+          { role: "user", content: "But what about safety? We've seen AI systems produce harmful content and make biased decisions. Without regulation, companies will prioritize profit over public good." },
+          { role: "ai", content: "Safety is important, but heavy-handed regulation kills innovation. Look at the EU's AI Act - it's already pushing AI development to other regions. The market naturally corrects for bad actors when consumers demand better." }
         ]
       });
       setMessages([
         { role: "user", content: "I think AI should be regulated to ensure safety and prevent misuse. We need guardrails in place before it's too late." },
-        { role: "ai", content: "I disagree. Regulation stifles innovation. We need to move fast and break things. The market will self-regulate. Look at how the tech industry has evolved - innovation happens when smart people are free to experiment, not when bureaucrats write rules about technology they don't understand." }
+        { role: "ai", content: "I disagree. Regulation stifles innovation. We need to move fast and break things. The market will self-regulate. Look at how the tech industry has evolved - innovation happens when smart people are free to experiment, not when bureaucrats write rules about technology they don't understand." },
+        { role: "user", content: "But what about safety? We've seen AI systems produce harmful content and make biased decisions. Without regulation, companies will prioritize profit over public good." },
+        { role: "ai", content: "Safety is important, but heavy-handed regulation kills innovation. Look at the EU's AI Act - it's already pushing AI development to other regions. The market naturally corrects for bad actors when consumers demand better." }
       ]);
       setIsLoadingDebate(false);
       return;
@@ -1047,22 +1052,11 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
             />
           ))}
 
-          {/* Score Card - show after messages when not streaming */}
-          {!isAILoading && !isUserLoading && messages.filter(m => m.role === 'user').length >= 2 && (
-            <DebateScoreCard
-              debateId={debateId}
+          {/* Score Card - show inline judge message when score exists */}
+          {debateScore && (
+            <JudgeMessage
               score={debateScore}
-              onScoreGenerated={(score) => {
-                setDebateScore(score);
-                track('debate_scored', {
-                  debateId,
-                  winner: score.winner,
-                  userScore: score.userScore,
-                  aiScore: score.aiScore,
-                });
-              }}
               opponentName={opponent?.name || debate?.opponentStyle || "AI"}
-              messageCount={messages.filter(m => m.role === 'user').length}
             />
           )}
 
