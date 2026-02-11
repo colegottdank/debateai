@@ -63,8 +63,23 @@ export async function POST(request: Request) {
       userArgument,
       previousMessages,
       isAIAssisted,
-      promptVariant,
     } = body;
+
+    // Get existing debate state for A/B test variant
+    const existingDebate = debateId ? await d1.getDebate(debateId) : { success: false };
+    let assignedVariant = 'default';
+
+    if (existingDebate.success && existingDebate.debate?.promptVariant) {
+      // 2. Debate exists, use its already-assigned variant
+      assignedVariant = existingDebate.debate.promptVariant as string;
+    } else {
+      // 1. New debate, so assign a variant based on user ID hash
+      // Simple deterministic hash: even/odd ASCII value of last char of userId
+      const lastChar = userId.slice(-1);
+      if (lastChar.charCodeAt(0) % 2 === 0) {
+        assignedVariant = 'aggressive';
+      }
+    }
 
     log.info('message.received', {
       userId,
@@ -73,7 +88,7 @@ export async function POST(request: Request) {
       character,
       messageIndex: previousMessages.length,
       isAIAssisted,
-      promptVariant,
+      promptVariant: assignedVariant, // Log the assigned variant
     });
     
     // Deduplicate debate creation: if no debateId and same user+topic within 30s, reuse existing
@@ -106,7 +121,7 @@ export async function POST(request: Request) {
     let systemPrompt: string;
     const isFirstResponse = !previousMessages || previousMessages.length === 0;
 
-    if (promptVariant === 'aggressive') {
+    if (assignedVariant === 'aggressive') {
       log.info('prompt.variant.used', { variant: 'aggressive', debateId: debateId || 'new' });
       systemPrompt = getAggressiveDebatePrompt(topic, isFirstResponse);
     } else {
@@ -375,6 +390,7 @@ export async function POST(request: Request) {
                 messages: existingMessages,
                 debateId,
                 opponentStyle,
+                promptVariant: assignedVariant,
               });
             }
           }
