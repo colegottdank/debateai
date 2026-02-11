@@ -63,7 +63,7 @@ export const GET = withErrorHandler(async (request: Request) => {
 
     // Debates with score_data (completed/scored)
     d1.query(
-      `SELECT COUNT(*) as total FROM debates WHERE ${REAL_DEBATES_FILTER} AND score_data IS NOT NULL AND score_data != 'null'`,
+      `SELECT COUNT(*) as total FROM debates WHERE ${REAL_DEBATES_FILTER} AND score_data IS NOT NULL AND json_extract(score_data, '$.debateScore') IS NOT NULL`,
       []
     ),
 
