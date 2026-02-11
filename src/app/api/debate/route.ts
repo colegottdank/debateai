@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getUserId } from "@/lib/auth-helper";
 import { d1 } from "@/lib/d1";
 import { getDebatePrompt, getDailyPersona } from "@/lib/prompts";
+import { getAggressiveDebatePrompt } from "@/lib/prompts.aggressive";
 import { checkAppDisabled } from "@/lib/app-disabled";
 import { createRateLimiter, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
 import { errors, validateBody } from "@/lib/api-errors";
@@ -62,6 +63,7 @@ export async function POST(request: Request) {
       userArgument,
       previousMessages,
       isAIAssisted,
+      promptVariant,
     } = body;
 
     log.info('message.received', {
@@ -71,6 +73,7 @@ export async function POST(request: Request) {
       character,
       messageIndex: previousMessages.length,
       isAIAssisted,
+      promptVariant,
     });
 
     // Deduplicate debate creation: if no debateId and same user+topic within 30s, reuse existing
@@ -98,12 +101,18 @@ export async function POST(request: Request) {
       }
     }
 
-    // Get the appropriate system prompt from our centralized prompts
-    // Always use the persona-based prompt (either custom or daily)
-    const persona = opponentStyle || getDailyPersona();
-    // Detect first response: no previous messages means this is the opening exchange
+    // A/B Test for Aggressive Persona Spike
+    let systemPrompt: string;
     const isFirstResponse = !previousMessages || previousMessages.length === 0;
-    const systemPrompt = getDebatePrompt(persona, topic, isFirstResponse);
+
+    if (promptVariant === 'aggressive') {
+      log.info('prompt.variant.used', { variant: 'aggressive', debateId: debateId || 'new' });
+      systemPrompt = getAggressiveDebatePrompt(topic, isFirstResponse);
+    } else {
+      // Default behavior
+      const persona = opponentStyle || getDailyPersona();
+      systemPrompt = getDebatePrompt(persona, topic, isFirstResponse);
+    }
 
     // Build conversation history for Anthropic SDK format
     const messages: Anthropic.MessageParam[] = [];
