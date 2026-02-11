@@ -420,6 +420,10 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
   // Dev mode check from URL
   const isDevMode = searchParams.get('dev') === 'true';
 
+  // Highlight message logic
+  const highlightedMessageId = searchParams.get('highlight_message_id');
+  const highlightedMessageIndex = highlightedMessageId ? parseInt(highlightedMessageId, 10) : null;
+
   // Load debate - skip fetch if server provided initial data
   // Revalidate on mount to fix back button cache issues
   useEffect(() => {
