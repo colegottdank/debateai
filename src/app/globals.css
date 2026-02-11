@@ -53,6 +53,7 @@ body {
   --text-tertiary: var(--gray-400);
 
   --accent: var(--primary-600);
+  --accent-rgb: 181, 77, 48;
   --accent-hover: var(--primary-700);
   --accent-light: var(--primary-400);
   --accent-subtle: var(--primary-100);
@@ -92,6 +93,7 @@ body {
   --text-tertiary: var(--gray-500);
 
   --accent: var(--primary-400);
+  --accent-rgb: 232, 179, 163;
   --accent-hover: var(--primary-300);
   --accent-light: var(--primary-500);
   --accent-subtle: rgba(232, 179, 163, 0.15);
@@ -513,4 +515,24 @@ textarea:focus-visible,
 
 .animate-confetti-fall {
   animation: confetti-fall 1.5s ease-out forwards;
+}
+
+/* ── Message Highlight Animation ─────────────────────────── */
+@keyframes highlight-pulse {
+  0% {
+    background-color: transparent;
+    box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0);
+  }
+  30% {
+    background-color: rgba(var(--accent-rgb), 0.1);
+    box-shadow: 0 0 0 4px rgba(var(--accent-rgb), 0.2);
+  }
+  100% {
+    background-color: transparent;
+    box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0);
+  }
+}
+
+.animate-highlight-pulse {
+  animation: highlight-pulse 2s ease-out forwards;
 }

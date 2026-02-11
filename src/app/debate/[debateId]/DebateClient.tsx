@@ -101,6 +101,10 @@ const Message = memo(
     isAILoading,
     isUserLoading,
     onRetry,
+    messageIndex,
+    isHighlighted,
+    debateId,
+    onShare,
   }: {
     msg: {
       role: string;
@@ -116,12 +120,27 @@ const Message = memo(
     isAILoading: boolean;
     isUserLoading?: boolean;
     onRetry?: () => void;
+    messageIndex: number;
+    isHighlighted?: boolean;
+    debateId: string;
+    onShare?: (messageIndex: number) => void;
   }) => {
     const isUser = msg.role === "user";
     const isStreaming = (isUser && isUserLoading) || (!isUser && isAILoading);
     const isFailed = msg.failed;
     const hasContent = msg.content && msg.content.length > 0;
     const [showCitations, setShowCitations] = useState(false);
+    const [showShareTooltip, setShowShareTooltip] = useState(false);
+    const messageRef = useRef<HTMLDivElement>(null);
+
+    // Scroll into view if highlighted
+    useEffect(() => {
+      if (isHighlighted && messageRef.current) {
+        setTimeout(() => {
+          messageRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
+      }
+    }, [isHighlighted]);
     const [highlightedCitation, setHighlightedCitation] = useState<number | null>(null);
     const citationRefs = useRef<{ [key: number]: HTMLAnchorElement | null }>({});
 
@@ -149,7 +168,10 @@ const Message = memo(
     };
 
     return (
-      <div className={`py-5 ${isUser ? '' : 'bg-[var(--bg-elevated)]/60 border-y border-[var(--border)]/30'} ${isFailed ? 'opacity-80' : ''}`}>
+      <div
+        ref={messageRef}
+        className={`py-5 ${isUser ? '' : 'bg-[var(--bg-elevated)]/60 border-y border-[var(--border)]/30'} ${isFailed ? 'opacity-80' : ''} ${isHighlighted ? 'animate-highlight-pulse' : ''}`}
+      >
         <div className="max-w-3xl mx-auto px-4 sm:px-6">
           <div className="flex gap-3">
             {/* Avatar */}
@@ -172,15 +194,41 @@ const Message = memo(
 
             {/* Content */}
             <div className="flex-1 min-w-0 pt-0.5">
-              {/* Name */}
-              <div className="flex items-center gap-2 mb-1">
-                <span className="font-semibold text-sm text-[var(--text)]">
-                  {isUser ? "You" : (opponent?.name || debate?.opponentStyle || "AI Opponent")}
-                </span>
-                {msg.aiAssisted && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--accent)]/10 text-[var(--accent)] font-medium">
-                    AI-assisted
+              {/* Name + Share */}
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-sm text-[var(--text)]">
+                    {isUser ? "You" : (opponent?.name || debate?.opponentStyle || "AI Opponent")}
                   </span>
+                  {msg.aiAssisted && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--accent)]/10 text-[var(--accent)] font-medium">
+                      AI-assisted
+                    </span>
+                  )}
+                </div>
+                {/* Share button */}
+                {onShare && (
+                  <div className="relative">
+                    <button
+                      onClick={() => {
+                        onShare(messageIndex);
+                        setShowShareTooltip(true);
+                        setTimeout(() => setShowShareTooltip(false), 2000);
+                      }}
+                      className="flex items-center gap-1 px-2 py-1 rounded-md text-xs text-[var(--text-tertiary)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/5 transition-colors"
+                      title="Share this message"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/>
+                      </svg>
+                      <span>Share</span>
+                    </button>
+                    {showShareTooltip && (
+                      <div className="absolute right-0 top-full mt-1 px-2 py-1 bg-[var(--bg-elevated)] border border-[var(--border)] rounded text-xs text-[var(--text-secondary)] whitespace-nowrap z-10 shadow-md">
+                        Link copied!
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
 
@@ -329,6 +377,10 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
   const [showShareModal, setShowShareModal] = useState(false);
   const [rateLimitData, setRateLimitData] = useState<{ current: number; limit: number } | undefined>();
   const [debateScore, setDebateScore] = useState<DebateScore | null>(null);
+
+  // Shareable moments - highlighted message
+  const highlightMessageId = searchParams.get('highlight_message_id');
+  const highlightedMessageIndex = highlightMessageId ? parseInt(highlightMessageId, 10) : null;
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const hasUserInteracted = useRef(false);
@@ -953,6 +1005,23 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
     }
   };
 
+  // Share handler - copies link to specific message
+  const handleShareMessage = (messageIndex: number) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('highlight_message_id', messageIndex.toString());
+    const shareUrl = url.toString();
+
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      showToast('Link copied! Share this moment from the debate.', 'success');
+      track('debate_message_shared', {
+        debateId,
+        messageIndex,
+      });
+    }).catch(() => {
+      showToast('Failed to copy link. Try again.', 'error');
+    });
+  };
+
   // Error state - show error with retry
   if (loadError) {
     return (
@@ -1049,6 +1118,10 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
                 setMessages(prev => prev.filter((_, i) => i !== idx));
                 setUserInput(msg.content);
               } : undefined}
+              messageIndex={idx}
+              isHighlighted={highlightedMessageIndex === idx}
+              debateId={debateId}
+              onShare={handleShareMessage}
             />
           ))}
 
