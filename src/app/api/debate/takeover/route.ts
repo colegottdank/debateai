@@ -238,6 +238,7 @@ export async function POST(request: Request) {
             controller.enqueue(
               encoder.encode(
                 `data: ${JSON.stringify({
+                  type: "error",
                   error: "Failed to generate AI argument",
                 })}\n\n`
               )
