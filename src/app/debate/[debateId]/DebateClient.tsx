@@ -391,6 +391,32 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const hasUserInteracted = useRef(false);
 
+  // Request judgment from the AI judge
+  const requestJudgment = async () => {
+    if (!debate || messages.length < 2) return;
+    
+    try {
+      const response = await fetch('/api/debate/judge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          topic: debate.topic,
+          messages: messages.filter(m => m.role === 'user' || m.role === 'ai'),
+        }),
+      });
+      
+      if (!response.ok) {
+        console.error('Judge API error:', await response.text());
+        return;
+      }
+      
+      const data = await response.json();
+      setDebateScore(data);
+    } catch (error) {
+      console.error('Failed to request judgment:', error);
+    }
+  };
+
   // Dev mode check from URL
   const isDevMode = searchParams.get('dev') === 'true';
 
@@ -1154,6 +1180,23 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
           )}
 
           <div ref={messagesEndRef} />
+          
+          {/* Request Judgment Button - shown when enough messages but no score */}
+          {!debateScore && messages.filter(m => m.role === 'user' || m.role === 'ai').length >= 2 && (
+            <div className="max-w-3xl mx-auto px-4 sm:px-6 py-4 text-center">
+              <button
+                onClick={requestJudgment}
+                disabled={isAILoading || isUserLoading}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--accent)]/10 border border-[var(--accent)]/30 text-[var(--accent)] hover:bg-[var(--accent)]/20 transition-colors text-sm font-medium"
+              >
+                <span>⚖️</span>
+                <span>Request Judge&apos;s Verdict</span>
+              </button>
+              <p className="text-xs text-[var(--text-tertiary)] mt-2">
+                Get an AI analysis of your debate performance
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
