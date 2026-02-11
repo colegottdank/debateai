@@ -857,10 +857,25 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
                   };
                   return newMessages;
                 });
+              } else if (data.type === 'error') {
+                throw new Error(data.error || 'AI takeover failed');
               }
-            } catch { /* skip invalid JSON */ }
+            } catch (parseError) {
+              // Re-throw intentional errors (from data.type === 'error' branch)
+              // Only swallow JSON SyntaxErrors
+              if (parseError instanceof SyntaxError) {
+                /* skip invalid JSON */
+              } else {
+                throw parseError;
+              }
+            }
           }
         }
+      }
+
+      // Guard: if takeover produced no content, don't call opponent API
+      if (!accumulatedContent || accumulatedContent.trim() === '') {
+        throw new Error('AI takeover produced no content');
       }
 
       // Now trigger the AI opponent response
@@ -939,13 +954,20 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
     } catch (error) {
       console.error("AI takeover failed:", error);
       showToast("Failed to generate AI argument. Please try again.", "error");
-      // Remove placeholder if there was an error
+      // Remove any empty placeholder messages (both AI opponent and AI-assisted user)
       setMessages(prev => {
-        const lastMsg = prev[prev.length - 1];
-        if (lastMsg && lastMsg.role === 'user' && lastMsg.aiAssisted && !lastMsg.content) {
-          return prev.slice(0, -1);
+        let cleaned = [...prev];
+        // Remove empty AI opponent placeholder if it exists
+        const lastMsg = cleaned[cleaned.length - 1];
+        if (lastMsg && lastMsg.role === 'ai' && !lastMsg.content) {
+          cleaned = cleaned.slice(0, -1);
         }
-        return prev;
+        // Remove empty AI-assisted user placeholder if it exists
+        const lastUserMsg = cleaned[cleaned.length - 1];
+        if (lastUserMsg && lastUserMsg.role === 'user' && lastUserMsg.aiAssisted && !lastUserMsg.content) {
+          cleaned = cleaned.slice(0, -1);
+        }
+        return cleaned;
       });
     } finally {
       setIsAITakeoverLoading(false);
