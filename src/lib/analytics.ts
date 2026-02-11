@@ -97,6 +97,22 @@ export interface AnalyticsEvents {
     referrer?: string;
   };
 
+  // Onboarding funnel
+  onboarding_landed: Record<string, never>;
+  onboarding_step_viewed: {
+    step: number;
+    total: number;
+  };
+  onboarding_started: {
+    topic: string;
+    source: 'onboarding';
+  };
+  onboarding_completed: {
+    winner: 'user' | 'ai' | 'draw';
+    userScore: number;
+    aiScore: number;
+  };
+
   // Blog
   blog_post_viewed: {
     slug: string;
