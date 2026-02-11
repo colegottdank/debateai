@@ -54,6 +54,11 @@ export interface AnalyticsEvents {
     aiScore: number;
   };
 
+  debate_ai_takeover: {
+    debateId: string;
+    messageIndex: number;
+  };
+
   debate_rematch: {
     debateId: string;
     originalDebateId: string;
