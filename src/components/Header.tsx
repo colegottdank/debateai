@@ -3,14 +3,41 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState } from 'react';
-import { SafeSignedIn, SafeSignedOut, SafeSignInButton, SafeUserButton } from '@/lib/useSafeClerk';
+import { SafeSignInButton, SafeUserButton, useSafeUser } from '@/lib/useSafeClerk';
 import ThemeToggle from './ThemeToggle';
 import UpgradeModal from './UpgradeModal';
+import MobileNav from './MobileNav';
+import NotificationBell from './NotificationBell';
 import { useSubscription } from '@/lib/useSubscription';
 
+// Skeleton placeholder for auth loading state
+function AuthSkeleton() {
+  return (
+    <div className="flex items-center gap-1">
+      <div className="w-9 h-9 flex items-center justify-center">
+        <div className="w-6 h-6 rounded-full bg-[var(--bg-sunken)] animate-pulse" />
+      </div>
+      <div className="w-8 h-8 rounded-lg bg-[var(--bg-sunken)] animate-pulse" />
+    </div>
+  );
+}
+
+// Skeleton placeholder for upgrade button
+function UpgradeSkeleton() {
+  return (
+    <div className="hidden sm:block w-[88px] h-[32px] rounded-lg bg-[var(--bg-sunken)] animate-pulse ml-1" />
+  );
+}
+
 export default function Header() {
-  const { isPremium, isLoading } = useSubscription();
+  const { isPremium, isLoading: isSubscriptionLoading } = useSubscription();
+  const { isSignedIn, isLoaded: isAuthLoaded } = useSafeUser();
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  
+  // Determine auth state for stable rendering
+  const showAuthLoading = !isAuthLoaded;
+  const showSignedIn = isAuthLoaded && isSignedIn;
+  const showSignedOut = isAuthLoaded && !isSignedIn;
 
   return (
     <>
@@ -18,7 +45,7 @@ export default function Header() {
         <div className="container-wide">
           <div className="flex items-center justify-between h-14">
             {/* Logo */}
-            <Link href="/" className="flex items-center gap-2.5 group">
+            <Link href="/" className="flex items-center gap-2.5 group cursor-pointer">
               <div className="relative w-8 h-8 rounded-lg overflow-hidden">
                 <Image 
                   src="/logo-icon.png" 
@@ -37,8 +64,28 @@ export default function Header() {
             {/* Navigation */}
             <nav className="flex items-center gap-1">
               <Link
+                href="/explore"
+                className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text)] rounded-lg hover:bg-[var(--bg-sunken)] transition-all cursor-pointer"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                </svg>
+                Explore
+              </Link>
+
+              <Link
+                href="/leaderboard"
+                className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text)] rounded-lg hover:bg-[var(--bg-sunken)] transition-all cursor-pointer"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                </svg>
+                Leaderboard
+              </Link>
+
+              <Link
                 href="/blog"
-                className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text)] rounded-lg hover:bg-[var(--bg-sunken)] transition-all"
+                className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text)] rounded-lg hover:bg-[var(--bg-sunken)] transition-all cursor-pointer"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/>
@@ -46,49 +93,64 @@ export default function Header() {
                 Blog
               </Link>
 
-              <SafeSignedIn>
-                <Link
-                  href="/history"
-                  className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text)] rounded-lg hover:bg-[var(--bg-sunken)] transition-all"
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                  </svg>
-                  History
-                </Link>
-
-                {!isLoading && !isPremium && (
-                  <button
-                    onClick={() => setShowUpgradeModal(true)}
-                    className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[var(--accent)] bg-[var(--accent-subtle)] hover:bg-[var(--accent-faint)] rounded-lg transition-colors ml-1"
+              {showSignedIn && (
+                <>
+                  <Link
+                    href="/history"
+                    className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text)] rounded-lg hover:bg-[var(--bg-sunken)] transition-all cursor-pointer"
                   >
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
-                    Upgrade
-                  </button>
-                )}
-              </SafeSignedIn>
+                    History
+                  </Link>
 
-              <div className="flex items-center gap-1 pl-2 ml-2 border-l border-[var(--border)]">
-                <SafeSignedIn>
-                  <SafeUserButton 
-                    appearance={{
-                      elements: {
-                        avatarBox: "w-8 h-8 rounded-lg"
-                      }
-                    }}
-                  />
-                </SafeSignedIn>
-                <SafeSignedOut>
+                  {/* Upgrade button with placeholder to prevent layout shift */}
+                  {isSubscriptionLoading ? (
+                    <UpgradeSkeleton />
+                  ) : !isPremium ? (
+                    <button
+                      onClick={() => setShowUpgradeModal(true)}
+                      className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[var(--accent)] bg-[var(--accent-subtle)] hover:bg-[var(--accent-faint)] rounded-lg transition-colors ml-1 cursor-pointer"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>
+                      </svg>
+                      Upgrade
+                    </button>
+                  ) : null}
+                </>
+              )}
+
+              {/* Auth section - stable width container */}
+              <div className="flex items-center gap-1 pl-2 ml-2 border-l border-[var(--border)] min-w-[80px]">
+                {showAuthLoading ? (
+                  <AuthSkeleton />
+                ) : showSignedIn ? (
+                  <div className="flex items-center gap-1">
+                    <div className="w-9 h-9 flex items-center justify-center">
+                      <NotificationBell />
+                    </div>
+                    <div className="w-8 h-8">
+                      <SafeUserButton 
+                        appearance={{
+                          elements: {
+                            avatarBox: "w-8 h-8 rounded-lg"
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+                ) : showSignedOut ? (
                   <SafeSignInButton mode="modal">
                     <button className="btn btn-primary btn-sm">
                       Sign In
                     </button>
                   </SafeSignInButton>
-                </SafeSignedOut>
+                ) : null}
                 
                 <ThemeToggle />
+                <MobileNav />
               </div>
             </nav>
           </div>

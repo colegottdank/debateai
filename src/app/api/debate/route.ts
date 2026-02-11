@@ -4,7 +4,13 @@ import { d1 } from "@/lib/d1";
 import { getDebatePrompt, getDailyPersona } from "@/lib/prompts";
 import { checkAppDisabled } from "@/lib/app-disabled";
 import { createRateLimiter, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
+import { errors, validateBody } from "@/lib/api-errors";
+import { sendMessageSchema, SendMessageInput } from "@/lib/api-schemas";
+import { logger } from "@/lib/logger";
+import { captureError } from "@/lib/sentry";
 import Anthropic from "@anthropic-ai/sdk";
+
+const log = logger.scope('debate');
 
 const anthropic = new Anthropic({
   baseURL: "https://anthropic.helicone.ai",
@@ -32,29 +38,40 @@ export async function POST(request: Request) {
     const userId = await getUserId();
 
     if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return errors.unauthorized();
     }
 
     // Per-user rate limit (protects Claude API costs)
     const userRl = userLimiter.check(`user:${userId}`);
     if (!userRl.allowed) return rateLimitResponse(userRl);
 
+    // Validate request body
+    let body: SendMessageInput;
+    try {
+      body = await validateBody(request, sendMessageSchema);
+    } catch (error) {
+      if (error instanceof NextResponse) return error;
+      return errors.badRequest("Invalid request body");
+    }
+
     const {
       debateId,
-      character, // This will be the opponent type or 'custom'
-      opponentStyle, // Custom opponent style description
+      character,
+      opponentStyle,
       topic,
       userArgument,
       previousMessages,
-      isAIAssisted, // Flag to indicate if this was an AI-assisted message
-    } = await request.json();
+      isAIAssisted,
+    } = body;
 
-    if (!character || !topic || !userArgument) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      );
-    }
+    log.info('message.received', {
+      userId,
+      debateId: debateId || 'new',
+      topic: topic.slice(0, 100),
+      character,
+      messageIndex: previousMessages.length,
+      isAIAssisted,
+    });
 
     // Deduplicate debate creation: if no debateId and same user+topic within 30s, reuse existing
     if (!debateId) {
@@ -77,16 +94,7 @@ export async function POST(request: Request) {
     if (debateId && !isTestMode && !isLocalDev) {
       const messageLimit = await d1.checkDebateMessageLimit(debateId);
       if (!messageLimit.allowed) {
-        return NextResponse.json(
-          {
-            error: "message_limit_exceeded",
-            message: `You've reached your limit of ${messageLimit.limit} messages per debate. Upgrade to premium for unlimited messages!`,
-            current: messageLimit.count,
-            limit: messageLimit.limit,
-            upgrade_required: true,
-          },
-          { status: 429 }
-        );
+        return errors.messageLimit(messageLimit.count, messageLimit.limit);
       }
     }
 
@@ -117,15 +125,15 @@ export async function POST(request: Request) {
     // Add the current user argument
     messages.push({ role: "user", content: userArgument });
 
-    // Inject reminder about citations to prime the model
+    // Inject reminder about citations and brevity to prime the model
     messages.push({
       role: "assistant",
       content:
-        "I'll respond to this argument. If I use web search, I will include citation markers [1], [2] directly in my text for any facts I cite.",
+        "I'll respond with a short, punchy counter (under 120 words). If I search the web, I'll include [1], [2] markers for any facts I cite.",
     });
     messages.push({
       role: "user",
-      content: "Go ahead.",
+      content: "Go ahead. Keep it short.",
     });
 
     // Always use streaming response
@@ -144,14 +152,14 @@ export async function POST(request: Request) {
           // Use Anthropic directly with web search tool
           const stream = anthropic.messages.stream({
             model: "claude-haiku-4-5-20251001",
-            max_tokens: 1000,
+            max_tokens: 500,
             system: systemPrompt,
             messages: messages,
             tools: [
               {
                 type: "web_search_20250305",
                 name: "web_search",
-                max_uses: 1, // Limit to 1 search to reduce cost
+                max_uses: 2, // Allow 2 searches for better citations
               },
             ],
           }, {
@@ -226,8 +234,8 @@ export async function POST(request: Request) {
           const finalMessage = await stream.finalMessage();
           console.log("📚 [ANTHROPIC] Final message content blocks:", finalMessage.content.length);
 
-          // Extract citations from the response (limit to 3 to reduce clutter)
-          const MAX_CITATIONS = 3;
+          // Extract citations from the response
+          const MAX_CITATIONS = 5;
           const seenUrls = new Set<string>();
 
           // First pass: extract from text block citations (preferred - has proper mapping)
@@ -353,7 +361,7 @@ export async function POST(request: Request) {
               await d1.saveDebate({
                 userId,
                 opponent: character,
-                topic: existingDebate.debate.topic || topic, // Preserve original topic
+                topic: (existingDebate.debate.topic as string) || topic, // Preserve original topic
                 messages: existingMessages,
                 debateId,
                 opponentStyle,
@@ -378,7 +386,14 @@ export async function POST(request: Request) {
             controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
           }
         } catch (error) {
-          console.error("Streaming error:", error);
+          log.error('stream.failed', {
+            debateId: debateId || 'unknown',
+            error: error instanceof Error ? error.message : String(error),
+          });
+          captureError(error, {
+            tags: { route: 'debate', phase: 'streaming' },
+            extra: { debateId, topic: topic?.slice(0, 100) },
+          });
           if (!controllerClosed) {
             controller.enqueue(
               encoder.encode(
@@ -404,10 +419,12 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
-    console.error("Debate API error:", error);
-    return NextResponse.json(
-      { error: "Failed to generate debate response" },
-      { status: 500 }
-    );
+    log.error('api.failed', {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    captureError(error, {
+      tags: { route: 'debate' },
+    });
+    return errors.internal("Failed to generate debate response");
   }
 }

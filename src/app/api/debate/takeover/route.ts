@@ -5,6 +5,8 @@ import { d1 } from "@/lib/d1";
 import { checkAppDisabled } from "@/lib/app-disabled";
 import { getTakeoverPrompt } from "@/lib/prompts";
 import { createRateLimiter, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
+import { errors, validateBody } from "@/lib/api-errors";
+import { takeoverSchema } from "@/lib/api-schemas";
 
 const openai = new OpenAI({
   apiKey: `${process.env.HELICONE_API_KEY}`,
@@ -22,28 +24,28 @@ export async function POST(request: Request) {
 
   // IP-based rate limit first
   const ipRl = ipLimiter.check(getClientIp(request));
-  if (!ipRl.allowed) return rateLimitResponse(ipRl);
+  if (!ipRl.allowed) {
+    return rateLimitResponse(ipRl);
+  }
 
   try {
     const userId = await getUserId();
 
     if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return errors.unauthorized();
     }
 
     // Per-user rate limit
     const userRl = userLimiter.check(`user:${userId}`);
-    if (!userRl.allowed) return rateLimitResponse(userRl);
-
-    const { debateId, topic, previousMessages, opponentStyle } =
-      await request.json();
-
-    if (!topic || !debateId) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      );
+    if (!userRl.allowed) {
+      return rateLimitResponse(userRl);
     }
+
+    // Validate request body
+    const { debateId, topic, previousMessages, opponentStyle } = await validateBody(
+      request,
+      takeoverSchema
+    );
 
     // Check message limit for free users
     const isTestMode = process.env.NEXT_PUBLIC_TEST_MODE === "true";
@@ -53,22 +55,13 @@ export async function POST(request: Request) {
     if (!isTestMode && !isLocalDev) {
       const messageLimit = await d1.checkDebateMessageLimit(debateId);
       if (!messageLimit.allowed && !messageLimit.isPremium) {
-        return NextResponse.json(
-          {
-            error: "message_limit_exceeded",
-            message: `You've reached your limit of ${messageLimit.limit} messages per debate. Upgrade to premium for unlimited messages!`,
-            current: messageLimit.count,
-            limit: messageLimit.limit,
-            upgrade_required: true,
-          },
-          { status: 429 }
-        );
+        return errors.messageLimit(messageLimit.count, messageLimit.limit);
       }
     }
 
     // Build conversation history for context
     const conversationHistory = (previousMessages || [])
-      .map((msg: any) => {
+      .map((msg) => {
         if (msg.role === "user") {
           return `Human's argument: ${msg.content}`;
         } else if (msg.role === "ai") {
@@ -81,20 +74,20 @@ export async function POST(request: Request) {
 
     // Extract the user's position from their previous arguments
     const userArguments = (previousMessages || [])
-      .filter((msg: any) => msg.role === "user")
-      .map((msg: any) => msg.content)
+      .filter((msg) => msg.role === "user")
+      .map((msg) => msg.content)
       .join(" ");
 
     // Get the takeover prompt from centralized prompts
     const systemPrompt = getTakeoverPrompt(
       topic,
-      opponentStyle,
+      opponentStyle || "",
       conversationHistory,
       userArguments
     );
 
     const lastOpponentMessage =
-      (previousMessages || []).filter((msg: any) => msg.role === "ai").pop()
+      (previousMessages || []).filter((msg) => msg.role === "ai").pop()
         ?.content || "";
 
     const userPrompt = lastOpponentMessage
@@ -117,8 +110,7 @@ export async function POST(request: Request) {
     });
 
     // Generate the AI takeover response
-    // eslint-disable-next-line prefer-const
-    let controllerClosed = false; // Track if controller is closed
+    let controllerClosed = false;
 
     const stream = new ReadableStream({
       async start(controller) {
@@ -127,23 +119,22 @@ export async function POST(request: Request) {
         try {
           const response = await openai.chat.completions.create({
             model: "claude-haiku-4-5:online/anthropic",
-            max_tokens: 1000, // Allow substantive responses for takeover
+            max_tokens: 1000,
             temperature: 0.7,
             messages: messages,
             stream: true,
           }, {
             headers: {
               "Helicone-User-Id": userId,
-              "Helicone-RateLimit-Policy": "100;w=86400;s=user", // 100 requests/day per user
+              "Helicone-RateLimit-Policy": "100;w=86400;s=user",
             },
           });
 
           let buffer = "";
-          let accumulatedContent = "";
           let lastFlushTime = Date.now();
-          const BUFFER_TIME = 50; // Slower for more human-like streaming
-          const BUFFER_SIZE = 5; // Smaller chunks for smoother flow
-          const citations: any[] = [];
+          const BUFFER_TIME = 50;
+          const BUFFER_SIZE = 5;
+          const citations: { id: number; url: string; title: string }[] = [];
           let citationCounter = 1;
           let hasReceivedContent = false;
           let searchIndicatorSent = false;
@@ -164,19 +155,12 @@ export async function POST(request: Request) {
           };
 
           for await (const chunk of response) {
-            // Log EVERY single chunk from Helicone to see full structure
-            console.log(
-              "📚 [TAKEOVER - FULL CHUNK FROM HELICONE]:",
-              JSON.stringify(chunk, null, 2)
-            );
-
             const content = chunk.choices[0]?.delta?.content;
-            const delta = chunk.choices[0]?.delta as any;
+            const delta = chunk.choices[0]?.delta as { annotations?: Array<{ type: string; url_citation?: { url: string; title?: string } }> };
             const annotations = delta?.annotations;
 
             // Process annotations (citations from web search)
             if (annotations && Array.isArray(annotations)) {
-              // If we have annotations but no content yet, web search is happening
               if (!hasReceivedContent && !searchIndicatorSent) {
                 searchIndicatorSent = true;
                 controller.enqueue(
@@ -194,14 +178,11 @@ export async function POST(request: Request) {
                   annotation.url_citation
                 ) {
                   const urlCitation = annotation.url_citation;
-
-                  // Check if we already have this citation (deduplicate by URL)
                   const existingCitation = citations.find(
                     (c) => c.url === urlCitation.url
                   );
 
                   if (!existingCitation) {
-                    // Create new citation
                     const citationData = {
                       id: citationCounter++,
                       url: urlCitation.url,
@@ -213,13 +194,10 @@ export async function POST(request: Request) {
                 }
               }
 
-              // Send citations update to frontend
               if (citations.length > 0 && !controllerClosed) {
-                // Flush any pending content first
                 if (buffer) {
                   flushBuffer();
                 }
-
                 controller.enqueue(
                   encoder.encode(
                     `data: ${JSON.stringify({
@@ -233,13 +211,9 @@ export async function POST(request: Request) {
 
             if (content) {
               hasReceivedContent = true;
-              accumulatedContent += content;
 
-              // Add characters to buffer one by one
               for (const char of content) {
                 buffer += char;
-
-                // Flush small chunks frequently
                 const now = Date.now();
                 if (
                   buffer.length >= BUFFER_SIZE ||
@@ -251,7 +225,6 @@ export async function POST(request: Request) {
             }
           }
 
-          // Flush any remaining buffer
           if (buffer) {
             flushBuffer();
           }
@@ -265,6 +238,7 @@ export async function POST(request: Request) {
             controller.enqueue(
               encoder.encode(
                 `data: ${JSON.stringify({
+                  type: "error",
                   error: "Failed to generate AI argument",
                 })}\n\n`
               )
@@ -285,10 +259,11 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
+    // Handle validation errors from validateBody
+    if (error instanceof NextResponse) {
+      return error;
+    }
     console.error("AI takeover error:", error);
-    return NextResponse.json(
-      { error: "Failed to process AI takeover" },
-      { status: 500 }
-    );
+    return errors.internal("Failed to process AI takeover");
   }
 }

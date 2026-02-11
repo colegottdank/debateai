@@ -54,11 +54,24 @@ export interface AnalyticsEvents {
     aiScore: number;
   };
 
+  debate_ai_takeover: {
+    debateId: string;
+    messageIndex: number;
+  };
+
+  debate_rematch: {
+    debateId: string;
+    originalDebateId: string;
+    topic: string;
+    opponent: string;
+    source: 'rematch' | string; // rematch = same topic, topic-* = suggested topic
+  };
+
   // Sharing
   debate_shared: {
     debateId: string;
     method: 'copy_link' | 'twitter' | 'facebook' | 'linkedin' | 'reddit' | 'native_share';
-    source?: 'button' | 'modal';
+    source?: 'button' | 'modal' | 'post_debate';
   };
   share_button_clicked: {
     debateId: string;
@@ -100,6 +113,29 @@ export interface AnalyticsEvents {
     path: string;
     title: string;
     referrer?: string;
+  };
+
+  // Onboarding funnel
+  onboarding_landed: Record<string, never>;
+  onboarding_step_viewed: {
+    step: number;
+    total: number;
+  };
+  onboarding_started: {
+    topic: string;
+    source: 'onboarding';
+  };
+  onboarding_completed: {
+    winner: 'user' | 'ai' | 'draw';
+    userScore: number;
+    aiScore: number;
+  };
+
+  // Explore
+  explore_debate_viewed: {
+    debateId: string;
+    topic: string;
+    source: 'explore';
   };
 
   // Blog

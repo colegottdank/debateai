@@ -13,8 +13,23 @@ const isPublicRoute = createRouteMatcher([
   '/api/trending',       // Public trending endpoint
   '/api/stats',          // Public platform stats
   '/api/metrics/(.*)',   // Metrics endpoints (temporary)
+  '/api/topics/(.*)',    // Public daily topic + history
+  '/api/health',         // Health check endpoint
+  '/api/cron/(.*)',      // Vercel cron endpoints (protected by CRON_SECRET)
+  '/api/email/unsubscribe', // One-click unsubscribe (CAN-SPAM — no auth required)
+  '/settings/(.*)',      // Settings pages (handle auth client-side)
   '/blog',            // Public blog index
   '/blog/(.*)',        // Public blog posts
+  '/compare/(.*)',    // SEO comparison pages
+  '/tools/(.*)',      // SEO tools pages
+  '/guides/(.*)',     // SEO guide pages
+  '/topics/(.*)',     // Topic history page
+  '/leaderboard',    // Public leaderboard page
+  '/api/leaderboard', // Public leaderboard API
+  '/profile/(.*)',   // Public profile pages
+  '/api/profile/public', // Public profile API
+  '/explore',        // Public explore/debate feed page
+  '/api/explore',    // Public explore API
   '/debate',  // Allow access to debate setup page (will handle auth client-side)
   '/debate/(.*)',  // Allow debate pages to load and handle auth client-side
   '/history',  // Allow history page to load and handle auth client-side

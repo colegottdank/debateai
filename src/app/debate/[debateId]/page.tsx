@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import type { Metadata } from 'next';
+import { auth } from '@clerk/nextjs/server';
 import { d1 } from '@/lib/d1';
 import { getOpponentById } from '@/lib/opponents';
 import { debateJsonLd } from '@/lib/jsonld';
@@ -66,6 +67,7 @@ export default async function DebatePage({
 
   let debate: Record<string, unknown> | null = null;
   let messages: Array<{ role: string; content: string }> = [];
+  let isOwner = false;
 
   try {
     const result = await d1.getDebate(debateId);
@@ -74,6 +76,9 @@ export default async function DebatePage({
       messages = Array.isArray(debate.messages)
         ? (debate.messages as Array<{ role: string; content: string }>)
         : [];
+      // Check ownership using Clerk auth
+      const { userId } = await auth();
+      isOwner = userId ? debate.user_id === userId : false;
     }
   } catch (error) {
     console.error('SSR: Failed to fetch debate:', error);
@@ -168,6 +173,7 @@ export default async function DebatePage({
             score_data: debate.score_data as Record<string, unknown> | undefined,
           } : null}
           initialMessages={messages as any}
+          initialIsOwner={isOwner}
         />
       </Suspense>
     </>

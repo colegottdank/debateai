@@ -25,6 +25,7 @@ export default function HistoryPage() {
   const { isPremium, debatesUsed, debatesLimit } = useSubscription();
   const [debates, setDebates] = useState<Debate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
@@ -34,18 +35,37 @@ export default function HistoryPage() {
       setIsLoading(false);
     } else if (isSignedIn === true) {
       fetchDebates();
+    } else {
+      // isSignedIn is undefined (Clerk still loading)
+      // Set a timeout to avoid infinite loading skeleton
+      const timeout = setTimeout(() => {
+        if (isSignedIn === undefined) {
+          setIsLoading(false);
+        }
+      }, 5000);
+      return () => clearTimeout(timeout);
     }
   }, [isSignedIn]);
 
   const fetchDebates = async () => {
     try {
-      const response = await fetch('/api/debates');
+      setError(null);
+      const response = await fetch('/api/debates', { credentials: 'include' });
       if (response.ok) {
         const data = await response.json();
         setDebates(data.debates || []);
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Failed to fetch debates:', response.status, errorData);
+        setError(
+          response.status === 401
+            ? 'Please sign in to view your debate history.'
+            : 'Unable to load your debates. Please try again.'
+        );
       }
     } catch (error) {
       console.error('Error fetching debates:', error);
+      setError('Unable to connect. Please check your connection and try again.');
     } finally {
       setIsLoading(false);
     }
@@ -178,8 +198,26 @@ export default function HistoryPage() {
           {/* Loading State */}
           {isLoading && <HistoryPageSkeleton />}
 
+          {/* Error State */}
+          {!isLoading && error && (
+            <div className="text-center py-12">
+              <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">
+                <svg className="w-6 h-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                </svg>
+              </div>
+              <p className="text-sm text-[var(--text-secondary)] mb-4">{error}</p>
+              <button
+                onClick={() => { setIsLoading(true); fetchDebates(); }}
+                className="h-9 px-4 rounded-lg bg-[var(--accent)] text-white text-sm font-medium hover:bg-[var(--accent-hover)] transition-colors"
+              >
+                Try Again
+              </button>
+            </div>
+          )}
+
           {/* Empty State */}
-          {isSignedIn && !isLoading && filteredDebates.length === 0 && (
+          {isSignedIn && !isLoading && !error && filteredDebates.length === 0 && (
             <div className="text-center py-16">
               <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border)]/30 flex items-center justify-center">
                 <svg className="w-6 h-6 text-[var(--text-tertiary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">

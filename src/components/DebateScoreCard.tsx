@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { DebateScore } from "@/lib/scoring";
 import ShareImageModal from "./ShareImageModal";
+import FirstDebateCelebration from "@/components/FirstDebateCelebration";
 
 interface DebateScoreCardProps {
   debateId: string;
@@ -99,41 +100,45 @@ export default function DebateScoreCard({
   // No score yet — show the "Score This Debate" button
   if (!score) {
     return (
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6">
-        <div className="bg-[var(--bg-elevated)] border border-[var(--border)] rounded-xl p-5 text-center">
-          <div className="text-3xl mb-2">⚖️</div>
-          <h3 className="text-base font-semibold text-[var(--text)] mb-1">
-            Ready to see who won?
-          </h3>
-          <p className="text-xs text-[var(--text-secondary)] mb-4">
-            {canScore
-              ? "Get an AI judge to score this debate on logic, evidence, and persuasion."
-              : "Keep debating! Need at least 2 exchanges to score."}
-          </p>
-          {error && (
-            <p className="text-xs text-red-400 mb-3">{error}</p>
-          )}
-          <button
-            onClick={handleScore}
-            disabled={!canScore || loading}
-            className={`px-5 py-2.5 rounded-xl font-medium text-sm transition-all
-              ${canScore && !loading
-                ? "bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)] cursor-pointer"
-                : "bg-[var(--bg-sunken)] text-[var(--text-tertiary)] cursor-not-allowed"
-              }`}
-          >
-            {loading ? (
-              <span className="flex items-center gap-2">
-                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
-                Judging...
-              </span>
-            ) : (
-              "⚖️ Score This Debate"
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-4">
+        <div className="bg-[var(--bg-elevated)]/50 border border-[var(--border)]/50 rounded-lg p-4 text-center">
+          <div className="flex items-center justify-center gap-3">
+            <span className="text-xl">⚖️</span>
+            <div className="text-left">
+              <h3 className="text-sm font-medium text-[var(--text)]">
+                {canScore ? "Ready to see who won?" : "Keep debating"}
+              </h3>
+              <p className="text-[11px] text-[var(--text-secondary)]">
+                {canScore
+                  ? "AI judge scores on logic, evidence, persuasion"
+                  : "Need 2+ exchanges to score"}
+              </p>
+            </div>
+            {error && (
+              <p className="text-xs text-red-400">{error}</p>
             )}
-          </button>
+            <button
+              onClick={handleScore}
+              disabled={!canScore || loading}
+              className={`ml-auto px-4 py-1.5 rounded-lg font-medium text-xs transition-all
+                ${canScore && !loading
+                  ? "bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)] cursor-pointer"
+                  : "bg-[var(--bg-sunken)] text-[var(--text-tertiary)] cursor-not-allowed"
+                }`}
+            >
+              {loading ? (
+                <span className="flex items-center gap-1.5">
+                  <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Judging...
+                </span>
+              ) : (
+                "Score"
+              )}
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -150,6 +155,13 @@ export default function DebateScoreCard({
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6">
+      {/* First-debate celebration (confetti + hype) — only shown once */}
+      <FirstDebateCelebration
+        winner={score.winner}
+        userScore={score.userScore}
+        aiScore={score.aiScore}
+      />
+
       <div className="bg-[var(--bg-elevated)] border border-[var(--border)] rounded-xl overflow-hidden">
         {/* Header */}
         <div className="px-5 pt-5 pb-4 text-center border-b border-[var(--border)]/50">

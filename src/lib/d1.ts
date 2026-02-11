@@ -112,7 +112,12 @@ class D1Client {
 
       CREATE INDEX IF NOT EXISTS idx_debates_user ON debates(user_id);
       CREATE INDEX IF NOT EXISTS idx_debates_created ON debates(created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_debates_user_created ON debates(user_id, created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_debates_user_topic_created ON debates(user_id, topic, created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_debates_created_user ON debates(created_at, user_id);
       CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+      CREATE INDEX IF NOT EXISTS idx_users_subscription ON users(subscription_status, stripe_plan);
+      CREATE INDEX IF NOT EXISTS idx_users_stripe_customer ON users(stripe_customer_id);
       CREATE INDEX IF NOT EXISTS idx_subscriptions_user ON subscriptions(user_id);
     `;
 
@@ -194,7 +199,9 @@ class D1Client {
 
   async getRecentDebates(userId: string, limit = 10) {
     return this.query(
-      `SELECT * FROM debates WHERE user_id = ? ORDER BY created_at DESC LIMIT ?`,
+      `SELECT id, opponent, topic, json_array_length(messages) as message_count, 
+              user_score, ai_score, score_data, created_at 
+       FROM debates WHERE user_id = ? ORDER BY created_at DESC LIMIT ?`,
       [userId, limit]
     );
   }
@@ -344,11 +351,22 @@ class D1Client {
   }
 
   async checkDebateMessageLimit(debateId: string) {
-    const result = await this.getDebate(debateId);
-    
-    if (result.success && result.debate) {
-      // Check if user is premium
-      const user = await this.getUser(result.debate.user_id as string);
+    // Optimized: fetch only user_id and total message count from DB
+    // Use json_array_length to avoid transferring the full messages blob.
+    // User message count ≈ total/2 (alternating user/ai), but we fetch
+    // the messages field only if we need an exact count and user isn't premium.
+    const metaResult = await this.query(
+      `SELECT user_id, json_array_length(messages) as msg_count FROM debates WHERE id = ?`,
+      [debateId]
+    );
+
+    if (metaResult.success && metaResult.result && metaResult.result.length > 0) {
+      const debate = metaResult.result[0] as Record<string, unknown>;
+      const userId = debate.user_id as string;
+      const totalMsgCount = (debate.msg_count as number) || 0;
+
+      // Check if user is premium (avoids parsing messages entirely)
+      const user = await this.getUser(userId);
       if (user && user.subscription_status === 'active' && user.stripe_plan === 'premium') {
         return {
           success: true,
@@ -360,10 +378,39 @@ class D1Client {
         };
       }
 
-      const messages = result.debate.messages as Array<{ role: string; content: string }> || [];
-      // Count only user messages (not system or AI messages)
+      // Quick check: if total messages < limit*2, user is definitely under limit
+      // (each user message is paired with an AI response)
+      const limit = 10; // Free tier limit per debate
+      if (totalMsgCount < limit) {
+        // Under limit for sure — user msgs can't exceed total msgs
+        const estimatedUserMsgs = Math.ceil(totalMsgCount / 2);
+        return {
+          success: true,
+          count: estimatedUserMsgs,
+          limit,
+          allowed: true,
+          remaining: Math.max(0, limit - estimatedUserMsgs),
+          isPremium: false
+        };
+      }
+
+      // Near or over limit — need exact count, fetch messages
+      const fullResult = await this.query(
+        `SELECT messages FROM debates WHERE id = ?`,
+        [debateId]
+      );
+
+      let messages: Array<{ role: string }> = [];
+      if (fullResult.success && fullResult.result && fullResult.result.length > 0) {
+        const raw = fullResult.result[0].messages;
+        if (typeof raw === 'string') {
+          try { messages = JSON.parse(raw); } catch { messages = []; }
+        } else if (Array.isArray(raw)) {
+          messages = raw as Array<{ role: string }>;
+        }
+      }
+      
       const userMessageCount = messages.filter(m => m.role === 'user').length;
-      const limit = 10; // Free tier limit per debate - paywall after 10 user messages (21 total msgs)
       
       return {
         success: true,
@@ -409,7 +456,7 @@ class D1Client {
    */
   async findRecentDuplicate(userId: string, topic: string, windowSeconds = 30) {
     const result = await this.query(
-      `SELECT id, messages FROM debates
+      `SELECT id FROM debates
        WHERE user_id = ? AND topic = ? AND created_at >= datetime('now', '-' || ? || ' seconds')
        ORDER BY created_at DESC LIMIT 1`,
       [userId, topic, windowSeconds]

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getUserId } from '@/lib/auth-helper';
 import { d1 } from '@/lib/d1';
+import { withErrorHandler, errors } from '@/lib/api-errors';
 
 // Admin user IDs — only these users can access admin endpoints
 const ADMIN_USER_IDS = new Set([
@@ -40,6 +41,12 @@ interface AdminStats {
   freeDebatesToday: number;
   churningUsers: number; // premium users with cancel_at_period_end = true
 
+  // Completion & retention
+  completionRate: number; // debates with score / total debates (%)
+  scoredDebates: number;
+  activeStreaks: number; // users with current_streak >= 1 who debated today or yesterday
+  emailSubscribers: number; // users in email_preferences table
+
   // Top content
   topTopics: Array<{ topic: string; count: number }>;
   topOpponents: Array<{ opponent: string; count: number }>;
@@ -58,23 +65,22 @@ interface AdminStats {
  * Protected admin endpoint — returns comprehensive platform metrics.
  * Requires authenticated user with admin role.
  */
-export async function GET() {
-  try {
-    const userId = await getUserId();
+export const GET = withErrorHandler(async () => {
+  const userId = await getUserId();
 
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+  if (!userId) {
+    throw errors.unauthorized();
+  }
 
-    // Check admin access
-    if (!ADMIN_USER_IDS.has(userId)) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+  // Check admin access
+  if (!ADMIN_USER_IDS.has(userId)) {
+    throw errors.forbidden('Admin access required');
+  }
 
-    // Return cache if fresh
-    if (statsCache && Date.now() - statsCache.timestamp < CACHE_TTL) {
-      return NextResponse.json({ ...statsCache.data, cached: true });
-    }
+  // Return cache if fresh
+  if (statsCache && Date.now() - statsCache.timestamp < CACHE_TTL) {
+    return NextResponse.json({ ...statsCache.data, cached: true });
+  }
 
     // Run all queries in parallel
     const [
@@ -95,6 +101,9 @@ export async function GET() {
       topTopicsResult,
       topOpponentsResult,
       dailyTrendResult,
+      scoredDebatesResult,
+      activeStreaksResult,
+      emailSubscribersResult,
     ] = await Promise.all([
       // Total debates (excluding test users and 0-message debates)
       d1.query(`SELECT COUNT(*) as total FROM debates WHERE ${REAL_DEBATES}`, []),
@@ -204,6 +213,24 @@ export async function GET() {
          ORDER BY date ASC`,
         []
       ),
+
+      // Scored debates (completion rate)
+      d1.query(
+        `SELECT COUNT(*) as total FROM debates WHERE ${REAL_DEBATES} AND score_data IS NOT NULL AND json_extract(score_data, '$.debateScore') IS NOT NULL`,
+        []
+      ),
+
+      // Active streaks (users who debated today or yesterday with streak >= 1)
+      d1.query(
+        `SELECT COUNT(*) as total FROM user_streaks WHERE current_streak >= 1 AND (last_debate_date = date('now') OR last_debate_date = date('now', '-1 day'))`,
+        []
+      ),
+
+      // Email subscribers
+      d1.query(
+        `SELECT COUNT(*) as total FROM email_preferences`,
+        []
+      ),
     ]);
 
     const totalUsers = (totalUsersResult.result?.[0]?.total as number) || 0;
@@ -233,6 +260,15 @@ export async function GET() {
       freeDebatesToday: (freeDebatesTodayResult.result?.[0]?.total as number) || 0,
       churningUsers: (churningResult.result?.[0]?.total as number) || 0,
 
+      completionRate: (() => {
+        const total = (totalDebatesResult.result?.[0]?.total as number) || 0;
+        const scored = (scoredDebatesResult.result?.[0]?.total as number) || 0;
+        return total > 0 ? Math.round((scored / total) * 1000) / 10 : 0;
+      })(),
+      scoredDebates: (scoredDebatesResult.result?.[0]?.total as number) || 0,
+      activeStreaks: (activeStreaksResult.result?.[0]?.total as number) || 0,
+      emailSubscribers: (emailSubscribersResult.result?.[0]?.total as number) || 0,
+
       topTopics: (topTopicsResult.result || []).map((r: Record<string, unknown>) => ({
         topic: (r.topic as string) || 'Unknown',
         count: (r.count as number) || 0,
@@ -251,15 +287,8 @@ export async function GET() {
       cached: false,
     };
 
-    // Update cache
-    statsCache = { data: stats, timestamp: Date.now() };
+  // Update cache
+  statsCache = { data: stats, timestamp: Date.now() };
 
-    return NextResponse.json(stats);
-  } catch (error) {
-    console.error('Admin stats error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch admin stats' },
-      { status: 500 }
-    );
-  }
-}
+  return NextResponse.json(stats);
+});

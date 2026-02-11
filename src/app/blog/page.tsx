@@ -204,6 +204,60 @@ export default function BlogIndex() {
             </div>
           )}
 
+          {/* Guides & Resources */}
+          <div className="mt-16 pt-12 border-t border-[var(--border)]/30">
+            <div className="text-center mb-8">
+              <div className="inline-flex items-center gap-2 mb-3">
+                <span className="h-px w-8 bg-gradient-to-r from-transparent to-[var(--accent)] opacity-50" />
+                <span className="text-[11px] font-semibold text-[var(--accent)] uppercase tracking-[0.2em]">
+                  Guides & Resources
+                </span>
+                <span className="h-px w-8 bg-gradient-to-l from-transparent to-[var(--accent)] opacity-50" />
+              </div>
+              <p className="text-sm text-[var(--text-secondary)] max-w-lg mx-auto">
+                In-depth guides on AI debate tools, practice methods, and getting the most out of DebateAI.
+              </p>
+            </div>
+            <div className="grid sm:grid-cols-3 gap-4">
+              <Link
+                href="/compare/debateai-vs-chatgpt"
+                className="group artistic-card p-5 hover:border-[var(--accent)]/30 transition-all"
+              >
+                <div className="text-lg mb-2">⚔️</div>
+                <h3 className="text-sm font-semibold text-[var(--text)] mb-1 group-hover:text-[var(--accent)] transition-colors">
+                  DebateAI vs ChatGPT
+                </h3>
+                <p className="text-xs text-[var(--text-secondary)] line-clamp-2">
+                  Purpose-built debate tool vs general AI — which is better for practice?
+                </p>
+              </Link>
+              <Link
+                href="/tools/best-ai-debate-tools-2026"
+                className="group artistic-card p-5 hover:border-[var(--accent)]/30 transition-all"
+              >
+                <div className="text-lg mb-2">🛠️</div>
+                <h3 className="text-sm font-semibold text-[var(--text)] mb-1 group-hover:text-[var(--accent)] transition-colors">
+                  Best AI Debate Tools 2026
+                </h3>
+                <p className="text-xs text-[var(--text-secondary)] line-clamp-2">
+                  7 tools tested and compared — find the right one for your needs.
+                </p>
+              </Link>
+              <Link
+                href="/guides/how-to-practice-debate-online"
+                className="group artistic-card p-5 hover:border-[var(--accent)]/30 transition-all"
+              >
+                <div className="text-lg mb-2">📖</div>
+                <h3 className="text-sm font-semibold text-[var(--text)] mb-1 group-hover:text-[var(--accent)] transition-colors">
+                  How to Practice Debate Online
+                </h3>
+                <p className="text-xs text-[var(--text-secondary)] line-clamp-2">
+                  The complete guide — AI tools, communities, and solo drills.
+                </p>
+              </Link>
+            </div>
+          </div>
+
           {/* Footer Links */}
           <div className="mt-16 flex items-center justify-center gap-6 text-sm text-[var(--text-secondary)]">
             <Link href="/" className="hover:text-[var(--text)] transition-colors flex items-center gap-2">

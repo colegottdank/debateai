@@ -4,7 +4,12 @@ import { d1 } from '@/lib/d1';
 import { OpponentType } from '@/lib/opponents';
 import { getUserId } from '@/lib/auth-helper';
 import { checkAppDisabled } from '@/lib/app-disabled';
-import { createRateLimiter, getClientIp, rateLimitResponse } from '@/lib/rate-limit';
+import { createRateLimiter, getClientIp } from '@/lib/rate-limit';
+import { errors, validateBody, withRateLimitHeaders } from '@/lib/api-errors';
+import { createDebateSchema } from '@/lib/api-schemas';
+import { logger } from '@/lib/logger';
+
+const log = logger.scope('debate');
 
 // 10 debates per minute per user (generous for normal use, blocks abuse)
 const userLimiter = createRateLimiter({ maxRequests: 10, windowMs: 60_000 });
@@ -18,32 +23,42 @@ export async function POST(request: Request) {
 
   // IP-based rate limit first (before auth, which is expensive)
   const ipRl = ipLimiter.check(getClientIp(request));
-  if (!ipRl.allowed) return rateLimitResponse(ipRl);
+  if (!ipRl.allowed) {
+    return errors.rateLimited({
+      limit: ipRl.remaining + 1,
+      remaining: ipRl.remaining,
+      reset: Math.ceil(ipRl.resetAt / 1000),
+    });
+  }
 
   try {
     const userId = await getUserId();
     
     if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return errors.unauthorized();
     }
 
     // Per-user rate limit
     const userRl = userLimiter.check(`user:${userId}`);
-    if (!userRl.allowed) return rateLimitResponse(userRl);
-
-    const { character: opponent, opponentStyle, topic, debateId } = await request.json();
-
-    if (!topic || !debateId) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    if (!userRl.allowed) {
+      return errors.rateLimited({
+        limit: 10,
+        remaining: userRl.remaining,
+        reset: Math.ceil(userRl.resetAt / 1000),
+      });
     }
+
+    // Validate request body with Zod
+    const { character: opponent, opponentStyle, topic, debateId } = await validateBody(
+      request,
+      createDebateSchema
+    );
     
     // Use custom style if provided, otherwise use the character type
     const effectiveOpponent = opponent || 'custom';
-    const effectiveStyle = opponentStyle || opponent;
 
     // Get user info for the debate
     const user = await currentUser();
-    const username = user?.firstName || user?.username || 'Anonymous';
 
     // Create initial debate with welcome message
     const initialMessages = [{
@@ -65,15 +80,31 @@ export async function POST(request: Request) {
       throw new Error(saveResult.error || 'Failed to create debate');
     }
     
-    return NextResponse.json({ 
+    log.info('created', {
+      debateId: saveResult.debateId || debateId,
+      topic: topic.slice(0, 100),
+      opponent,
+      userId,
+    });
+
+    // Return success with rate limit headers
+    const response = NextResponse.json({ 
       success: true, 
       debateId: saveResult.debateId || debateId 
     });
+
+    return withRateLimitHeaders(response, {
+      limit: 10,
+      remaining: userRl.remaining,
+      reset: Math.ceil(userRl.resetAt / 1000),
+    });
   } catch (error) {
+    // If it's already a NextResponse (from validateBody), return it
+    if (error instanceof NextResponse) {
+      return error;
+    }
+
     console.error('Create debate error:', error);
-    return NextResponse.json(
-      { error: 'Failed to create debate' },
-      { status: 500 }
-    );
+    return errors.internal('Failed to create debate');
   }
 }

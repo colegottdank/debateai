@@ -1,6 +1,12 @@
 @import "tailwindcss";
 @import "../components/backgrounds/artistic-styles.css";
 
+/* Prevent horizontal scroll on mobile — gradient orbs extend past viewport */
+html,
+body {
+  overflow-x: hidden;
+}
+
 :root {
   /* ============================================
      DESIGN SYSTEM - DebateAI
@@ -83,7 +89,7 @@
 
   --text: var(--gray-100);
   --text-secondary: var(--gray-400);
-  --text-tertiary: var(--gray-600);
+  --text-tertiary: var(--gray-500);
 
   --accent: var(--primary-400);
   --accent-hover: var(--primary-300);
@@ -491,4 +497,20 @@ textarea:focus-visible,
 /* Blockquote refinements */
 .blog-content blockquote p:last-child {
   margin-bottom: 0;
+}
+
+/* ── Onboarding confetti ─────────────────────────────────── */
+@keyframes confetti-fall {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(120px) rotate(720deg);
+    opacity: 0;
+  }
+}
+
+.animate-confetti-fall {
+  animation: confetti-fall 1.5s ease-out forwards;
 }
