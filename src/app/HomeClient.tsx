@@ -7,6 +7,8 @@ import Link from 'next/link';
 import Header from '@/components/Header';
 import UpgradeModal from '@/components/UpgradeModal';
 import OnboardingOverlay from '@/components/OnboardingOverlay';
+import StreakIndicator from '@/components/StreakIndicator';
+import StreakUrgencyBanner from '@/components/StreakUrgencyBanner';
 import { useSubscription } from '@/lib/useSubscription';
 import { markOnboarded } from '@/lib/onboarding';
 import { track } from '@/lib/analytics';
@@ -168,13 +170,19 @@ export default function HomeClient({
         <div className="w-full max-w-2xl">
           {/* Hero — minimal */}
           <div className="text-center mb-10 animate-fade-up">
-            <h1 className="text-4xl sm:text-5xl font-serif font-bold text-[var(--text)] mb-3 leading-tight">
-              The AI that fights back.
-            </h1>
+            <div className="flex items-center justify-center gap-2 mb-3">
+              <h1 className="text-4xl sm:text-5xl font-serif font-bold text-[var(--text)] leading-tight">
+                The AI that fights back.
+              </h1>
+              <StreakIndicator />
+            </div>
             <p className="text-base sm:text-lg text-[var(--text-secondary)] max-w-md mx-auto">
               Defend your position. Get challenged. Think harder.
             </p>
           </div>
+
+          {/* Streak urgency banner */}
+          <StreakUrgencyBanner />
 
           {/* Today's Debate Card */}
           <div className="mb-6 animate-fade-up" style={{ animationDelay: '100ms' }} data-onboarding="topic">
