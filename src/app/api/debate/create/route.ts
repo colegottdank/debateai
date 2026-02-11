@@ -7,6 +7,9 @@ import { checkAppDisabled } from '@/lib/app-disabled';
 import { createRateLimiter, getClientIp } from '@/lib/rate-limit';
 import { errors, validateBody, withRateLimitHeaders } from '@/lib/api-errors';
 import { createDebateSchema } from '@/lib/api-schemas';
+import { sendEmail } from '@/lib/email';
+import { welcomeEmail } from '@/lib/email-templates';
+import { getOrCreatePreferences } from '@/lib/email-preferences';
 
 // 10 debates per minute per user (generous for normal use, blocks abuse)
 const userLimiter = createRateLimiter({ maxRequests: 10, windowMs: 60_000 });
@@ -77,6 +80,27 @@ export async function POST(request: Request) {
       throw new Error(saveResult.error || 'Failed to create debate');
     }
     
+    // ── Send welcome email on first debate (non-blocking) ──
+    try {
+      const countResult = await d1.query(
+        'SELECT COUNT(*) as cnt FROM debates WHERE user_id = ?',
+        [userId],
+      );
+      const debateCount = (countResult.result?.[0]?.cnt as number) || 0;
+
+      if (debateCount === 1 && user?.emailAddresses?.[0]?.emailAddress) {
+        const userEmail = user.emailAddresses[0].emailAddress;
+        const prefs = await getOrCreatePreferences(userId, userEmail);
+        const { subject, html } = welcomeEmail({
+          name: user.firstName || undefined,
+          unsubscribeToken: prefs.unsubscribe_token,
+        });
+        sendEmail({ to: userEmail, subject, html, tags: [{ name: 'type', value: 'welcome' }] }).catch(() => {});
+      }
+    } catch {
+      // Non-blocking — debate creation still succeeds
+    }
+
     // Return success with rate limit headers
     const response = NextResponse.json({ 
       success: true, 

@@ -7,6 +7,14 @@
     {
       "path": "/api/cron/send-daily-digest",
       "schedule": "0 17 * * *"
+    },
+    {
+      "path": "/api/cron/send-weekly-recap",
+      "schedule": "0 18 * * 0"
+    },
+    {
+      "path": "/api/cron/send-winback",
+      "schedule": "0 19 * * *"
     }
   ],
   "redirects": [
