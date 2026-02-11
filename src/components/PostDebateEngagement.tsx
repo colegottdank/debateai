@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useSafeUser, useSafeClerk } from '@/lib/useSafeClerk';
 import { getRelatedTopics } from '@/lib/topics';
 import { PERSONAS } from '@/lib/personas';
@@ -226,6 +227,19 @@ export default function PostDebateEngagement({
           </div>
         </div>
       )}
+
+      {/* Explore link */}
+      <div className="mt-4 text-center">
+        <Link
+          href="/explore"
+          className="inline-flex items-center gap-1.5 text-xs text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+          </svg>
+          Browse more debates →
+        </Link>
+      </div>
     </div>
   );
 }

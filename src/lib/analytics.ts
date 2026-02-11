@@ -113,6 +113,13 @@ export interface AnalyticsEvents {
     aiScore: number;
   };
 
+  // Explore
+  explore_debate_viewed: {
+    debateId: string;
+    topic: string;
+    source: 'explore';
+  };
+
   // Blog
   blog_post_viewed: {
     slug: string;
