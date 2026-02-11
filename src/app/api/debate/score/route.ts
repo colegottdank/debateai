@@ -4,10 +4,13 @@ import { d1 } from '@/lib/d1';
 import { getScoringPrompt, DebateScore } from '@/lib/scoring';
 import { createRateLimiter, getClientIp, rateLimitResponse } from '@/lib/rate-limit';
 import { errors, withErrorHandler, validateBody } from '@/lib/api-errors';
+import { logger } from '@/lib/logger';
 import { z } from 'zod';
 import Anthropic from '@anthropic-ai/sdk';
 import { recordDebateCompletion } from '@/lib/streaks';
 import { currentUser } from '@clerk/nextjs/server';
+
+const log = logger.scope('debate.score');
 
 const anthropic = new Anthropic({
   baseURL: 'https://anthropic.helicone.ai',
@@ -147,6 +150,13 @@ export const POST = withErrorHandler(async (request: Request) => {
     // Non-blocking — scoring still succeeds even if streak update fails
     console.error('Failed to update streak/points:', err);
   }
+
+  log.info('completed', {
+    debateId,
+    winner: score.winner,
+    userScore: score.userScore,
+    aiScore: score.aiScore,
+  });
 
   return NextResponse.json({ score, cached: false });
 });

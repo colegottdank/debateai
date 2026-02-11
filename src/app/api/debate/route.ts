@@ -6,7 +6,11 @@ import { checkAppDisabled } from "@/lib/app-disabled";
 import { createRateLimiter, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
 import { errors, validateBody } from "@/lib/api-errors";
 import { sendMessageSchema, SendMessageInput } from "@/lib/api-schemas";
+import { logger } from "@/lib/logger";
+import { captureError } from "@/lib/sentry";
 import Anthropic from "@anthropic-ai/sdk";
+
+const log = logger.scope('debate');
 
 const anthropic = new Anthropic({
   baseURL: "https://anthropic.helicone.ai",
@@ -59,6 +63,15 @@ export async function POST(request: Request) {
       previousMessages,
       isAIAssisted,
     } = body;
+
+    log.info('message.received', {
+      userId,
+      debateId: debateId || 'new',
+      topic: topic.slice(0, 100),
+      character,
+      messageIndex: previousMessages.length,
+      isAIAssisted,
+    });
 
     // Deduplicate debate creation: if no debateId and same user+topic within 30s, reuse existing
     if (!debateId) {
@@ -373,7 +386,14 @@ export async function POST(request: Request) {
             controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
           }
         } catch (error) {
-          console.error("Streaming error:", error);
+          log.error('stream.failed', {
+            debateId: debateId || 'unknown',
+            error: error instanceof Error ? error.message : String(error),
+          });
+          captureError(error, {
+            tags: { route: 'debate', phase: 'streaming' },
+            extra: { debateId, topic: topic?.slice(0, 100) },
+          });
           if (!controllerClosed) {
             controller.enqueue(
               encoder.encode(
@@ -399,7 +419,12 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
-    console.error("Debate API error:", error);
+    log.error('api.failed', {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    captureError(error, {
+      tags: { route: 'debate' },
+    });
     return errors.internal("Failed to generate debate response");
   }
 }

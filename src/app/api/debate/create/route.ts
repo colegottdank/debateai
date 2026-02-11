@@ -7,6 +7,9 @@ import { checkAppDisabled } from '@/lib/app-disabled';
 import { createRateLimiter, getClientIp } from '@/lib/rate-limit';
 import { errors, validateBody, withRateLimitHeaders } from '@/lib/api-errors';
 import { createDebateSchema } from '@/lib/api-schemas';
+import { logger } from '@/lib/logger';
+
+const log = logger.scope('debate');
 
 // 10 debates per minute per user (generous for normal use, blocks abuse)
 const userLimiter = createRateLimiter({ maxRequests: 10, windowMs: 60_000 });
@@ -77,6 +80,13 @@ export async function POST(request: Request) {
       throw new Error(saveResult.error || 'Failed to create debate');
     }
     
+    log.info('created', {
+      debateId: saveResult.debateId || debateId,
+      topic: topic.slice(0, 100),
+      opponent,
+      userId,
+    });
+
     // Return success with rate limit headers
     const response = NextResponse.json({ 
       success: true, 
