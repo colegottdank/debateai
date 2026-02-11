@@ -30,6 +30,7 @@ export interface DebateClientProps {
     [key: string]: unknown;
   } | null;
   initialMessages?: Array<{ role: string; content: string; aiAssisted?: boolean; citations?: Array<{ id: number; url: string; title: string }> }>;
+  initialIsOwner?: boolean;
 }
 
 // Streaming indicator
@@ -303,7 +304,7 @@ const SEARCH_MESSAGES = [
   "💡 Building counterpoints...",
 ];
 
-export default function DebateClient({ initialDebate = null, initialMessages = [] }: DebateClientProps = {}) {
+export default function DebateClient({ initialDebate = null, initialMessages = [], initialIsOwner = false }: DebateClientProps = {}) {
   const params = useParams();
   const searchParams = useSearchParams();
   const { user, isSignedIn } = useSafeUser();
@@ -314,13 +315,14 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
 
   const [debate, setDebate] = useState<any>(initialDebate);
   const [messages, setMessages] = useState<any[]>(initialMessages);
+  const [isOwner, setIsOwner] = useState<boolean>(initialIsOwner);
   const [userInput, setUserInput] = useState("");
   const instantDebateActiveRef = useRef(false);
   const [isLoadingDebate, setIsLoadingDebate] = useState(!initialDebate);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isAILoading, setIsAILoading] = useState(false);
   const [isUserLoading, setIsUserLoading] = useState(false);
-  const [isAITakeover, setIsAITakeover] = useState(false);
+  const [isAITakeoverLoading, setIsAITakeoverLoading] = useState(false);
   const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(true);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
@@ -334,65 +336,56 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
   const isDevMode = searchParams.get('dev') === 'true';
 
   // Load debate - skip fetch if server provided initial data
+  // Revalidate on mount to fix back button cache issues
   useEffect(() => {
-    // If we already have data from SSR, no need to fetch
-    if (initialDebate && !isDevMode) {
-      // Load existing score from SSR data
-      if (initialDebate.score_data && typeof initialDebate.score_data === 'object' && 'debateScore' in initialDebate.score_data) {
-        setDebateScore((initialDebate.score_data as Record<string, unknown>).debateScore as DebateScore);
-      }
-      return;
-    }
-
-    const loadDebate = async () => {
-      if (isDevMode) {
-        setDebate({
-          id: debateId,
-          topic: "Should AI be regulated?",
-          opponentStyle: "Elon Musk",
-          character: "elon",
-          messages: [
-            { role: "user", content: "I think AI should be regulated to ensure safety and prevent misuse. We need guardrails in place before it's too late." },
-            { role: "ai", content: "I disagree. Regulation stifles innovation. We need to move fast and break things. The market will self-regulate. Look at how the tech industry has evolved - innovation happens when smart people are free to experiment, not when bureaucrats write rules about technology they don't understand." }
-          ]
-        });
-        setMessages([
-          { role: "user", content: "I think AI should be regulated to ensure safety and prevent misuse. We need guardrails in place before it's too late." },
-          { role: "ai", content: "I disagree. Regulation stifles innovation. We need to move fast and break things. The market will self-regulate. Look at how the tech industry has evolved - innovation happens when smart people are free to experiment, not when bureaucrats write rules about technology they don't understand." }
-        ]);
-        setIsLoadingDebate(false);
-        return;
-      }
-
+    // Always revalidate in the background to fix back button stale data
+    const revalidateDebate = async () => {
       try {
         const response = await fetch(`/api/debate/${debateId}`);
         if (response.ok) {
           const data = await response.json();
           setDebate(data.debate);
-          // Only set messages if instant debate isn't already in progress
-          // (prevents React StrictMode's second effect run from overwriting)
+          setIsOwner(data.isOwner);
+          // Only update messages if not in the middle of instant debate
           if (!instantDebateActiveRef.current) {
             setMessages(data.debate.messages || []);
           }
           // Load existing score if debate was previously scored
           if (data.debate.score_data?.debateScore) {
-            setDebateScore(data.debate.score_data.debateScore);
+            setDebateScore(data.debate.score_data.debateScore as DebateScore);
           }
           setLoadError(null);
-        } else {
-          setLoadError(`Failed to load debate: ${response.statusText || 'Unknown error'}`);
         }
       } catch (error) {
-        console.error("Failed to load debate:", error);
-        setLoadError("Network error. Please check your connection and try again.");
-        showToast("Failed to load debate. Check your connection.", "error");
+        console.error("Failed to revalidate debate:", error);
+        // Don't show error on revalidation - keep existing data
       } finally {
         setIsLoadingDebate(false);
       }
     };
 
-    loadDebate();
-  }, [debateId, isDevMode, initialDebate, showToast]);
+    if (isDevMode) {
+      setDebate({
+        id: debateId,
+        topic: "Should AI be regulated?",
+        opponentStyle: "Elon Musk",
+        character: "elon",
+        messages: [
+          { role: "user", content: "I think AI should be regulated to ensure safety and prevent misuse. We need guardrails in place before it's too late." },
+          { role: "ai", content: "I disagree. Regulation stifles innovation. We need to move fast and break things. The market will self-regulate. Look at how the tech industry has evolved - innovation happens when smart people are free to experiment, not when bureaucrats write rules about technology they don't understand." }
+        ]
+      });
+      setMessages([
+        { role: "user", content: "I think AI should be regulated to ensure safety and prevent misuse. We need guardrails in place before it's too late." },
+        { role: "ai", content: "I disagree. Regulation stifles innovation. We need to move fast and break things. The market will self-regulate. Look at how the tech industry has evolved - innovation happens when smart people are free to experiment, not when bureaucrats write rules about technology they don't understand." }
+      ]);
+      setIsLoadingDebate(false);
+      return;
+    }
+
+    // Always revalidate to ensure fresh data (fixes back button issues)
+    revalidateDebate();
+  }, [debateId, isDevMode]);
 
   // Handle instant debate from landing page
   useEffect(() => {
@@ -601,7 +594,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
     const userMessage = {
       role: "user",
       content: messageText,
-      aiAssisted: isAITakeover
+      aiAssisted: false
     };
 
     setMessages(prev => [...prev, userMessage]);
@@ -613,7 +606,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
     track('debate_message_sent', {
       debateId,
       messageIndex: messages.length,
-      aiAssisted: isAITakeover,
+      aiAssisted: false,
     });
 
     // Reset textarea height
@@ -656,7 +649,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
             topic: debate?.topic,
             userArgument: messageText,
             previousMessages: messages,
-            isAIAssisted: isAITakeover
+            isAIAssisted: false
           }),
         });
 
@@ -762,6 +755,199 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
     }
   };
 
+  // AI Takeover - generates an AI argument for the user
+  const handleAITakeover = async () => {
+    if (isAITakeoverLoading || isAILoading) return;
+    
+    hasUserInteracted.current = true;
+    setIsAITakeoverLoading(true);
+    setIsAutoScrollEnabled(true);
+
+    // Track AI takeover used
+    track('debate_ai_takeover', {
+      debateId,
+      messageIndex: messages.length,
+    });
+
+    try {
+      // Add placeholder user message for streaming
+      setMessages(prev => [...prev, { 
+        role: 'user', 
+        content: '', 
+        aiAssisted: true,
+        isSearching: true 
+      }]);
+
+      const response = await fetch('/api/debate/takeover', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          debateId,
+          topic: debate?.topic,
+          opponentStyle: debate?.opponentStyle,
+          previousMessages: messages,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        if (response.status === 429 && error.upgrade_required) {
+          setRateLimitData({ current: error.current, limit: error.limit });
+          setShowUpgradeModal(true);
+          showToast("AI takeover limit reached. Upgrade for unlimited access!", "info", 5000);
+          // Remove placeholder
+          setMessages(prev => {
+            const lastMsg = prev[prev.length - 1];
+            if (lastMsg && lastMsg.role === 'user' && lastMsg.aiAssisted) {
+              return prev.slice(0, -1);
+            }
+            return prev;
+          });
+          setIsAITakeoverLoading(false);
+          return;
+        }
+        throw new Error(error.error || 'Failed to generate AI argument');
+      }
+
+      if (!response.body) throw new Error('No response body');
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let accumulatedContent = '';
+      let citations: Array<{ id: number; url: string; title: string }> = [];
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ') && line !== 'data: [DONE]') {
+            try {
+              const data = JSON.parse(line.substring(6));
+              if (data.type === 'chunk') {
+                accumulatedContent += data.content;
+                setMessages(prev => {
+                  const newMessages = [...prev];
+                  newMessages[newMessages.length - 1] = {
+                    role: 'user',
+                    content: accumulatedContent,
+                    aiAssisted: true,
+                    citations: citations.length > 0 ? citations : undefined
+                  };
+                  return newMessages;
+                });
+              } else if (data.type === 'citations' && data.citations) {
+                citations = data.citations;
+              } else if (data.type === 'search_start') {
+                setMessages(prev => {
+                  const newMessages = [...prev];
+                  newMessages[newMessages.length - 1] = {
+                    role: 'user',
+                    content: accumulatedContent || '',
+                    aiAssisted: true,
+                    isSearching: true
+                  };
+                  return newMessages;
+                });
+              }
+            } catch { /* skip invalid JSON */ }
+          }
+        }
+      }
+
+      // Now trigger the AI opponent response
+      setIsAITakeoverLoading(false);
+      setIsAILoading(true);
+
+      // Add placeholder AI message for streaming
+      setMessages(prev => [...prev, { role: 'ai', content: '' }]);
+
+      const debateResponse = await fetch('/api/debate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          debateId,
+          character: debate?.opponent || debate?.character || 'custom',
+          opponentStyle: debate?.opponentStyle,
+          topic: debate?.topic,
+          userArgument: accumulatedContent,
+          previousMessages: [...messages, { role: 'user', content: accumulatedContent }],
+          isAIAssisted: true
+        }),
+      });
+
+      if (!debateResponse.ok) {
+        const error = await debateResponse.json();
+        throw new Error(error.error || 'Failed to get opponent response');
+      }
+
+      if (!debateResponse.body) throw new Error('No response body');
+
+      const debateReader = debateResponse.body.getReader();
+      const debateDecoder = new TextDecoder();
+      let debateAccumulatedContent = '';
+      let debateCitations: Array<{ id: number; url: string; title: string }> = [];
+
+      while (true) {
+        const { done, value } = await debateReader.read();
+        if (done) break;
+
+        const chunk = debateDecoder.decode(value);
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ') && line !== 'data: [DONE]') {
+            try {
+              const data = JSON.parse(line.substring(6));
+              if (data.type === 'chunk') {
+                debateAccumulatedContent += data.content;
+                setMessages(prev => {
+                  const newMessages = [...prev];
+                  newMessages[newMessages.length - 1] = {
+                    role: 'ai',
+                    content: debateAccumulatedContent,
+                    citations: debateCitations.length > 0 ? debateCitations : undefined
+                  };
+                  return newMessages;
+                });
+              } else if (data.type === 'citations' && data.citations) {
+                debateCitations = data.citations;
+              } else if (data.type === 'complete') {
+                setMessages(prev => {
+                  const newMessages = [...prev];
+                  newMessages[newMessages.length - 1] = {
+                    role: 'ai',
+                    content: data.content || debateAccumulatedContent,
+                    citations: data.citations || (debateCitations.length > 0 ? debateCitations : undefined)
+                  };
+                  return newMessages;
+                });
+              }
+            } catch { /* skip invalid JSON */ }
+          }
+        }
+      }
+
+    } catch (error) {
+      console.error("AI takeover failed:", error);
+      showToast("Failed to generate AI argument. Please try again.", "error");
+      // Remove placeholder if there was an error
+      setMessages(prev => {
+        const lastMsg = prev[prev.length - 1];
+        if (lastMsg && lastMsg.role === 'user' && lastMsg.aiAssisted && !lastMsg.content) {
+          return prev.slice(0, -1);
+        }
+        return prev;
+      });
+    } finally {
+      setIsAITakeoverLoading(false);
+      setIsAILoading(false);
+    }
+  };
+
   // Error state - show error with retry
   if (loadError) {
     return (
@@ -811,7 +997,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
     );
   }
 
-  const canSend = userInput.trim().length > 0 && !isUserLoading && !isAILoading;
+  const canSend = userInput.trim().length > 0 && !isUserLoading && !isAILoading && isOwner;
 
   return (
     <div className="h-dvh flex flex-col overflow-hidden bg-[var(--bg)]">
@@ -900,7 +1086,18 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
           {/* Input Row */}
           <div className="flex gap-2">
             {/* Textarea Container */}
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 relative">
+              {!isOwner && (
+                <div className="absolute inset-0 bg-[var(--bg)]/80 backdrop-blur-sm rounded-xl flex items-center justify-center z-10">
+                  <span className="text-sm text-[var(--text-secondary)] flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                    </svg>
+                    View only — sign in to start your own debate
+                  </span>
+                </div>
+              )}
               <textarea
                 ref={textareaRef}
                 value={userInput}
@@ -921,14 +1118,14 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
                     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
                   }, 100);
                 }}
-                placeholder="Make your argument..."
+                placeholder={isOwner ? "Make your argument..." : "Sign in to contribute..."}
                 className="w-full bg-[var(--bg-elevated)] border border-[var(--border)] rounded-xl
                   px-3 sm:px-4 py-2.5 sm:py-3 resize-none text-[var(--text)] placeholder-[var(--text-tertiary)]
                   outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/20
                   transition-all min-h-[44px] sm:min-h-[48px] max-h-[120px] text-[15px] leading-relaxed overflow-hidden
-                  touch-manipulation"
+                  touch-manipulation disabled:opacity-50"
                 rows={1}
-                disabled={isUserLoading || isAILoading}
+                disabled={isUserLoading || isAILoading || !isOwner}
               />
             </div>
 
@@ -937,24 +1134,30 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
               {/* AI Takeover Button */}
               <button
                 type="button"
-                onClick={() => setIsAITakeover(!isAITakeover)}
-                disabled={isUserLoading || isAILoading}
+                onClick={handleAITakeover}
+                disabled={isAITakeoverLoading || isAILoading || !isOwner}
                 className={`
                   w-10 h-10 rounded-lg border flex items-center justify-center
                   transition-all duration-200 flex-shrink-0
-                  ${isAITakeover
+                  ${isAITakeoverLoading
                     ? 'border-[var(--accent)] text-[var(--accent)] bg-[var(--accent)]/10'
                     : 'border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--accent)] hover:border-[var(--accent)]/30'
                   }
                   disabled:opacity-40 disabled:cursor-not-allowed
                 `}
-                title="Let AI argue for you"
-                aria-pressed={isAITakeover}
+                title={isOwner ? "Let AI argue for you" : "Sign in to contribute to this debate"}
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                    d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
-                </svg>
+                {isAITakeoverLoading ? (
+                  <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                  </svg>
+                ) : (
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                      d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                  </svg>
+                )}
               </button>
 
               {/* Send Button */}

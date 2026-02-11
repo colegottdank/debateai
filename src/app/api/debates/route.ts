@@ -39,6 +39,7 @@ export const GET = withErrorHandler(async (request: Request) => {
     `SELECT 
       id,
       opponent,
+      opponent_style,
       topic,
       json_array_length(messages) as message_count,
       created_at,
@@ -53,9 +54,9 @@ export const GET = withErrorHandler(async (request: Request) => {
   if (result.success && result.result) {
     // Format the debates for the frontend
     const debates = result.result.map((debate: Record<string, unknown>) => {
-      // Parse score_data to get opponentStyle if available
-      let opponentStyle = null;
-      if (debate.score_data && typeof debate.score_data === 'string') {
+      // Use opponent_style from database, fallback to score_data if needed
+      let opponentStyle = debate.opponent_style;
+      if (!opponentStyle && debate.score_data && typeof debate.score_data === 'string') {
         try {
           const scoreData = JSON.parse(debate.score_data);
           opponentStyle = scoreData.opponentStyle;
