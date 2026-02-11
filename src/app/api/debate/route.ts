@@ -125,15 +125,15 @@ export async function POST(request: Request) {
     // Add the current user argument
     messages.push({ role: "user", content: userArgument });
 
-    // Inject reminder about citations to prime the model
+    // Inject reminder about citations and brevity to prime the model
     messages.push({
       role: "assistant",
       content:
-        "I'll respond to this argument. If I use web search, I will include citation markers [1], [2] directly in my text for any facts I cite.",
+        "I'll respond with a short, punchy counter (under 120 words). If I search the web, I'll include [1], [2] markers for any facts I cite.",
     });
     messages.push({
       role: "user",
-      content: "Go ahead.",
+      content: "Go ahead. Keep it short.",
     });
 
     // Always use streaming response
@@ -152,14 +152,14 @@ export async function POST(request: Request) {
           // Use Anthropic directly with web search tool
           const stream = anthropic.messages.stream({
             model: "claude-haiku-4-5-20251001",
-            max_tokens: 1000,
+            max_tokens: 500,
             system: systemPrompt,
             messages: messages,
             tools: [
               {
                 type: "web_search_20250305",
                 name: "web_search",
-                max_uses: 1, // Limit to 1 search to reduce cost
+                max_uses: 2, // Allow 2 searches for better citations
               },
             ],
           }, {
@@ -234,8 +234,8 @@ export async function POST(request: Request) {
           const finalMessage = await stream.finalMessage();
           console.log("📚 [ANTHROPIC] Final message content blocks:", finalMessage.content.length);
 
-          // Extract citations from the response (limit to 3 to reduce clutter)
-          const MAX_CITATIONS = 3;
+          // Extract citations from the response
+          const MAX_CITATIONS = 5;
           const seenUrls = new Set<string>();
 
           // First pass: extract from text block citations (preferred - has proper mapping)
