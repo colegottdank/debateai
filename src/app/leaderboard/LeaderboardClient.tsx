@@ -115,15 +115,28 @@ export default function LeaderboardClient() {
 
       {/* Loading */}
       {loading && !error && (
-        <div className="space-y-3">
+        <div className="space-y-2">
           {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="flex items-center gap-3 p-4 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)] animate-pulse">
-              <div className="w-7 h-7 rounded-full bg-[var(--bg-sunken)]" />
-              <div className="flex-1">
-                <div className="h-4 bg-[var(--bg-sunken)] rounded w-32 mb-1" />
-                <div className="h-3 bg-[var(--bg-sunken)] rounded w-20" />
+            <div 
+              key={i} 
+              className="flex items-center gap-3 p-3.5 sm:p-4 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)]/50"
+            >
+              <div className="flex-shrink-0 w-8 flex justify-center">
+                <div className="w-7 h-7 rounded-full bg-[var(--bg-sunken)] animate-pulse" />
               </div>
-              <div className="h-5 bg-[var(--bg-sunken)] rounded w-14" />
+              <div className="flex-1 min-w-0">
+                <div className="h-4 bg-[var(--bg-sunken)] rounded animate-pulse w-32 mb-1.5" />
+                <div className="flex items-center gap-1.5">
+                  <div className="h-3 bg-[var(--bg-sunken)] rounded animate-pulse w-16" />
+                  <span className="text-[var(--text-tertiary)]">·</span>
+                  <div className="h-3 bg-[var(--bg-sunken)] rounded animate-pulse w-8" />
+                  <span className="text-[var(--text-tertiary)]">·</span>
+                  <div className="h-3 bg-[var(--bg-sunken)] rounded animate-pulse w-12" />
+                </div>
+              </div>
+              <div className="flex-shrink-0 text-right w-16">
+                <div className="h-5 bg-[var(--bg-sunken)] rounded animate-pulse w-12 ml-auto" />
+              </div>
             </div>
           ))}
         </div>
@@ -131,14 +144,25 @@ export default function LeaderboardClient() {
 
       {/* Empty state */}
       {!loading && !error && entries.length === 0 && (
-        <div className="text-center py-16">
-          <div className="text-4xl mb-3">🏟️</div>
-          <h3 className="text-base font-semibold text-[var(--text)] mb-1">No debaters yet</h3>
-          <p className="text-sm text-[var(--text-secondary)]">
+        <div className="text-center py-16 px-4">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[var(--bg-sunken)] border border-[var(--border)] flex items-center justify-center">
+            <span className="text-3xl">🏆</span>
+          </div>
+          <h3 className="text-lg font-semibold text-[var(--text)] mb-2">No debaters yet</h3>
+          <p className="text-sm text-[var(--text-secondary)] mb-6 max-w-sm mx-auto">
             {period === 'weekly'
-              ? 'No debates completed this week. Be the first!'
-              : 'Complete a debate to appear on the leaderboard.'}
+              ? 'No debates completed this week. Be the first to climb the rankings!'
+              : 'Complete a debate to appear on the leaderboard and earn points.'}
           </p>
+          <a
+            href="/debate"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--accent)] text-white font-medium text-sm hover:bg-[var(--accent-hover)] transition-colors"
+          >
+            <span>Start Debating</span>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            </svg>
+          </a>
         </div>
       )}
 
@@ -220,24 +244,26 @@ export default function LeaderboardClient() {
         </div>
       )}
 
-      {/* Points legend */}
-      <div className="mt-8 p-4 rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)]">
-        <h4 className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-3">How Points Work</h4>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {[
-            { icon: '✅', label: 'Complete', value: '+10' },
-            { icon: '🏆', label: 'Win', value: '+5' },
-            { icon: '🔥', label: 'Streak/day', value: '+2' },
-            { icon: '📤', label: 'Share', value: '+3' },
-          ].map((item) => (
-            <div key={item.label} className="text-center">
-              <div className="text-lg mb-0.5">{item.icon}</div>
-              <div className="text-xs font-semibold text-[var(--accent)]">{item.value}</div>
-              <div className="text-[10px] text-[var(--text-tertiary)]">{item.label}</div>
-            </div>
-          ))}
+      {/* Points legend - only show when not loading */}
+      {!loading && (
+        <div className="mt-8 p-4 rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)]">
+          <h4 className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-3">How Points Work</h4>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {[
+              { icon: '✅', label: 'Complete', value: '+10' },
+              { icon: '🏆', label: 'Win', value: '+5' },
+              { icon: '🔥', label: 'Streak/day', value: '+2' },
+              { icon: '📤', label: 'Share', value: '+3' },
+            ].map((item) => (
+              <div key={item.label} className="text-center">
+                <div className="text-lg mb-0.5">{item.icon}</div>
+                <div className="text-xs font-semibold text-[var(--accent)]">{item.value}</div>
+                <div className="text-[10px] text-[var(--text-tertiary)]">{item.label}</div>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
