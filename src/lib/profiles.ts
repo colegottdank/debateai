@@ -132,7 +132,7 @@ export async function getPublicProfile(username: string): Promise<PublicProfileD
   const debatesResult = await d1.query(
     `SELECT id, topic, opponent, user_score, ai_score, score_data, created_at
      FROM debates
-     WHERE user_id = ? AND score_data IS NOT NULL
+     WHERE user_id = ? AND score_data IS NOT NULL AND json_extract(score_data, '$.debateScore') IS NOT NULL
      ORDER BY created_at DESC LIMIT 10`,
     [profile.userId],
   );
