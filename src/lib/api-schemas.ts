@@ -70,6 +70,16 @@ export const scoreDebateSchema = z.object({
 export type ScoreDebateInput = z.infer<typeof scoreDebateSchema>;
 
 /**
+ * POST /api/debate/judge
+ */
+export const judgeDebateSchema = z.object({
+  debateId: debateIdSchema,
+  topic: topicSchema,
+  messages: z.array(messageSchema).min(2, 'At least 2 messages required for judging'),
+});
+export type JudgeDebateInput = z.infer<typeof judgeDebateSchema>;
+
+/**
  * GET /api/debate/[debateId]
  * No body schema needed, debateId comes from URL params
  */

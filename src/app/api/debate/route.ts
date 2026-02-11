@@ -72,7 +72,7 @@ export async function POST(request: Request) {
       messageIndex: previousMessages.length,
       isAIAssisted,
     });
-
+    
     // Deduplicate debate creation: if no debateId and same user+topic within 30s, reuse existing
     if (!debateId) {
       const dup = await d1.findRecentDuplicate(userId, topic, 30);
@@ -86,6 +86,7 @@ export async function POST(request: Request) {
       }
     }
 
+
     // Check message limit
     const isTestMode = process.env.NEXT_PUBLIC_TEST_MODE === "true";
     const isLocalDev =
@@ -98,11 +99,8 @@ export async function POST(request: Request) {
       }
     }
 
-    // Get the appropriate system prompt from our centralized prompts
-    // Always use the persona-based prompt (either custom or daily)
-    const persona = opponentStyle || getDailyPersona();
-    // Detect first response: no previous messages means this is the opening exchange
     const isFirstResponse = !previousMessages || previousMessages.length === 0;
+    const persona = opponentStyle || getDailyPersona();
     const systemPrompt = getDebatePrompt(persona, topic, isFirstResponse);
 
     // Build conversation history for Anthropic SDK format

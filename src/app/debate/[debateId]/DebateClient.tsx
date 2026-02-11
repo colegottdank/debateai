@@ -101,6 +101,9 @@ const Message = memo(
     isAILoading,
     isUserLoading,
     onRetry,
+    messageIndex,
+    isHighlighted,
+    debateId,
   }: {
     msg: {
       role: string;
@@ -116,6 +119,9 @@ const Message = memo(
     isAILoading: boolean;
     isUserLoading?: boolean;
     onRetry?: () => void;
+    messageIndex: number;
+    isHighlighted?: boolean;
+    debateId?: string;
   }) => {
     const isUser = msg.role === "user";
     const isStreaming = (isUser && isUserLoading) || (!isUser && isAILoading);
@@ -123,7 +129,28 @@ const Message = memo(
     const hasContent = msg.content && msg.content.length > 0;
     const [showCitations, setShowCitations] = useState(false);
     const [highlightedCitation, setHighlightedCitation] = useState<number | null>(null);
+    const [showShareToast, setShowShareToast] = useState(false);
     const citationRefs = useRef<{ [key: number]: HTMLAnchorElement | null }>({});
+    const messageRef = useRef<HTMLDivElement>(null);
+
+    // Handle highlight scroll effect
+    useEffect(() => {
+      if (isHighlighted && messageRef.current) {
+        messageRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, [isHighlighted]);
+
+    const handleShare = async () => {
+      if (!debateId) return;
+      const url = `${window.location.origin}/debate/${debateId}?highlight_message_id=${messageIndex}`;
+      try {
+        await navigator.clipboard.writeText(url);
+        setShowShareToast(true);
+        setTimeout(() => setShowShareToast(false), 2000);
+      } catch {
+        // Silent fail
+      }
+    };
 
     const handleCitationClick = (citationId: number) => {
       // Open citations panel if not already open
@@ -149,7 +176,23 @@ const Message = memo(
     };
 
     return (
-      <div className={`py-5 ${isUser ? '' : 'bg-[var(--bg-elevated)]/60 border-y border-[var(--border)]/30'} ${isFailed ? 'opacity-80' : ''}`}>
+      <div 
+        ref={messageRef}
+        id={`message-${messageIndex}`}
+        className={`py-5 relative group ${isUser ? '' : 'bg-[var(--bg-elevated)]/60 border-y border-[var(--border)]/30'} ${isFailed ? 'opacity-80' : ''} ${isHighlighted ? 'animate-highlight-pulse' : ''}`}
+      >
+        {/* Highlight overlay */}
+        {isHighlighted && (
+          <div className="absolute inset-0 bg-[var(--accent)]/5 pointer-events-none" />
+        )}
+        
+        {/* Share toast */}
+        {showShareToast && (
+          <div className="absolute top-2 right-4 z-10 px-3 py-1.5 rounded-full bg-[var(--accent)] text-white text-xs font-medium shadow-lg animate-fade-in">
+            Link copied!
+          </div>
+        )}
+        
         <div className="max-w-3xl mx-auto px-4 sm:px-6">
           <div className="flex gap-3">
             {/* Avatar */}
@@ -172,15 +215,30 @@ const Message = memo(
 
             {/* Content */}
             <div className="flex-1 min-w-0 pt-0.5">
-              {/* Name */}
-              <div className="flex items-center gap-2 mb-1">
-                <span className="font-semibold text-sm text-[var(--text)]">
-                  {isUser ? "You" : (opponent?.name || debate?.opponentStyle || "AI Opponent")}
-                </span>
-                {msg.aiAssisted && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--accent)]/10 text-[var(--accent)] font-medium">
-                    AI-assisted
+              {/* Name and Share */}
+              <div className="flex items-center justify-between gap-2 mb-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-sm text-[var(--text)]">
+                    {isUser ? "You" : (opponent?.name || debate?.opponentStyle || "AI Opponent")}
                   </span>
+                  {msg.aiAssisted && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--accent)]/10 text-[var(--accent)] font-medium">
+                      AI-assisted
+                    </span>
+                  )}
+                </div>
+                
+                {/* Share button */}
+                {hasContent && !isStreaming && debateId && (
+                  <button
+                    onClick={handleShare}
+                    className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity p-1.5 rounded-md hover:bg-[var(--bg-sunken)] text-[var(--text-tertiary)] hover:text-[var(--accent)]"
+                    title="Share this moment"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/>
+                    </svg>
+                  </button>
                 )}
               </div>
 
@@ -333,8 +391,38 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const hasUserInteracted = useRef(false);
 
+  // Request judgment from the AI judge
+  const requestJudgment = async () => {
+    if (!debate || messages.length < 2) return;
+    
+    try {
+      const response = await fetch('/api/debate/judge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          topic: debate.topic,
+          messages: messages.filter(m => m.role === 'user' || m.role === 'ai'),
+        }),
+      });
+      
+      if (!response.ok) {
+        console.error('Judge API error:', await response.text());
+        return;
+      }
+      
+      const data = await response.json();
+      setDebateScore(data);
+    } catch (error) {
+      console.error('Failed to request judgment:', error);
+    }
+  };
+
   // Dev mode check from URL
   const isDevMode = searchParams.get('dev') === 'true';
+
+  // Highlight message logic
+  const highlightedMessageId = searchParams.get('highlight_message_id');
+  const highlightedMessageIndex = highlightedMessageId ? parseInt(highlightedMessageId, 10) : null;
 
   // Load debate - skip fetch if server provided initial data
   // Revalidate on mount to fix back button cache issues
@@ -1071,6 +1159,9 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
                 setMessages(prev => prev.filter((_, i) => i !== idx));
                 setUserInput(msg.content);
               } : undefined}
+              messageIndex={idx}
+              isHighlighted={highlightedMessageIndex === idx}
+              debateId={debateId}
             />
           ))}
 
@@ -1096,6 +1187,23 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
           )}
 
           <div ref={messagesEndRef} />
+          
+          {/* Request Judgment Button - shown when enough messages but no score */}
+          {!debateScore && messages.filter(m => m.role === 'user' || m.role === 'ai').length >= 2 && (
+            <div className="max-w-3xl mx-auto px-4 sm:px-6 py-4 text-center">
+              <button
+                onClick={requestJudgment}
+                disabled={isAILoading || isUserLoading}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--accent)]/10 border border-[var(--accent)]/30 text-[var(--accent)] hover:bg-[var(--accent)]/20 transition-colors text-sm font-medium"
+              >
+                <span>⚖️</span>
+                <span>Request Judge&apos;s Verdict</span>
+              </button>
+              <p className="text-xs text-[var(--text-tertiary)] mt-2">
+                Get an AI analysis of your debate performance
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
