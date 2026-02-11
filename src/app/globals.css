@@ -514,3 +514,17 @@ textarea:focus-visible,
 .animate-confetti-fall {
   animation: confetti-fall 1.5s ease-out forwards;
 }
+
+/* Shareable Moments Highlight Animation */
+@keyframes highlight-pulse {
+  0%, 100% {
+    background-color: rgba(201, 102, 74, 0.05);
+  }
+  50% {
+    background-color: rgba(201, 102, 74, 0.15);
+  }
+}
+
+.animate-highlight-pulse {
+  animation: highlight-pulse 2s ease-in-out 3;
+}
