@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 
 type Period = 'alltime' | 'weekly';
 type Sort = 'points' | 'streak' | 'debates' | 'avg_score';
@@ -9,6 +10,7 @@ interface Entry {
   rank: number;
   userId: string;
   displayName: string | null;
+  username: string | null;
   totalDebates: number;
   totalWins: number;
   currentStreak: number;
@@ -160,9 +162,18 @@ export default function LeaderboardClient() {
               {/* Name + stats */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-[var(--text)] truncate">
-                    {entry.displayName || `Debater ${entry.userId.slice(-4)}`}
-                  </span>
+                  {entry.username ? (
+                    <Link
+                      href={`/profile/${entry.username}`}
+                      className="text-sm font-semibold text-[var(--text)] hover:text-[var(--accent)] transition-colors truncate"
+                    >
+                      {entry.displayName || `Debater ${entry.userId.slice(-4)}`}
+                    </Link>
+                  ) : (
+                    <span className="text-sm font-semibold text-[var(--text)] truncate">
+                      {entry.displayName || `Debater ${entry.userId.slice(-4)}`}
+                    </span>
+                  )}
                   {entry.currentStreak > 0 && (
                     <span className="text-xs text-orange-500 font-medium flex items-center gap-0.5">
                       🔥 {entry.currentStreak}

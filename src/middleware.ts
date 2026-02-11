@@ -24,6 +24,8 @@ const isPublicRoute = createRouteMatcher([
   '/topics/(.*)',     // Topic history page
   '/leaderboard',    // Public leaderboard page
   '/api/leaderboard', // Public leaderboard API
+  '/profile/(.*)',   // Public profile pages
+  '/api/profile/public', // Public profile API
   '/debate',  // Allow access to debate setup page (will handle auth client-side)
   '/debate/(.*)',  // Allow debate pages to load and handle auth client-side
   '/history',  // Allow history page to load and handle auth client-side
