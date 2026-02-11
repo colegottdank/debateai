@@ -6,6 +6,8 @@ import { createRateLimiter, getClientIp, rateLimitResponse } from '@/lib/rate-li
 import { errors, withErrorHandler, validateBody } from '@/lib/api-errors';
 import { z } from 'zod';
 import Anthropic from '@anthropic-ai/sdk';
+import { recordDebateCompletion } from '@/lib/streaks';
+import { currentUser } from '@clerk/nextjs/server';
 
 const anthropic = new Anthropic({
   baseURL: 'https://anthropic.helicone.ai',
@@ -131,6 +133,20 @@ export const POST = withErrorHandler(async (request: Request) => {
       debateId,
     ]
   );
+
+  // ── Update streak + points + leaderboard ────────────────
+  try {
+    const user = await currentUser();
+    const displayName = user?.firstName
+      ? `${user.firstName}${user.lastName ? ` ${user.lastName.charAt(0)}.` : ''}`
+      : user?.username || undefined;
+
+    const debateResult2 = score.winner === 'user' ? 'win' : score.winner === 'ai' ? 'loss' : 'draw';
+    await recordDebateCompletion(userId, debateResult2, score.userScore, displayName);
+  } catch (err) {
+    // Non-blocking — scoring still succeeds even if streak update fails
+    console.error('Failed to update streak/points:', err);
+  }
 
   return NextResponse.json({ score, cached: false });
 });
