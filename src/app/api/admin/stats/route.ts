@@ -41,6 +41,12 @@ interface AdminStats {
   freeDebatesToday: number;
   churningUsers: number; // premium users with cancel_at_period_end = true
 
+  // Completion & retention
+  completionRate: number; // debates with score / total debates (%)
+  scoredDebates: number;
+  activeStreaks: number; // users with current_streak >= 1 who debated today or yesterday
+  emailSubscribers: number; // users in email_preferences table
+
   // Top content
   topTopics: Array<{ topic: string; count: number }>;
   topOpponents: Array<{ opponent: string; count: number }>;
@@ -95,6 +101,9 @@ export const GET = withErrorHandler(async () => {
       topTopicsResult,
       topOpponentsResult,
       dailyTrendResult,
+      scoredDebatesResult,
+      activeStreaksResult,
+      emailSubscribersResult,
     ] = await Promise.all([
       // Total debates (excluding test users and 0-message debates)
       d1.query(`SELECT COUNT(*) as total FROM debates WHERE ${REAL_DEBATES}`, []),
@@ -204,6 +213,24 @@ export const GET = withErrorHandler(async () => {
          ORDER BY date ASC`,
         []
       ),
+
+      // Scored debates (completion rate)
+      d1.query(
+        `SELECT COUNT(*) as total FROM debates WHERE ${REAL_DEBATES} AND score_data IS NOT NULL AND json_extract(score_data, '$.debateScore') IS NOT NULL`,
+        []
+      ),
+
+      // Active streaks (users who debated today or yesterday with streak >= 1)
+      d1.query(
+        `SELECT COUNT(*) as total FROM user_streaks WHERE current_streak >= 1 AND (last_debate_date = date('now') OR last_debate_date = date('now', '-1 day'))`,
+        []
+      ),
+
+      // Email subscribers
+      d1.query(
+        `SELECT COUNT(*) as total FROM email_preferences`,
+        []
+      ),
     ]);
 
     const totalUsers = (totalUsersResult.result?.[0]?.total as number) || 0;
@@ -232,6 +259,15 @@ export const GET = withErrorHandler(async () => {
       premiumDebatesToday: (premiumDebatesTodayResult.result?.[0]?.total as number) || 0,
       freeDebatesToday: (freeDebatesTodayResult.result?.[0]?.total as number) || 0,
       churningUsers: (churningResult.result?.[0]?.total as number) || 0,
+
+      completionRate: (() => {
+        const total = (totalDebatesResult.result?.[0]?.total as number) || 0;
+        const scored = (scoredDebatesResult.result?.[0]?.total as number) || 0;
+        return total > 0 ? Math.round((scored / total) * 1000) / 10 : 0;
+      })(),
+      scoredDebates: (scoredDebatesResult.result?.[0]?.total as number) || 0,
+      activeStreaks: (activeStreaksResult.result?.[0]?.total as number) || 0,
+      emailSubscribers: (emailSubscribersResult.result?.[0]?.total as number) || 0,
 
       topTopics: (topTopicsResult.result || []).map((r: Record<string, unknown>) => ({
         topic: (r.topic as string) || 'Unknown',
