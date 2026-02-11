@@ -207,26 +207,15 @@ export default function HomeClient({
               </h2>
 
               {/* Opponent */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-full bg-[var(--accent)]/15 flex items-center justify-center shrink-0">
-                    <svg className="w-3.5 h-3.5 text-[var(--accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
-                  </div>
-                  <span className="text-sm text-[var(--text)]">
-                    You&apos;re debating <strong className="font-semibold text-[var(--accent)]">{dailyDebate.persona}</strong>
-                  </span>
-                </div>
-                <Link
-                  href="/topics/history"
-                  className="text-xs text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors flex items-center gap-1"
-                >
-                  Past topics
-                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-full bg-[var(--accent)]/15 flex items-center justify-center shrink-0">
+                  <svg className="w-3.5 h-3.5 text-[var(--accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                   </svg>
-                </Link>
+                </div>
+                <span className="text-sm text-[var(--text)]">
+                  You&apos;re debating <strong className="font-semibold text-[var(--accent)]">{dailyDebate.persona}</strong>
+                </span>
               </div>
             </div>
           </div>
@@ -238,7 +227,7 @@ export default function HomeClient({
               className={`
                 rounded-2xl border bg-[var(--bg-elevated)] transition-all duration-200
                 ${isFocused
-                  ? 'border-[var(--accent)]/50 shadow-[0_0_0_3px_var(--accent-faint)]'
+                  ? 'border-[var(--accent)]/30 shadow-[0_0_0_2px_var(--accent-faint)]'
                   : 'border-[var(--border)]'
                 }
               `}
@@ -280,11 +269,11 @@ export default function HomeClient({
                   </span>
 
                   <span className="hidden sm:flex items-center gap-1 text-xs text-[var(--text-secondary)]">
-                    <kbd className="px-1.5 py-0.5 rounded bg-[var(--bg-sunken)] border border-[var(--border)] text-[10px] font-mono">
+                    <kbd className="px-1.5 py-0.5 rounded bg-[var(--bg-sunken)] border border-[var(--border)] text-[10px] font-mono cursor-default">
                       ⌘
                     </kbd>
                     <span>+</span>
-                    <kbd className="px-1.5 py-0.5 rounded bg-[var(--bg-sunken)] border border-[var(--border)] text-[10px] font-mono">
+                    <kbd className="px-1.5 py-0.5 rounded bg-[var(--bg-sunken)] border border-[var(--border)] text-[10px] font-mono cursor-default">
                       Enter
                     </kbd>
                   </span>
