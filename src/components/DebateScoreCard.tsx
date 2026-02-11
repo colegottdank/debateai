@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { DebateScore } from "@/lib/scoring";
+import FirstDebateCelebration from "@/components/FirstDebateCelebration";
 
 interface DebateScoreCardProps {
   debateId: string;
@@ -144,6 +145,13 @@ export default function DebateScoreCard({
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6">
+      {/* First-debate celebration (confetti + hype) — only shown once */}
+      <FirstDebateCelebration
+        winner={score.winner}
+        userScore={score.userScore}
+        aiScore={score.aiScore}
+      />
+
       <div className="bg-[var(--bg-elevated)] border border-[var(--border)] rounded-xl overflow-hidden">
         {/* Header */}
         <div className="px-5 pt-5 pb-4 text-center border-b border-[var(--border)]/50">

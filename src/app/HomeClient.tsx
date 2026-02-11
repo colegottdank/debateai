@@ -6,7 +6,9 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import UpgradeModal from '@/components/UpgradeModal';
+import OnboardingOverlay from '@/components/OnboardingOverlay';
 import { useSubscription } from '@/lib/useSubscription';
+import { markOnboarded } from '@/lib/onboarding';
 import { track } from '@/lib/analytics';
 
 interface DailyDebateData {
@@ -98,6 +100,10 @@ export default function HomeClient({
     if (e) e.preventDefault();
     if (!dailyDebate || !userInput.trim()) return;
 
+    // Mark onboarding complete as soon as user initiates a debate
+    markOnboarded();
+    track('onboarding_started', { topic: dailyDebate.topic, source: 'onboarding' });
+
     if (!isSignedIn) {
       sessionStorage.setItem(
         'pendingDebate',
@@ -171,7 +177,7 @@ export default function HomeClient({
           </div>
 
           {/* Today's Debate Card */}
-          <div className="mb-6 animate-fade-up" style={{ animationDelay: '100ms' }}>
+          <div className="mb-6 animate-fade-up" style={{ animationDelay: '100ms' }} data-onboarding="topic">
             <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-elevated)] p-5 sm:p-6">
               {/* Topic label */}
               <div className="flex items-center gap-2 mb-3">
@@ -220,6 +226,7 @@ export default function HomeClient({
           {/* Argument Input — always visible, ready to type */}
           <form onSubmit={startDebate} className="animate-fade-up" style={{ animationDelay: '200ms' }}>
             <div
+              data-onboarding="input"
               className={`
                 rounded-2xl border bg-[var(--bg-elevated)] transition-all duration-200
                 ${isFocused
@@ -281,6 +288,7 @@ export default function HomeClient({
             <button
               type="submit"
               disabled={!canStart}
+              data-onboarding="cta"
               className={`
                 w-full mt-3 h-12 px-6 rounded-xl font-medium text-base transition-all duration-200
                 flex items-center justify-center gap-2
@@ -340,6 +348,9 @@ export default function HomeClient({
           )}
         </div>
       </main>
+
+      {/* First-time user onboarding */}
+      <OnboardingOverlay />
 
       <UpgradeModal isOpen={showUpgradeModal} onClose={() => setShowUpgradeModal(false)} trigger="button" />
     </div>
