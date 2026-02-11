@@ -148,5 +148,31 @@ export const POST = withErrorHandler(async (request: Request) => {
     console.error('Failed to update streak/points:', err);
   }
 
+  // ── Fire challenge notifications (non-blocking) ──────────
+  try {
+    const firstUserMsg = messages.find(m => m.role === 'user');
+    const snippet = firstUserMsg?.content?.slice(0, 80) || '';
+
+    const internalSecret = process.env.INTERNAL_SECRET || process.env.CRON_SECRET;
+    if (internalSecret && snippet) {
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://debateai.org';
+      fetch(`${baseUrl}/api/internal/challenge-notify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${internalSecret}`,
+        },
+        body: JSON.stringify({
+          topic,
+          scorerUserId: userId,
+          scorerScore: score.userScore,
+          scorerSnippet: snippet,
+        }),
+      }).catch(() => {}); // Fire and forget
+    }
+  } catch {
+    // Non-blocking
+  }
+
   return NextResponse.json({ score, cached: false });
 });
