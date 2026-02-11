@@ -7,6 +7,7 @@ import { SafeSignedIn, SafeSignedOut, SafeSignInButton, SafeUserButton } from '@
 import ThemeToggle from './ThemeToggle';
 import UpgradeModal from './UpgradeModal';
 import MobileNav from './MobileNav';
+import NotificationBell from './NotificationBell';
 import { useSubscription } from '@/lib/useSubscription';
 
 export default function Header() {
@@ -93,6 +94,7 @@ export default function Header() {
 
               <div className="flex items-center gap-1 pl-2 ml-2 border-l border-[var(--border)]">
                 <SafeSignedIn>
+                  <NotificationBell />
                   <SafeUserButton 
                     appearance={{
                       elements: {

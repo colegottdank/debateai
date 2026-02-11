@@ -8,6 +8,7 @@ import { logger } from '@/lib/logger';
 import { z } from 'zod';
 import Anthropic from '@anthropic-ai/sdk';
 import { recordDebateCompletion } from '@/lib/streaks';
+import { notifyScoreResult, notifyStreakMilestone } from '@/lib/notifications';
 import { currentUser } from '@clerk/nextjs/server';
 
 const log = logger.scope('debate.score');
@@ -145,10 +146,16 @@ export const POST = withErrorHandler(async (request: Request) => {
       : user?.username || undefined;
 
     const debateResult2 = score.winner === 'user' ? 'win' : score.winner === 'ai' ? 'loss' : 'draw';
-    await recordDebateCompletion(userId, debateResult2, score.userScore, displayName);
+    const streakResult = await recordDebateCompletion(userId, debateResult2, score.userScore, displayName);
+
+    // Fire notifications (non-blocking)
+    await notifyScoreResult(userId, topic, debateResult2, score.userScore, debateId);
+    if (streakResult) {
+      await notifyStreakMilestone(userId, streakResult.currentStreak);
+    }
   } catch (err) {
-    // Non-blocking — scoring still succeeds even if streak update fails
-    console.error('Failed to update streak/points:', err);
+    // Non-blocking — scoring still succeeds even if streak/notification update fails
+    console.error('Failed to update streak/points/notifications:', err);
   }
 
   log.info('completed', {
