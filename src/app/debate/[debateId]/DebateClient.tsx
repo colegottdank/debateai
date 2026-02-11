@@ -1079,6 +1079,9 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
             <JudgeMessage
               score={debateScore}
               opponentName={opponent?.name || debate?.opponentStyle || "AI"}
+              messageCount={messages.filter(m => m.role === 'user').length}
+              messages={messages}
+              topic={debate?.topic || ""}
             />
           )}
 
