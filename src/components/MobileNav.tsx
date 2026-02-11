@@ -126,7 +126,7 @@ export default function MobileNav() {
         onClick={() => setIsOpen(!isOpen)}
         className="sm:hidden relative w-9 h-9 rounded-lg flex items-center justify-center
           text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--bg-sunken)]
-          transition-colors"
+          transition-colors cursor-pointer"
         aria-label={isOpen ? 'Close menu' : 'Open menu'}
         aria-expanded={isOpen}
         aria-controls="mobile-nav-panel"
@@ -179,7 +179,7 @@ export default function MobileNav() {
                 <li key={item.href}>
                   <Link
                     href={item.href}
-                    className={`flex items-center gap-3 px-3 py-3 rounded-xl text-[15px] font-medium transition-all duration-150
+                    className={`flex items-center gap-3 px-3 py-3 rounded-xl text-[15px] font-medium transition-all duration-150 cursor-pointer
                       ${isActive
                         ? 'bg-[var(--accent)]/10 text-[var(--accent)]'
                         : 'text-[var(--text)] hover:bg-[var(--bg-sunken)]'

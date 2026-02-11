@@ -195,7 +195,7 @@ export default function HomeClient({
                 <span className="h-px flex-1 bg-[var(--border)]" />
                 <a
                   href="/topics/history"
-                  className="text-[10px] font-medium text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors"
+                  className="text-[10px] font-medium text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors cursor-pointer"
                 >
                   Past topics →
                 </a>
@@ -225,10 +225,10 @@ export default function HomeClient({
             <div
               data-onboarding="input"
               className={`
-                rounded-2xl border bg-[var(--bg-elevated)] transition-all duration-200
+                rounded-2xl bg-[var(--bg-elevated)] transition-all duration-200
                 ${isFocused
-                  ? 'border-[var(--accent)]/30 shadow-[0_0_0_2px_var(--accent-faint)]'
-                  : 'border-[var(--border)]'
+                  ? 'ring-1 ring-[var(--accent)]/30'
+                  : 'ring-1 ring-[var(--border)]'
                 }
               `}
             >
@@ -330,7 +330,7 @@ export default function HomeClient({
             <div className="mt-8 text-center animate-fade-in">
               <button
                 onClick={() => setShowUpgradeModal(true)}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs text-[var(--accent)] bg-[var(--accent)]/5 border border-[var(--accent)]/20 hover:bg-[var(--accent)]/10 transition-colors"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs text-[var(--accent)] bg-[var(--accent)]/5 border border-[var(--accent)]/20 hover:bg-[var(--accent)]/10 transition-colors cursor-pointer"
               >
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
