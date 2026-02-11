@@ -16,6 +16,7 @@ const isPublicRoute = createRouteMatcher([
   '/api/topics/(.*)',    // Public daily topic + history
   '/api/health',         // Health check endpoint
   '/api/cron/(.*)',      // Vercel cron endpoints (protected by CRON_SECRET)
+  '/api/email/unsubscribe', // One-click unsubscribe (CAN-SPAM — no auth required)
   '/blog',            // Public blog index
   '/blog/(.*)',        // Public blog posts
   '/compare/(.*)',    // SEO comparison pages
