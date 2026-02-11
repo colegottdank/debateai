@@ -19,6 +19,7 @@ export default function ThemeToggle() {
         hover:border-[var(--border)]/50
         transition-all duration-200
         focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50
+        cursor-pointer
       "
       aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
       title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}

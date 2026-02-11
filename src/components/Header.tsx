@@ -20,7 +20,7 @@ export default function Header() {
         <div className="container-wide">
           <div className="flex items-center justify-between h-14">
             {/* Logo */}
-            <Link href="/" className="flex items-center gap-2.5 group">
+            <Link href="/" className="flex items-center gap-2.5 group cursor-pointer">
               <div className="relative w-8 h-8 rounded-lg overflow-hidden">
                 <Image 
                   src="/logo-icon.png" 
@@ -40,7 +40,7 @@ export default function Header() {
             <nav className="flex items-center gap-1">
               <Link
                 href="/explore"
-                className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text)] rounded-lg hover:bg-[var(--bg-sunken)] transition-all"
+                className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text)] rounded-lg hover:bg-[var(--bg-sunken)] transition-all cursor-pointer"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
@@ -50,7 +50,7 @@ export default function Header() {
 
               <Link
                 href="/leaderboard"
-                className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text)] rounded-lg hover:bg-[var(--bg-sunken)] transition-all"
+                className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text)] rounded-lg hover:bg-[var(--bg-sunken)] transition-all cursor-pointer"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
@@ -60,7 +60,7 @@ export default function Header() {
 
               <Link
                 href="/blog"
-                className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text)] rounded-lg hover:bg-[var(--bg-sunken)] transition-all"
+                className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text)] rounded-lg hover:bg-[var(--bg-sunken)] transition-all cursor-pointer"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/>
@@ -71,7 +71,7 @@ export default function Header() {
               <SafeSignedIn>
                 <Link
                   href="/history"
-                  className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text)] rounded-lg hover:bg-[var(--bg-sunken)] transition-all"
+                  className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text)] rounded-lg hover:bg-[var(--bg-sunken)] transition-all cursor-pointer"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
@@ -82,7 +82,7 @@ export default function Header() {
                 {!isLoading && !isPremium && (
                   <button
                     onClick={() => setShowUpgradeModal(true)}
-                    className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[var(--accent)] bg-[var(--accent-subtle)] hover:bg-[var(--accent-faint)] rounded-lg transition-colors ml-1"
+                    className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[var(--accent)] bg-[var(--accent-subtle)] hover:bg-[var(--accent-faint)] rounded-lg transition-colors ml-1 cursor-pointer"
                   >
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>
@@ -94,14 +94,20 @@ export default function Header() {
 
               <div className="flex items-center gap-1 pl-2 ml-2 border-l border-[var(--border)]">
                 <SafeSignedIn>
-                  <NotificationBell />
-                  <SafeUserButton 
-                    appearance={{
-                      elements: {
-                        avatarBox: "w-8 h-8 rounded-lg"
-                      }
-                    }}
-                  />
+                  <div className="flex items-center gap-1">
+                    <div className="w-9 h-9 flex items-center justify-center">
+                      <NotificationBell />
+                    </div>
+                    <div className="w-8 h-8">
+                      <SafeUserButton 
+                        appearance={{
+                          elements: {
+                            avatarBox: "w-8 h-8 rounded-lg"
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
                 </SafeSignedIn>
                 <SafeSignedOut>
                   <SafeSignInButton mode="modal">
