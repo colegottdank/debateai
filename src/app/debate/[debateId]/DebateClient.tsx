@@ -1071,6 +1071,9 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
                 setMessages(prev => prev.filter((_, i) => i !== idx));
                 setUserInput(msg.content);
               } : undefined}
+              messageIndex={idx}
+              isHighlighted={highlightedMessageIndex === idx}
+              debateId={debateId}
             />
           ))}
 
