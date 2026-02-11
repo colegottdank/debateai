@@ -44,7 +44,6 @@ export const sendMessageSchema = z.object({
   userArgument: z.string().min(1, 'Argument is required').max(10000),
   previousMessages: z.array(messageSchema).optional().default([]),
   isAIAssisted: z.boolean().optional().default(false),
-  promptVariant: z.enum(['default', 'aggressive']).optional().default('default'),
 });
 export type SendMessageInput = z.infer<typeof sendMessageSchema>;
 

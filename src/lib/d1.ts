@@ -142,14 +142,16 @@ class D1Client {
     scoreData?: Record<string, unknown>;
     debateId?: string;
     opponentStyle?: string;
+    promptVariant?: string;
   }) {
     // Use provided ID or generate a new one
     const debateId = data.debateId || crypto.randomUUID();
     
-    // Store opponentStyle in scoreData along with other metadata
+    // Store metadata in score_data json blob
     const metadata = {
       ...data.scoreData,
-      opponentStyle: data.opponentStyle
+      opponentStyle: data.opponentStyle,
+      promptVariant: data.promptVariant,
     };
     
     const result = await this.query(
@@ -186,9 +188,14 @@ class D1Client {
       // Parse the JSON score_data field if it exists
       if (debate.score_data && typeof debate.score_data === 'string') {
         debate.score_data = JSON.parse(debate.score_data);
-        // Extract opponentStyle from score_data and add it as a top-level field
-        if (debate.score_data && typeof debate.score_data === 'object' && 'opponentStyle' in debate.score_data) {
-          debate.opponentStyle = (debate.score_data as any).opponentStyle;
+        // Extract metadata and add it as a top-level field
+        if (debate.score_data && typeof debate.score_data === 'object') {
+          if ('opponentStyle' in debate.score_data) {
+            debate.opponentStyle = (debate.score_data as any).opponentStyle;
+          }
+          if ('promptVariant' in debate.score_data) {
+            debate.promptVariant = (debate.score_data as any).promptVariant;
+          }
         }
       }
       return { success: true, debate };
