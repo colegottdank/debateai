@@ -178,6 +178,158 @@ export function unsubscribeConfirmationEmail(opts: {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Weekly Recap                                                       */
+/* ------------------------------------------------------------------ */
+
+export function weeklyRecapEmail(opts: {
+  stats: {
+    totalDebates: number;
+    bestScore: number;
+    bestTopic: string;
+    streakCount: number;
+  };
+  trendingTopic: string;
+  unsubscribeToken: string;
+}): { subject: string; html: string } {
+  const { stats, trendingTopic } = opts;
+  
+  let subject = `Your week in arguments: ${stats.totalDebates} debates`;
+  if (stats.bestScore > 0) {
+    subject += `, ${stats.bestScore} best score`;
+  }
+
+  let content = '';
+
+  if (stats.totalDebates === 0) {
+    content = `
+      <h1 style="font-size:22px;font-weight:700;color:#fafaf9;margin:0 0 16px;line-height:1.3;font-family:Georgia,'Times New Roman',serif;">
+        You took the week off. The AI didn't.
+      </h1>
+      <p style="font-size:15px;color:#a8a29e;line-height:1.6;margin:0 0 24px;">
+        It's been preparing new arguments. Ready to test them?
+      </p>
+    `;
+  } else {
+    content = `
+      <h1 style="font-size:22px;font-weight:700;color:#fafaf9;margin:0 0 24px;line-height:1.3;font-family:Georgia,'Times New Roman',serif;">
+        Your week on DebateAI
+      </h1>
+
+      <div style="background-color:#1c1917;border:1px solid #292524;border-radius:12px;padding:20px;margin-bottom:24px;">
+        <div style="margin-bottom:12px;font-size:15px;color:#e7e5e4;">
+          🗣️ <strong>${stats.totalDebates} debates</strong> this week
+        </div>
+        ${stats.bestScore > 0 ? `
+        <div style="margin-bottom:12px;font-size:15px;color:#e7e5e4;">
+          🏆 <strong>Best score:</strong> ${stats.bestScore}/100 on "${escapeHtml(stats.bestTopic)}"
+        </div>
+        ` : ''}
+        <div style="font-size:15px;color:#e7e5e4;">
+          🔥 <strong>Streak:</strong> ${stats.streakCount} days in a row
+        </div>
+      </div>
+    `;
+  }
+
+  content += `
+    <p style="font-size:14px;color:#a8a29e;margin:0 0 8px;">
+      This week's most-debated topic:
+    </p>
+    <p style="font-size:16px;color:#fafaf9;font-weight:600;margin:0 0 24px;">
+      "${escapeHtml(trendingTopic)}"
+    </p>
+
+    <div style="text-align:center;">
+      <a href="${BASE_URL}/debate" style="display:inline-block;background-color:#f59e0b;color:#0c0a09;font-size:14px;font-weight:600;padding:12px 28px;border-radius:12px;text-decoration:none;">
+        Jump Back In →
+      </a>
+    </div>
+  `;
+
+  return {
+    subject,
+    html: emailLayout(content, opts.unsubscribeToken),
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/*  Challenge Notification                                             */
+/* ------------------------------------------------------------------ */
+
+export function challengeNotificationEmail(opts: {
+  topic: string;
+  userScore: number;
+  opponentScore: number;
+  unsubscribeToken: string;
+}): { subject: string; html: string } {
+  const content = `
+    <h1 style="font-size:22px;font-weight:700;color:#fafaf9;margin:0 0 16px;line-height:1.3;font-family:Georgia,'Times New Roman',serif;">
+      Someone just argued the opposite of your position
+    </h1>
+    
+    <p style="font-size:15px;color:#a8a29e;line-height:1.6;margin:0 0 16px;">
+      You argued on <strong>"${escapeHtml(opts.topic)}"</strong> and scored <strong>${opts.userScore}/100</strong>.
+    </p>
+
+    <p style="font-size:15px;color:#a8a29e;line-height:1.6;margin:0 0 24px;">
+      Another debater just took the opposite side — and scored <strong>${opts.opponentScore}/100</strong>.
+    </p>
+
+    <p style="font-size:15px;color:#a8a29e;line-height:1.6;margin:0 0 24px;">
+      Think you can beat both the AI <em>and</em> their score?
+    </p>
+
+    <div style="text-align:center;">
+      <a href="${getDebateUrl(opts.topic)}" style="display:inline-block;background-color:#f59e0b;color:#0c0a09;font-size:14px;font-weight:600;padding:12px 28px;border-radius:12px;text-decoration:none;">
+        Defend Your Position Again →
+      </a>
+    </div>
+  `;
+
+  return {
+    subject: `Someone just argued the opposite of your position on "${opts.topic}"`,
+    html: emailLayout(content, opts.unsubscribeToken),
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/*  Win-back (7-day inactive)                                          */
+/* ------------------------------------------------------------------ */
+
+export function winBackEmail(opts: {
+  trendingTopic: string;
+  count: number;
+  aiWinPct: number;
+  unsubscribeToken: string;
+}): { subject: string; html: string } {
+  const content = `
+    <h1 style="font-size:22px;font-weight:700;color:#fafaf9;margin:0 0 16px;line-height:1.3;font-family:Georgia,'Times New Roman',serif;">
+      The debate topic everyone's arguing about
+    </h1>
+    
+    <p style="font-size:15px;color:#a8a29e;line-height:1.6;margin:0 0 16px;">
+      <strong>"${escapeHtml(opts.trendingTopic)}"</strong> — ${opts.count} debates in the last 7 days. 
+      The AI is winning ${opts.aiWinPct}% of them.
+    </p>
+
+    <p style="font-size:15px;color:#a8a29e;line-height:1.6;margin:0 0 24px;">
+      You've been quiet. The AI hasn't.
+    </p>
+
+    <div style="text-align:center;">
+      <a href="${getDebateUrl(opts.trendingTopic)}" style="display:inline-block;background-color:#f59e0b;color:#0c0a09;font-size:14px;font-weight:600;padding:12px 28px;border-radius:12px;text-decoration:none;">
+        See What You're Missing →
+      </a>
+    </div>
+  `;
+
+  return {
+    subject: `The debate topic everyone's arguing about this week`,
+    html: emailLayout(content, opts.unsubscribeToken),
+  };
+}
+
+/* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
 

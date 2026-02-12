@@ -179,6 +179,21 @@ export async function getDailyDigestRecipients(limit = 500, offset = 0): Promise
 }
 
 /**
+ * Get all users opted in to weekly recap (not unsubscribed).
+ */
+export async function getWeeklyRecapRecipients(limit = 500, offset = 0): Promise<EmailPreferences[]> {
+  const result = await d1.query(
+    `SELECT * FROM email_preferences
+     WHERE weekly_recap = 1 AND unsubscribed_at IS NULL
+     ORDER BY created_at
+     LIMIT ? OFFSET ?`,
+    [limit, offset],
+  );
+
+  return (result.result ?? []) as unknown as EmailPreferences[];
+}
+
+/**
  * Count daily digest subscribers.
  */
 export async function getDailyDigestCount(): Promise<number> {
