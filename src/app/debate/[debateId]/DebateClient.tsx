@@ -544,6 +544,13 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
     revalidateDebate();
   }, [debateId, isDevMode]);
 
+  // Track debate view
+  useEffect(() => {
+    if (debateId) {
+      track('debate_viewed', { debateId });
+    }
+  }, [debateId]);
+
   // Determine variant (A/B Test)
   useEffect(() => {
     if (debate?.promptVariant) {
@@ -884,6 +891,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
         const decoder = new TextDecoder();
         let accumulatedContent = '';
         let citations: Array<{ id: number; url: string; title: string }> = [];
+        let hasReceivedFirstToken = false;
 
         while (true) {
           const { done, value } = await reader.read();
@@ -897,6 +905,14 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
               try {
                 const data = JSON.parse(line.substring(6));
                 if (data.type === 'chunk') {
+                  if (!hasReceivedFirstToken) {
+                    hasReceivedFirstToken = true;
+                    track('debate_ai_ttft', {
+                      debateId,
+                      messageIndex: messages.length + 1,
+                      latencyMs: Date.now() - startTime
+                    });
+                  }
                   accumulatedContent += data.content;
                   setMessages(prev => {
                     const newMessages = [...prev];
@@ -923,7 +939,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
                   const latencyMs = Date.now() - startTime;
                   track('debate_ai_response_latency', {
                     debateId,
-                    messageIndex: messages.length,
+                    messageIndex: messages.length + 1,
                     latencyMs,
                   });
                   setMessages(prev => {
@@ -1119,6 +1135,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
       const debateDecoder = new TextDecoder();
       let debateAccumulatedContent = '';
       let debateCitations: Array<{ id: number; url: string; title: string }> = [];
+      let hasReceivedFirstToken = false;
 
       while (true) {
         const { done, value } = await debateReader.read();
@@ -1132,6 +1149,14 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
             try {
               const data = JSON.parse(line.substring(6));
               if (data.type === 'chunk') {
+                if (!hasReceivedFirstToken) {
+                  hasReceivedFirstToken = true;
+                  track('debate_ai_ttft', {
+                    debateId,
+                    messageIndex: messages.length + 1,
+                    latencyMs: Date.now() - startTime
+                  });
+                }
                 debateAccumulatedContent += data.content;
                 setMessages(prev => {
                   const newMessages = [...prev];
@@ -1148,7 +1173,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
                 const latencyMs = Date.now() - startTime;
                 track('debate_ai_response_latency', {
                   debateId,
-                  messageIndex: messages.length,
+                  messageIndex: messages.length + 1,
                   latencyMs,
                 });
                 setMessages(prev => {
