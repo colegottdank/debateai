@@ -6,8 +6,9 @@ import { withErrorHandler } from '@/lib/api-errors';
 // 10 requests per minute per IP (lightweight but no reason to hammer)
 const limiter = createRateLimiter({ maxRequests: 10, windowMs: 60_000 });
 
-// Filter conditions: exclude test users and 0-message debates (no real engagement)
-const REAL_DEBATES_FILTER = "user_id != 'test-user-123' AND json_array_length(messages) > 1";
+// Filter conditions: exclude test users and short/empty messages (no real engagement)
+// Optimized: use LENGTH instead of json_array_length to avoid full table scan JSON parsing
+const REAL_DEBATES_FILTER = "user_id != 'test-user-123' AND LENGTH(messages) > 20";
 const REAL_USERS_FILTER = "user_id != 'test-user-123'";
 
 // Cache stats for 5 minutes to avoid hammering D1
@@ -26,6 +27,8 @@ interface StatsResponse {
   generatedAt: string;
   cached: boolean;
 }
+
+export const revalidate = 300; // Cache for 5 minutes at edge
 
 /**
  * GET /api/stats
@@ -49,52 +52,75 @@ export const GET = withErrorHandler(async (request: Request) => {
     });
   }
 
-  // Run all queries in parallel
-  const [
-    totalResult,
-    completedResult,
-    usersResult,
-    todayResult,
-    weekResult,
-    avgMsgsResult,
-    topTopicsResult,
-  ] = await Promise.all([
-    // Total debates (excluding test users and 0-message debates)
+  // Helper to safely unwrap settled promises
+  const unwrap = (result: PromiseSettledResult<any>, fallback: any, label: string) => {
+    if (result.status === 'fulfilled') {
+      return result.value;
+    }
+    console.error(`[Stats] Query failed for ${label}:`, result.reason);
+    return fallback;
+  };
+
+  const emptyD1Result = { result: [] };
+
+  // Run all queries in parallel safely
+  const results = await Promise.allSettled([
+    // Total debates
     d1.query(`SELECT COUNT(*) as total FROM debates WHERE ${REAL_DEBATES_FILTER}`, []),
 
-    // Debates with score_data (completed/scored)
+    // Completed debates
     d1.query(
       `SELECT COUNT(*) as total FROM debates WHERE ${REAL_DEBATES_FILTER} AND score_data IS NOT NULL AND json_extract(score_data, '$.debateScore') IS NOT NULL`,
       []
     ),
 
-    // Unique users (excluding test users)
+    // Unique users
     d1.query(`SELECT COUNT(DISTINCT user_id) as total FROM debates WHERE ${REAL_USERS_FILTER}`, []),
 
-    // Debates created today (UTC)
+    // Debates today
     d1.query(
       `SELECT COUNT(*) as total FROM debates WHERE ${REAL_DEBATES_FILTER} AND created_at >= date('now')`,
       []
     ),
 
-    // Debates created this week (UTC)
+    // Debates this week
     d1.query(
       `SELECT COUNT(*) as total FROM debates WHERE ${REAL_DEBATES_FILTER} AND created_at >= date('now', '-7 days')`,
       []
     ),
 
-    // Average messages per debate (only real debates with engagement)
+    // Avg messages (heavy query)
     d1.query(
-      `SELECT AVG(json_array_length(messages)) as avg_msgs FROM debates WHERE ${REAL_DEBATES_FILTER} AND messages IS NOT NULL`,
+      `SELECT AVG(msg_len) as avg_msgs FROM (
+        SELECT json_array_length(messages) as msg_len 
+        FROM debates 
+        WHERE ${REAL_DEBATES_FILTER} AND messages IS NOT NULL 
+        ORDER BY created_at DESC 
+        LIMIT 1000
+      )`,
       []
     ),
 
-    // Top 10 topics by frequency
+    // Top topics (heavy query)
     d1.query(
-      `SELECT topic, COUNT(*) as count FROM debates WHERE ${REAL_DEBATES_FILTER} AND topic IS NOT NULL GROUP BY topic ORDER BY count DESC LIMIT 10`,
+      `SELECT topic, COUNT(*) as count FROM (
+        SELECT topic 
+        FROM debates 
+        WHERE ${REAL_DEBATES_FILTER} AND topic IS NOT NULL 
+        ORDER BY created_at DESC 
+        LIMIT 5000
+      ) GROUP BY topic ORDER BY count DESC LIMIT 10`,
       []
     ),
   ]);
+
+  const totalResult = unwrap(results[0], emptyD1Result, 'totalDebates');
+  const completedResult = unwrap(results[1], emptyD1Result, 'debatesCompleted');
+  const usersResult = unwrap(results[2], emptyD1Result, 'uniqueUsers');
+  const todayResult = unwrap(results[3], emptyD1Result, 'debatesToday');
+  const weekResult = unwrap(results[4], emptyD1Result, 'debatesThisWeek');
+  const avgMsgsResult = unwrap(results[5], emptyD1Result, 'avgMessages');
+  const topTopicsResult = unwrap(results[6], emptyD1Result, 'topTopics');
 
   const totalDebates = (totalResult.result?.[0]?.total as number) || 0;
   const debatesCompleted = (completedResult.result?.[0]?.total as number) || 0;
