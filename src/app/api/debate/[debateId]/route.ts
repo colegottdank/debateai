@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { d1 } from '@/lib/d1';
 import { getUserId } from '@/lib/auth-helper';
 import { errors, validateBody } from '@/lib/api-errors';
+import { trackEvent } from '@/lib/posthog-server';
 
 // Schema for POST body
 const addMessageSchema = z.object({
@@ -71,9 +72,14 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ debateId: string }> }
 ) {
+  let userId = 'anonymous';
+  let debateId = '';
+
   try {
-    const { debateId } = await params;
-    const userId = await getUserId();
+    const resolvedParams = await params;
+    debateId = resolvedParams.debateId;
+    const authUserId = await getUserId();
+    if (authUserId) userId = authUserId;
 
     if (!debateId) {
       return errors.badRequest('Debate ID required');
@@ -93,7 +99,7 @@ export async function POST(
         // Create a new memory debate
         debate = {
           id: debateId,
-          user_id: userId || 'anonymous',
+          user_id: userId,
           opponent: 'custom',
           opponentStyle: 'AI Opponent',
           topic: 'Debate',
@@ -115,6 +121,15 @@ export async function POST(
     const messages = Array.isArray(debate.messages) ? debate.messages : [];
     debate.messages = [...messages, userMessage];
 
+    // Track user message (Fire and forget, but await to ensure execution in serverless)
+    await trackEvent(userId, 'debate_message_sent', {
+      debateId,
+      messageCount: (debate.messages as any[]).length,
+      role: 'user',
+      topic: debate.topic,
+      isAiAssisted: aiTakeover
+    });
+
     // Try to save to D1 (don't fail if it doesn't work)
     try {
       await d1.addMessage(debateId, userMessage);
@@ -123,11 +138,13 @@ export async function POST(
     }
 
     // Generate AI response
+    const start = Date.now();
     const aiResponse = await generateAIResponse(
       debate,
       debate.messages as Array<{ role: string; content: string }>,
       message
     );
+    const duration = Date.now() - start;
 
     // Add AI message
     const aiMessage = {
@@ -137,6 +154,16 @@ export async function POST(
     };
 
     (debate.messages as Array<unknown>).push(aiMessage);
+
+    // Track AI response
+    await trackEvent(userId, 'debate_ai_response_generated', {
+      debateId,
+      messageCount: (debate.messages as any[]).length,
+      role: 'ai',
+      duration_ms: duration,
+      topic: debate.topic,
+      opponent: debate.opponentStyle || debate.opponent || 'default'
+    });
 
     // Try to save AI message to D1
     try {
@@ -156,6 +183,14 @@ export async function POST(
       return error;
     }
     console.error('Post message error:', error);
+    
+    // Track error
+    await trackEvent(userId || 'system', 'debate_error', {
+      debateId,
+      error: error instanceof Error ? error.message : String(error),
+      path: 'api/debate/[debateId]'
+    });
+
     return errors.internal('Failed to send message');
   }
 }

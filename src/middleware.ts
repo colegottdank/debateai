@@ -35,6 +35,7 @@ const isPublicRoute = createRouteMatcher([
   '/history',  // Allow history page to load and handle auth client-side
   '/robots.txt',      // SEO — must be public
   '/sitemap.xml',     // SEO — must be public
+  '/api/admin/abandoned-users', // Emergency data export (key-protected)
 ])
 
 export default clerkMiddleware(async (auth, req) => {

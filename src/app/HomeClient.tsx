@@ -106,21 +106,17 @@ export default function HomeClient({
     markOnboarded();
     track('onboarding_started', { topic: dailyDebate.topic, source: 'onboarding' });
 
-    /* Guest Mode: Proceed without sign-in
+    // Guest Mode: If not signed in, generate/use guest ID
     if (!isSignedIn) {
-      sessionStorage.setItem(
-        'pendingDebate',
-        JSON.stringify({
-          userInput: userInput.trim(),
-          topic: dailyDebate.topic,
-          persona: dailyDebate.persona,
-          fromLandingPage: true,
-        })
-      );
-      openSignIn({ afterSignInUrl: '/' });
-      return;
+      let guestId = document.cookie.split('; ').find(row => row.startsWith('guest_id='))?.split('=')[1];
+      if (!guestId) {
+        guestId = crypto.randomUUID();
+        // Set guest_id cookie for 1 year
+        const expiry = new Date();
+        expiry.setFullYear(expiry.getFullYear() + 1);
+        document.cookie = `guest_id=${guestId}; expires=${expiry.toUTCString()}; path=/; SameSite=Lax`;
+      }
     }
-    */
 
     setIsStarting(true);
     const debateId = crypto.randomUUID();
@@ -325,7 +321,7 @@ export default function HomeClient({
             {/* Sign-in hint */}
             {!isSignedIn && (
               <p className="text-center text-xs text-[var(--text-secondary)] mt-3">
-                We&apos;ll save your debate after you sign in — takes 10 seconds
+                Sign in to start debating — takes 10 seconds
               </p>
             )}
           </form>
