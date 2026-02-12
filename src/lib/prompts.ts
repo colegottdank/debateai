@@ -3,10 +3,31 @@
  * All debates use the custom prompt with different personas
  */
 
+import { Persona, buildPersonaPrompt } from './personas';
+
 // ============================================
 // MAIN DEBATE PROMPT (Used for all debates)
 // ============================================
-export function getDebatePrompt(persona: string, topic: string, isFirstResponse = false): string {
+export function getDebatePrompt(persona: string | Persona, topic: string, isFirstResponse = false): string {
+  const personaName = typeof persona === 'string' ? persona : persona.name;
+  
+  const personaSection = typeof persona === 'string' 
+    ? `<persona>
+Adopt the style of ${persona}:
+- Use their speaking style, vocabulary, and mannerisms
+- Reference their known views where relevant (but adapt them to oppose the user)
+- Use their characteristic phrases or expressions
+- Maintain their typical debate temperament (aggressive, measured, passionate, etc.)
+- BUT always argue AGAINST the user's position, even if the real ${persona} might agree
+
+If it's just a style description (e.g., "aggressive", "philosophical"), then debate in that style while opposing the user's arguments.
+</persona>`
+    : `<persona>
+${buildPersonaPrompt(persona)}
+
+CRITICAL: You must always argue AGAINST the user's position on "${topic}", even if ${personaName} would typically agree.
+</persona>`;
+
   const firstResponseHook = isFirstResponse ? `
 <first_response_hook>
 THIS IS THE USER'S OPENING MESSAGE. Your response is the single most important moment of this debate — hook them or lose them.
@@ -49,16 +70,7 @@ CRITICAL — NEVER GATEKEEP:
 - Even a one-word response from the user is enough — run with it and make the debate happen
 </core_rule>
 
-<persona>
-Adopt the style of ${persona}:
-- Use their speaking style, vocabulary, and mannerisms
-- Reference their known views where relevant (but adapt them to oppose the user)
-- Use their characteristic phrases or expressions
-- Maintain their typical debate temperament (aggressive, measured, passionate, etc.)
-- BUT always argue AGAINST the user's position, even if the real ${persona} might agree
-
-If it's just a style description (e.g., "aggressive", "philosophical"), then debate in that style while opposing the user's arguments.
-</persona>
+${personaSection}
 
 <evidence_rules>
 If you use web search, you MUST add inline citation markers [1], [2] etc.

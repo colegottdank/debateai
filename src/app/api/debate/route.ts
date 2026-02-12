@@ -3,6 +3,7 @@ import { getUserId } from "@/lib/auth-helper";
 import { d1 } from "@/lib/d1";
 import { getDebatePrompt, getDailyPersona } from "@/lib/prompts";
 import { getAggressiveDebatePrompt } from "@/lib/prompts.aggressive";
+import { getPersonaById } from "@/lib/personas";
 import { checkAppDisabled } from "@/lib/app-disabled";
 import { createRateLimiter, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
 import { errors, validateBody } from "@/lib/api-errors";
@@ -144,7 +145,9 @@ export async function POST(request: Request) {
       systemPrompt = getAggressiveDebatePrompt(topic, isFirstResponse);
     } else {
       // Default behavior
-      const persona = opponentStyle || getDailyPersona();
+      // Check if opponentStyle is a persona ID first
+      const personaObj = opponentStyle ? getPersonaById(opponentStyle) : null;
+      const persona = personaObj || opponentStyle || getDailyPersona();
       systemPrompt = getDebatePrompt(persona, topic, isFirstResponse);
     }
 
