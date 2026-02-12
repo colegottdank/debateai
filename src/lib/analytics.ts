@@ -32,6 +32,7 @@ export interface AnalyticsEvents {
     opponent: string;
     source: 'quick_start' | 'custom_setup' | 'daily_debate';
     experiment_variant?: 'aggressive' | 'default';
+    is_guest?: boolean;
   };
   debate_message_sent: {
     debateId: string;
