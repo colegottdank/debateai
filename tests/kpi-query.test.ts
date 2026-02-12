@@ -34,4 +34,40 @@ describe('GET /api/stats KPI Logic', () => {
     // This confirms we are filtering out debates that only have metadata in score_data
     expect(sql).toContain("json_extract(score_data, '$.debateScore') IS NOT NULL");
   });
+
+  it('calculates completionRate correctly in the response', async () => {
+    const mockQuery = vi.mocked(d1.query);
+    mockQuery.mockClear();
+
+    // Mock query results: [total, completed, users, today, week, avgMsgs, topTopics]
+    mockQuery
+      .mockResolvedValueOnce({ success: true, result: [{ total: 100 }] }) // total
+      .mockResolvedValueOnce({ success: true, result: [{ total: 32 }] })  // completed
+      .mockResolvedValue({ success: true, result: [] }); // other queries
+
+    const request = new Request('http://localhost/api/stats');
+    request.headers.set('x-forwarded-for', '1.2.3.4');
+
+    const response = await GET(request);
+    const data = await response.json();
+
+    expect(data.totalDebates).toBe(100);
+    expect(data.debatesCompleted).toBe(32);
+    expect(data.completionRate).toBe(0.32);
+  });
+
+  it('handles zero debates safely', async () => {
+    const mockQuery = vi.mocked(d1.query);
+    mockQuery.mockClear();
+    mockQuery.mockResolvedValue({ success: true, result: [{ total: 0 }] });
+
+    const request = new Request('http://localhost/api/stats');
+    request.headers.set('x-forwarded-for', '1.2.3.4');
+
+    const response = await GET(request);
+    const data = await response.json();
+
+    expect(data.totalDebates).toBe(0);
+    expect(data.completionRate).toBe(0);
+  });
 });

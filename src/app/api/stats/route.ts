@@ -17,6 +17,7 @@ const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 interface StatsResponse {
   totalDebates: number;
   debatesCompleted: number;
+  completionRate: number;
   uniqueUsers: number;
   debatesToday: number;
   debatesThisWeek: number;
@@ -38,8 +39,8 @@ export const GET = withErrorHandler(async (request: Request) => {
     return rateLimitResponse(rl) as unknown as NextResponse;
   }
 
-  // Return cache if fresh
-  if (statsCache && Date.now() - statsCache.timestamp < CACHE_TTL) {
+  // Return cache if fresh (disabled in tests)
+  if (process.env.NODE_ENV !== 'test' && statsCache && Date.now() - statsCache.timestamp < CACHE_TTL) {
     return NextResponse.json({ ...statsCache.data, cached: true }, {
       headers: {
         'Cache-Control': 'public, max-age=300, s-maxage=300',
@@ -95,9 +96,13 @@ export const GET = withErrorHandler(async (request: Request) => {
     ),
   ]);
 
+  const totalDebates = (totalResult.result?.[0]?.total as number) || 0;
+  const debatesCompleted = (completedResult.result?.[0]?.total as number) || 0;
+
   const stats: StatsResponse = {
-    totalDebates: (totalResult.result?.[0]?.total as number) || 0,
-    debatesCompleted: (completedResult.result?.[0]?.total as number) || 0,
+    totalDebates,
+    debatesCompleted,
+    completionRate: totalDebates > 0 ? Math.round((debatesCompleted / totalDebates) * 1000) / 1000 : 0,
     uniqueUsers: (usersResult.result?.[0]?.total as number) || 0,
     debatesToday: (todayResult.result?.[0]?.total as number) || 0,
     debatesThisWeek: (weekResult.result?.[0]?.total as number) || 0,
