@@ -436,9 +436,9 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
       // Track successful scoring (completion)
       track('debate_scored', {
         debateId,
-        score: data.totalScore,
+        userScore: data.userScore,
+        aiScore: data.aiScore,
         winner: data.winner,
-        messageCount: messages.length,
       });
     } catch (error: any) {
       console.error('Failed to request judgment:', error);
