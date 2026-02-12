@@ -4,16 +4,13 @@ import { useEffect } from 'react';
 import { track as vercelTrack } from '@vercel/analytics';
 import { registerProvider, track } from '@/lib/analytics';
 import { captureUtmParams, getAttributionContext } from '@/lib/utm';
+import posthog from '@/lib/posthog';
 
 const SESSION_KEY = 'debateai_session_tracked';
 
 /**
- * Wires our custom analytics abstraction to Vercel Analytics.
+ * Wires our custom analytics abstraction to Vercel Analytics and PostHog.
  * Also captures UTM parameters on first page load.
- *
- * All existing track() calls throughout the app automatically
- * flow to Vercel's dashboard with attribution context attached.
- * Mount once in the root layout.
  */
 export default function AnalyticsProvider() {
   useEffect(() => {
@@ -26,7 +23,6 @@ export default function AnalyticsProvider() {
       const attribution = getAttributionContext();
 
       // Merge attribution with event properties
-      // Event-specific properties take precedence
       const enrichedProps = {
         ...attribution,
         ...properties,
@@ -40,10 +36,16 @@ export default function AnalyticsProvider() {
         }
       }
 
+      // Dispatch to Vercel
       vercelTrack(event, cleanProps);
+
+      // Dispatch to PostHog
+      if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_POSTHOG_KEY) {
+        posthog.capture(event, cleanProps);
+      }
     });
 
-    // Track session start once per session (for acquisition cohorts)
+    // Track session start once per session
     if (!sessionStorage.getItem(SESSION_KEY)) {
       sessionStorage.setItem(SESSION_KEY, 'true');
       track('session_started', {

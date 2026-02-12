@@ -433,6 +433,14 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
       
       const data = await response.json();
       setDebateScore(data);
+
+      // Track successful scoring (completion)
+      track('debate_scored', {
+        debateId,
+        userScore: data.userScore,
+        aiScore: data.aiScore,
+        winner: data.winner,
+      });
     } catch (error: any) {
       console.error('Failed to request judgment:', error);
       track('debate_error', {
