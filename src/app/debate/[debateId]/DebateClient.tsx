@@ -395,6 +395,12 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
   const requestJudgment = async () => {
     if (!debate || messages.length < 2) return;
     
+    // Track judgment request
+    track('debate_judgment_requested', {
+      debateId,
+      messageCount: messages.length,
+    });
+    
     try {
       const response = await fetch('/api/debate/judge', {
         method: 'POST',
@@ -412,6 +418,14 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
       
       const data = await response.json();
       setDebateScore(data);
+
+      // Track successful scoring (completion)
+      track('debate_scored', {
+        debateId,
+        score: data.totalScore,
+        winner: data.winner,
+        messageCount: messages.length,
+      });
     } catch (error) {
       console.error('Failed to request judgment:', error);
     }
