@@ -124,6 +124,11 @@ export interface AnalyticsEvents {
   upgrade_clicked: {
     source: string;
   };
+  debate_vote: {
+    debateId: string;
+    vote: 'up' | 'down' | null;
+    source: string;
+  };
 
   // Navigation & Attribution
   session_started: {

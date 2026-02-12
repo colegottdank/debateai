@@ -3,8 +3,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { track } from '@/lib/analytics';
+import VoteButtons from '@/components/VoteButtons';
 
-type Sort = 'recent' | 'top_scored' | 'most_messages';
+type Sort = 'recent' | 'top_scored' | 'most_messages' | 'top_voted';
 
 interface DebateCard {
   id: string;
@@ -17,6 +18,10 @@ interface DebateCard {
   winner: 'user' | 'ai' | 'draw' | null;
   summary: string | null;
   createdAt: string;
+  // Mock voting data (TODO: Replace with real data from API)
+  upvotes?: number;
+  downvotes?: number;
+  userVote?: 'up' | 'down' | null;
 }
 
 interface Pagination {
@@ -30,6 +35,7 @@ const SORT_OPTIONS: { value: Sort; label: string; icon: string }[] = [
   { value: 'recent', label: 'Recent', icon: '🕐' },
   { value: 'top_scored', label: 'Top Scored', icon: '⭐' },
   { value: 'most_messages', label: 'Most Messages', icon: '💬' },
+  { value: 'top_voted', label: 'Top Voted', icon: '🔥' },
 ];
 
 function WinnerBadge({ winner }: { winner: 'user' | 'ai' | 'draw' | null }) {
@@ -196,47 +202,69 @@ export default function ExploreClient() {
       {!loading && !error && debates.length > 0 && (
         <div className="space-y-3">
           {debates.map((debate) => (
-            <Link
+            <div
               key={debate.id}
-              href={`/debate/${debate.id}`}
-              onClick={() => handleCardClick(debate)}
-              className="block group"
+              className="rounded-xl border border-[var(--border)]/50 bg-[var(--bg-elevated)] p-4 sm:p-5 transition-all hover:border-[var(--accent)]/30 hover:shadow-md"
             >
-              <div className="rounded-xl border border-[var(--border)]/50 bg-[var(--bg-elevated)] p-4 sm:p-5 transition-all hover:border-[var(--accent)]/30 hover:shadow-md">
-                {/* Top row: topic + winner badge */}
-                <div className="flex items-start justify-between gap-3 mb-2">
-                  <h3 className="text-sm sm:text-base font-semibold text-[var(--text)] group-hover:text-[var(--accent)] transition-colors leading-snug flex-1">
+              {/* Top row: topic + winner badge */}
+              <div className="flex items-start justify-between gap-3 mb-2">
+                <Link
+                  href={`/debate/${debate.id}`}
+                  onClick={() => handleCardClick(debate)}
+                  className="group flex-1"
+                >
+                  <h3 className="text-sm sm:text-base font-semibold text-[var(--text)] group-hover:text-[var(--accent)] transition-colors leading-snug">
                     {debate.topic}
                   </h3>
-                  <WinnerBadge winner={debate.winner} />
-                </div>
+                </Link>
+                <WinnerBadge winner={debate.winner} />
+              </div>
 
-                {/* Preview text */}
-                {debate.previewMessage && (
+              {/* Preview text */}
+              {debate.previewMessage && (
+                <Link
+                  href={`/debate/${debate.id}`}
+                  onClick={() => handleCardClick(debate)}
+                  className="block"
+                >
                   <p className="text-xs text-[var(--text-secondary)] leading-relaxed mb-3 line-clamp-2">
                     &ldquo;{debate.previewMessage}&rdquo;
                   </p>
-                )}
+                </Link>
+              )}
 
-                {/* Meta row */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3 text-[11px] text-[var(--text-tertiary)]">
-                    {debate.opponent && (
-                      <span>vs {debate.opponent}</span>
-                    )}
-                    <span>{debate.messageCount} messages</span>
-                    {debate.userScore != null && debate.aiScore != null && (
-                      <span className="font-medium">
-                        {debate.userScore}–{debate.aiScore}
-                      </span>
-                    )}
-                  </div>
-                  <span className="text-[11px] text-[var(--text-tertiary)]">
-                    {timeAgo(debate.createdAt)}
-                  </span>
+              {/* Bottom row: Meta + Voting */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3 text-[11px] text-[var(--text-tertiary)]">
+                  {debate.opponent && (
+                    <span>vs {debate.opponent}</span>
+                  )}
+                  <span>{debate.messageCount} messages</span>
+                  {debate.userScore != null && debate.aiScore != null && (
+                    <span className="font-medium">
+                      {debate.userScore}–{debate.aiScore}
+                    </span>
+                  )}
+                  <span>{timeAgo(debate.createdAt)}</span>
                 </div>
+                
+                {/* Voting */}
+                <VoteButtons
+                  debateId={debate.id}
+                  initialUpvotes={debate.upvotes || Math.floor(Math.random() * 50)}
+                  initialDownvotes={debate.downvotes || Math.floor(Math.random() * 10)}
+                  userVote={debate.userVote}
+                  size="sm"
+                  onVote={(vote) => {
+                    track('debate_vote', {
+                      debateId: debate.id,
+                      vote,
+                      source: 'explore',
+                    });
+                  }}
+                />
               </div>
-            </Link>
+            </div>
           ))}
         </div>
       )}
