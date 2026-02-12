@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import OpenAI from "openai";
 import { getUserId } from "@/lib/auth-helper";
 import { d1 } from "@/lib/d1";
 import { checkAppDisabled } from "@/lib/app-disabled";
@@ -7,13 +6,17 @@ import { getTakeoverPrompt } from "@/lib/prompts";
 import { createRateLimiter, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
 import { errors, validateBody } from "@/lib/api-errors";
 import { takeoverSchema } from "@/lib/api-schemas";
+import Anthropic from "@anthropic-ai/sdk";
 
-const openai = new OpenAI({
-  apiKey: `${process.env.HELICONE_API_KEY}`,
-  baseURL: "https://ai-gateway.helicone.ai",
+const anthropic = new Anthropic({
+  baseURL: "https://anthropic.helicone.ai",
+  apiKey: process.env.ANTHROPIC_API_KEY,
+  defaultHeaders: {
+    "Helicone-Auth": `Bearer ${process.env.HELICONE_API_KEY}`,
+  },
 });
 
-// 10 takeover requests per minute per user (calls OpenAI API)
+// 10 takeover requests per minute per user
 const userLimiter = createRateLimiter({ maxRequests: 10, windowMs: 60_000 });
 const ipLimiter = createRateLimiter({ maxRequests: 30, windowMs: 60_000 });
 
@@ -94,15 +97,18 @@ export async function POST(request: Request) {
       ? `The opponent just said: "${lastOpponentMessage}"\n\nGenerate my response arguing for my position.`
       : `Generate my opening argument for this debate on "${topic}".`;
 
-    // Build messages for OpenAI SDK format
-    const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [];
-    messages.push({ role: "system", content: systemPrompt });
-    messages.push({ role: "user", content: userPrompt });
-
-    // Inject reminder about citations to keep it fresh in context
+    // Build messages for Anthropic SDK format
+    const messages: Anthropic.MessageParam[] = [];
+    
+    // Inject reminder about citations
+    messages.push({
+      role: "user",
+      content: userPrompt
+    });
+    
     messages.push({
       role: "assistant",
-      content: "Understood. I will ONLY use citation markers [1], [2] if I actually perform a web search and retrieve real sources. I will NOT hallucinate citation numbers without searching. If I don't search, I won't use any citation markers."
+      content: "Understood. I will ONLY use citation markers [1], [2] if I actually perform a web search and retrieve real sources. I will NOT hallucinate citation numbers without searching."
     });
     messages.push({
       role: "user",
@@ -112,17 +118,23 @@ export async function POST(request: Request) {
     // Generate the AI takeover response
     let controllerClosed = false;
 
-    const stream = new ReadableStream({
+    const streamResponse = new ReadableStream({
       async start(controller) {
         const encoder = new TextEncoder();
 
         try {
-          const response = await openai.chat.completions.create({
-            model: "claude-haiku-4-5:online/anthropic",
+          const stream = anthropic.messages.stream({
+            model: "claude-sonnet-4-20250514", // Following CLAUDE.md
             max_tokens: 1000,
-            temperature: 0.7,
+            system: systemPrompt,
             messages: messages,
-            stream: true,
+            tools: [
+              {
+                type: "web_search_20250305",
+                name: "web_search",
+                max_uses: 2,
+              },
+            ],
           }, {
             headers: {
               "Helicone-User-Id": userId,
@@ -136,7 +148,6 @@ export async function POST(request: Request) {
           const BUFFER_SIZE = 5;
           const citations: { id: number; url: string; title: string }[] = [];
           let citationCounter = 1;
-          let hasReceivedContent = false;
           let searchIndicatorSent = false;
 
           const flushBuffer = () => {
@@ -153,15 +164,19 @@ export async function POST(request: Request) {
               lastFlushTime = Date.now();
             }
           };
+          
+          stream.on("text", (text) => {
+             buffer += text;
+             const now = Date.now();
+             if (buffer.length >= BUFFER_SIZE || (now - lastFlushTime >= BUFFER_TIME && buffer.length > 0)) {
+               flushBuffer();
+             }
+          });
 
-          for await (const chunk of response) {
-            const content = chunk.choices[0]?.delta?.content;
-            const delta = chunk.choices[0]?.delta as { annotations?: Array<{ type: string; url_citation?: { url: string; title?: string } }> };
-            const annotations = delta?.annotations;
-
-            // Process annotations (citations from web search)
-            if (annotations && Array.isArray(annotations)) {
-              if (!hasReceivedContent && !searchIndicatorSent) {
+          // Handle content block events for web search
+          (stream as any).on("contentBlockStart", (event: any) => {
+            if (event.content_block?.type === "server_tool_use" && event.content_block?.name === "web_search") {
+              if (!searchIndicatorSent) {
                 searchIndicatorSent = true;
                 controller.enqueue(
                   encoder.encode(
@@ -171,58 +186,78 @@ export async function POST(request: Request) {
                   )
                 );
               }
+            }
+          });
 
-              for (const annotation of annotations) {
-                if (
-                  annotation.type === "url_citation" &&
-                  annotation.url_citation
-                ) {
-                  const urlCitation = annotation.url_citation;
-                  const existingCitation = citations.find(
-                    (c) => c.url === urlCitation.url
-                  );
+          // Handle final message for citations
+          const finalMessage = await stream.finalMessage();
+          
+          // Citation extraction logic
+          const MAX_CITATIONS = 5;
+          const seenUrls = new Set<string>();
 
-                  if (!existingCitation) {
-                    const citationData = {
-                      id: citationCounter++,
-                      url: urlCitation.url,
-                      title:
-                        urlCitation.title || new URL(urlCitation.url).hostname,
-                    };
-                    citations.push(citationData);
+          for (const block of finalMessage.content) {
+            if (block.type === "text") {
+              const textBlock = block as typeof block & {
+                citations?: Array<{
+                  type: string;
+                  url: string;
+                  title?: string;
+                }>;
+              };
+
+              if (textBlock.citations && Array.isArray(textBlock.citations)) {
+                for (const citation of textBlock.citations) {
+                  if (citations.length >= MAX_CITATIONS) break;
+                  if (citation.type === "web_search_result_location" && citation.url) {
+                    if (!seenUrls.has(citation.url)) {
+                      seenUrls.add(citation.url);
+                      citations.push({
+                        id: citationCounter++,
+                        url: citation.url,
+                        title: citation.title || new URL(citation.url).hostname,
+                      });
+                    }
                   }
                 }
               }
-
-              if (citations.length > 0 && !controllerClosed) {
-                if (buffer) {
-                  flushBuffer();
-                }
-                controller.enqueue(
-                  encoder.encode(
-                    `data: ${JSON.stringify({
-                      type: "citations",
-                      citations: citations,
-                    })}\n\n`
-                  )
-                );
+            }
+          }
+          
+          // Fallback extraction
+          if (citations.length === 0) {
+            for (const block of finalMessage.content) {
+              if (block.type === "web_search_tool_result") {
+                 const resultBlock = block as typeof block & { content?: Array<{ type: string; url?: string; title?: string }> };
+                 if (resultBlock.content && Array.isArray(resultBlock.content)) {
+                    for (const result of resultBlock.content) {
+                        if (citations.length >= MAX_CITATIONS) break;
+                        if (result.type === "web_search_result" && result.url) {
+                           if (!seenUrls.has(result.url)) {
+                               seenUrls.add(result.url);
+                               citations.push({
+                                   id: citationCounter++,
+                                   url: result.url,
+                                   title: result.title || new URL(result.url).hostname
+                               });
+                           }
+                        }
+                    }
+                 }
               }
             }
+          }
 
-            if (content) {
-              hasReceivedContent = true;
-
-              for (const char of content) {
-                buffer += char;
-                const now = Date.now();
-                if (
-                  buffer.length >= BUFFER_SIZE ||
-                  (now - lastFlushTime >= BUFFER_TIME && buffer.length > 0)
-                ) {
-                  flushBuffer();
-                }
-              }
-            }
+          if (citations.length > 0 && !controllerClosed) {
+            if (buffer) flushBuffer();
+            controller.enqueue(
+              encoder.encode(
+                `data: ${JSON.stringify({
+                  type: "citations",
+                  citations: citations,
+                })}\n\n`
+              )
+            );
           }
 
           if (buffer) {
@@ -251,7 +286,7 @@ export async function POST(request: Request) {
       },
     });
 
-    return new Response(stream, {
+    return new Response(streamResponse, {
       headers: {
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache",
@@ -259,7 +294,6 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
-    // Handle validation errors from validateBody
     if (error instanceof NextResponse) {
       return error;
     }
