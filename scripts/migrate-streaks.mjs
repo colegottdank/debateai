@@ -16,6 +16,7 @@ const API_TOKEN = process.env.CLOUDFLARE_API_TOKEN;
 
 if (!ACCOUNT_ID || !DATABASE_ID || !API_TOKEN) {
   console.error('❌ Missing required environment variables');
+  console.error('   Ensure .env.local has CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_D1_DATABASE_ID, and CLOUDFLARE_API_TOKEN');
   process.exit(1);
 }
 
@@ -36,55 +37,10 @@ async function executeQuery(sql) {
   return data;
 }
 
-async function createTables() {
-  console.log('🚀 Creating tables for DebateAI...\n');
+async function migrate() {
+  console.log('🚀 Migrating DebateAI database (Streaks & Stats)...\n');
 
   const tables = [
-    {
-      name: 'debates',
-      sql: `CREATE TABLE IF NOT EXISTS debates (
-        id TEXT PRIMARY KEY,
-        user_id TEXT NOT NULL,
-        opponent TEXT NOT NULL,
-        topic TEXT NOT NULL,
-        messages TEXT NOT NULL,
-        user_score INTEGER DEFAULT 0,
-        ai_score INTEGER DEFAULT 0,
-        score_data TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )`
-    },
-    {
-      name: 'users',
-      sql: `CREATE TABLE IF NOT EXISTS users (
-        user_id TEXT PRIMARY KEY,
-        email TEXT,
-        username TEXT,
-        display_name TEXT,
-        avatar_url TEXT,
-        is_premium BOOLEAN DEFAULT FALSE,
-        stripe_customer_id TEXT,
-        stripe_subscription_id TEXT,
-        subscription_status TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )`
-    },
-    {
-      name: 'subscriptions',
-      sql: `CREATE TABLE IF NOT EXISTS subscriptions (
-        id TEXT PRIMARY KEY,
-        user_id TEXT NOT NULL,
-        stripe_subscription_id TEXT NOT NULL,
-        stripe_customer_id TEXT NOT NULL,
-        status TEXT NOT NULL,
-        current_period_start DATETIME,
-        current_period_end DATETIME,
-        cancel_at_period_end BOOLEAN DEFAULT FALSE,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )`
-    },
     {
       name: 'user_streaks',
       sql: `CREATE TABLE IF NOT EXISTS user_streaks (
@@ -116,10 +72,6 @@ async function createTables() {
   ];
 
   const indexes = [
-    { name: 'idx_debates_user', sql: 'CREATE INDEX IF NOT EXISTS idx_debates_user ON debates(user_id)' },
-    { name: 'idx_debates_created', sql: 'CREATE INDEX IF NOT EXISTS idx_debates_created ON debates(created_at DESC)' },
-    { name: 'idx_users_email', sql: 'CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)' },
-    { name: 'idx_subscriptions_user', sql: 'CREATE INDEX IF NOT EXISTS idx_subscriptions_user ON subscriptions(user_id)' },
     { name: 'idx_user_stats_points', sql: 'CREATE INDEX IF NOT EXISTS idx_user_stats_points ON user_streaks(total_points DESC)' },
     { name: 'idx_user_stats_streak', sql: 'CREATE INDEX IF NOT EXISTS idx_user_stats_streak ON user_streaks(current_streak DESC)' },
     { name: 'idx_user_stats_debates', sql: 'CREATE INDEX IF NOT EXISTS idx_user_stats_debates ON user_stats(total_debates DESC)' },
@@ -148,7 +100,7 @@ async function createTables() {
     }
   }
 
-  console.log('\n🎉 Database setup complete!');
+  console.log('\n🎉 Migration complete!');
 }
 
-createTables().catch(console.error);
+migrate().catch(console.error);
