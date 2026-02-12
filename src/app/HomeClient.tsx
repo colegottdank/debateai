@@ -66,12 +66,7 @@ export default function HomeClient({
             });
 
             if (response.ok) {
-              track('debate_created', {
-                debateId,
-                topic: pendingDebate.topic,
-                opponent: pendingDebate.persona,
-                source: 'daily_debate',
-              });
+              // Backend tracks debate_created with experiment_variant - avoid duplicate tracking
               if (pendingDebate.userInput) {
                 sessionStorage.setItem('firstArgument', pendingDebate.userInput);
               }
@@ -136,12 +131,7 @@ export default function HomeClient({
       });
 
       if (response.ok) {
-        track('debate_created', {
-          debateId,
-          topic: dailyDebate.topic,
-          opponent: dailyDebate.persona,
-          source: 'daily_debate',
-        });
+        // Backend tracks debate_created with experiment_variant - avoid duplicate tracking
         sessionStorage.setItem('firstArgument', userInput.trim());
         sessionStorage.setItem('isInstantDebate', 'true');
         router.push(`/debate/${debateId}`);
