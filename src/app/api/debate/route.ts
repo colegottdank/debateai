@@ -9,6 +9,7 @@ import { errors, validateBody } from "@/lib/api-errors";
 import { sendMessageSchema, SendMessageInput } from "@/lib/api-schemas";
 import { logger } from "@/lib/logger";
 import { captureError } from "@/lib/sentry";
+import { track } from "@/lib/analytics";
 import Anthropic from "@anthropic-ai/sdk";
 
 const log = logger.scope('debate');
@@ -106,6 +107,18 @@ export async function POST(request: Request) {
           message: "A debate on this topic was just created. Resuming that debate.",
         });
       }
+    }
+
+    // Track new debate start with experiment variant (for first message in new debates)
+    // This ensures PostHog captures the variant even if create route wasn't used
+    if (!debateId && previousMessages.length === 0) {
+      track('debate_created', {
+        debateId: debateId || 'pending',
+        topic,
+        opponent: character,
+        source: 'quick_start',
+        experiment_variant: assignedVariant as 'aggressive' | 'default',
+      });
     }
 
 
