@@ -16,7 +16,6 @@ if (typeof window !== 'undefined') {
       loaded: (posthogInstance) => {
         if (debug) {
           console.log('[PostHog] Initialized successfully');
-          // @ts-expect-error - debug is internal property
           posthogInstance.debug();
         }
       },
