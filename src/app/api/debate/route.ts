@@ -63,6 +63,7 @@ export async function POST(request: Request) {
       userArgument,
       previousMessages,
       isAIAssisted,
+      promptVariant,
     } = body;
 
     // Get existing debate state for A/B test variant
@@ -72,6 +73,9 @@ export async function POST(request: Request) {
     if (existingDebate.success && (existingDebate as any).debate?.promptVariant) {
       // 2. Debate exists, use its already-assigned variant
       assignedVariant = (existingDebate as any).debate.promptVariant as string;
+    } else if (promptVariant) {
+      // Explicit override
+      assignedVariant = promptVariant;
     } else {
       // 1. New debate, so assign a variant based on user ID hash
       // Simple deterministic hash: even/odd ASCII value of last char of userId
