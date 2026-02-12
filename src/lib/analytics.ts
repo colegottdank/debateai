@@ -91,6 +91,27 @@ export interface AnalyticsEvents {
     debateId: string;
   };
 
+  // Diagnostics
+  debate_ai_response_latency: {
+    debateId: string;
+    messageIndex: number;
+    latencyMs: number;
+  };
+  debate_error: {
+    debateId: string;
+    source: string;
+    message: string;
+    code?: string;
+  };
+  debate_judge_requested: {
+    debateId: string;
+    messageCount: number;
+  };
+  debate_friction_event: {
+    debateId: string;
+    type: 'retry_clicked' | 'upgrade_clicked_limit' | 'send_while_loading' | 'invalid_input';
+  };
+
   // Engagement
   cta_clicked: {
     ctaId: string;
@@ -101,6 +122,11 @@ export interface AnalyticsEvents {
     trigger: 'rate_limit_debate' | 'rate_limit_message' | 'button';
   };
   upgrade_clicked: {
+    source: string;
+  };
+  debate_vote: {
+    debateId: string;
+    vote: 'up' | 'down' | null;
     source: string;
   };
 

@@ -287,7 +287,15 @@ const Message = memo(
                   )}
                   {msg.failedReason === 'rate_limit' && (
                     <button
-                      onClick={() => document.querySelector<HTMLButtonElement>('[data-upgrade-trigger]')?.click()}
+                      onClick={() => {
+                        if (debateId) {
+                          track('debate_friction_event', {
+                            debateId,
+                            type: 'upgrade_clicked_limit'
+                          });
+                        }
+                        document.querySelector<HTMLButtonElement>('[data-upgrade-trigger]')?.click();
+                      }}
                       className="text-xs text-[var(--accent)] hover:underline"
                     >
                       Upgrade for more
@@ -395,12 +403,11 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
   const requestJudgment = async () => {
     if (!debate || messages.length < 2) return;
     
-    // Track judgment request
-    track('debate_judgment_requested', {
+    track('debate_judge_requested', {
       debateId,
       messageCount: messages.length,
     });
-    
+
     try {
       const response = await fetch('/api/debate/judge', {
         method: 'POST',
@@ -412,7 +419,14 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
       });
       
       if (!response.ok) {
-        console.error('Judge API error:', await response.text());
+        const errorText = await response.text();
+        console.error('Judge API error:', errorText);
+        track('debate_error', {
+          debateId,
+          source: 'requestJudgment',
+          message: errorText,
+          code: response.status.toString(),
+        });
         return;
       }
       
@@ -426,8 +440,13 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
         winner: data.winner,
         messageCount: messages.length,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to request judgment:', error);
+      track('debate_error', {
+        debateId,
+        source: 'requestJudgment',
+        message: error.message || 'Unknown error',
+      });
     }
   };
 
@@ -458,9 +477,21 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
             setDebateScore(data.debate.score_data.debateScore as DebateScore);
           }
           setLoadError(null);
+        } else {
+          track('debate_error', {
+            debateId,
+            source: 'revalidateDebate',
+            message: `HTTP ${response.status}`,
+            code: response.status.toString(),
+          });
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Failed to revalidate debate:", error);
+        track('debate_error', {
+          debateId,
+          source: 'revalidateDebate',
+          message: error.message || 'Unknown error',
+        });
         // Don't show error on revalidation - keep existing data
       } finally {
         setIsLoadingDebate(false);
@@ -692,8 +723,16 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
 
   // Send message handler
   const handleSend = async () => {
+    if (userInput.trim() && (isUserLoading || isAILoading)) {
+      track('debate_friction_event', {
+        debateId,
+        type: 'send_while_loading'
+      });
+      return;
+    }
     if (!userInput.trim() || isUserLoading || isAILoading) return;
 
+    const startTime = Date.now();
     const messageText = userInput.trim();
     hasUserInteracted.current = true;
 
@@ -831,6 +870,12 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
                     return newMessages;
                   });
                 } else if (data.type === 'complete') {
+                  const latencyMs = Date.now() - startTime;
+                  track('debate_ai_response_latency', {
+                    debateId,
+                    messageIndex: messages.length,
+                    latencyMs,
+                  });
                   setMessages(prev => {
                     const newMessages = [...prev];
                     newMessages[newMessages.length - 1] = {
@@ -845,8 +890,13 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
             }
           }
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Failed to send message:", error);
+        track('debate_error', {
+          debateId,
+          source: 'handleSend',
+          message: error.message || 'Unknown error',
+        });
         showToast("Failed to send message. Please try again.", "error");
         // Remove placeholder if there was an error and it's empty
         setMessages(prev => {
@@ -864,8 +914,15 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
 
   // AI Takeover - generates an AI argument for the user
   const handleAITakeover = async () => {
-    if (isAITakeoverLoading || isAILoading) return;
+    if (isAITakeoverLoading || isAILoading) {
+      track('debate_friction_event', {
+        debateId,
+        type: 'send_while_loading'
+      });
+      return;
+    }
     
+    const startTime = Date.now();
     hasUserInteracted.current = true;
     setIsAITakeoverLoading(true);
     setIsAutoScrollEnabled(true);
@@ -1038,6 +1095,12 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
               } else if (data.type === 'citations' && data.citations) {
                 debateCitations = data.citations;
               } else if (data.type === 'complete') {
+                const latencyMs = Date.now() - startTime;
+                track('debate_ai_response_latency', {
+                  debateId,
+                  messageIndex: messages.length,
+                  latencyMs,
+                });
                 setMessages(prev => {
                   const newMessages = [...prev];
                   newMessages[newMessages.length - 1] = {
@@ -1053,8 +1116,13 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
         }
       }
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("AI takeover failed:", error);
+      track('debate_error', {
+        debateId,
+        source: 'handleAITakeover',
+        message: error.message || 'Unknown error',
+      });
       showToast("Failed to generate AI argument. Please try again.", "error");
       // Remove any empty placeholder messages (both AI opponent and AI-assisted user)
       setMessages(prev => {
@@ -1169,6 +1237,10 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
               isAILoading={isAILoading && idx === messages.length - 1}
               isUserLoading={isUserLoading && idx === messages.length - 1}
               onRetry={msg.failed ? () => {
+                track('debate_friction_event', {
+                  debateId,
+                  type: 'retry_clicked'
+                });
                 // Remove the failed message and restore input for retry
                 setMessages(prev => prev.filter((_, i) => i !== idx));
                 setUserInput(msg.content);
