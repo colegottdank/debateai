@@ -1226,9 +1226,10 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
       <div
         ref={scrollContainerRef}
         className="flex-1 overflow-y-auto min-h-0 max-h-[calc(100dvh-180px)] sm:max-h-none"
+        style={{ paddingBottom: '200px' }}
         onScroll={handleScroll}
       >
-        <div className="pb-4">
+        <div className="">
           {messages.filter((msg) => msg && msg.role).map((msg, idx) => (
             <Message
               key={idx}
@@ -1287,30 +1288,30 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
           {/* Request Judgment Button - shown when enough messages but no score */}
           {!debateScore && messages.filter(m => m.role === 'user' || m.role === 'ai').length >= 2 && (
             <div className="max-w-xl mx-auto px-4 py-8">
-              <div className="bg-[var(--bg-elevated)] border border-[var(--border)] rounded-2xl p-6 text-center shadow-sm relative overflow-hidden group">
-                <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent opacity-50" />
+              <div className="bg-[var(--bg-elevated)] border border-[var(--accent)]/30 rounded-2xl p-6 text-center shadow-lg shadow-[var(--accent)]/5 relative overflow-hidden group">
+                <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/10 to-transparent opacity-60" />
                 
                 <div className="relative z-10 flex flex-col items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-[var(--accent)]/10 flex items-center justify-center mb-1 text-2xl">
-                    ⚖️
+                  <div className="w-12 h-12 rounded-full bg-[var(--accent)]/20 flex items-center justify-center mb-1 text-2xl shadow-inner shadow-[var(--accent)]/10">
+                    🏆
                   </div>
                   
-                  <h3 className="text-lg font-semibold text-[var(--text)]">
-                    Ready for the verdict?
+                  <h3 className="text-lg font-bold text-[var(--text)]">
+                    Who won this debate?
                   </h3>
                   
-                  <p className="text-sm text-[var(--text-secondary)] max-w-sm mx-auto mb-2">
-                    The debate has reached a good length. Ask the AI judge to analyze the arguments and declare a winner.
+                  <p className="text-sm text-[var(--text-secondary)] max-w-sm mx-auto mb-4">
+                    Get an impartial AI judge to score arguments and declare a winner.
                   </p>
                   
                   <button
                     onClick={requestJudgment}
                     disabled={isAILoading || isUserLoading}
-                    className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)] transition-all transform active:scale-95 font-medium shadow-md shadow-[var(--accent)]/20"
+                    className="flex items-center gap-2 px-8 py-3 rounded-xl bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)] transition-all transform active:scale-95 font-bold shadow-lg shadow-[var(--accent)]/25 hover:shadow-[var(--accent)]/40 ring-1 ring-white/20"
                   >
-                    <span>Request Verdict</span>
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/>
+                    <span>See Result & Score</span>
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7"/>
                     </svg>
                   </button>
                 </div>
