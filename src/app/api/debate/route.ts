@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getUserId } from "@/lib/auth-helper";
 import { d1 } from "@/lib/d1";
 import { getDebatePrompt, getDailyPersona } from "@/lib/prompts";
+import { getAggressiveDebatePrompt } from "@/lib/prompts.aggressive";
 import { checkAppDisabled } from "@/lib/app-disabled";
 import { createRateLimiter, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
 import { errors, validateBody } from "@/lib/api-errors";
@@ -64,6 +65,22 @@ export async function POST(request: Request) {
       isAIAssisted,
     } = body;
 
+    // Get existing debate state for A/B test variant
+    const existingDebate = debateId ? await d1.getDebate(debateId) : { success: false };
+    let assignedVariant = 'default';
+
+    if (existingDebate.success && (existingDebate as any).debate?.promptVariant) {
+      // 2. Debate exists, use its already-assigned variant
+      assignedVariant = (existingDebate as any).debate.promptVariant as string;
+    } else {
+      // 1. New debate, so assign a variant based on user ID hash
+      // Simple deterministic hash: even/odd ASCII value of last char of userId
+      const lastChar = userId.slice(-1);
+      if (lastChar.charCodeAt(0) % 2 === 0) {
+        assignedVariant = 'aggressive';
+      }
+    }
+
     log.info('message.received', {
       userId,
       debateId: debateId || 'new',
@@ -71,6 +88,7 @@ export async function POST(request: Request) {
       character,
       messageIndex: previousMessages.length,
       isAIAssisted,
+      promptVariant: assignedVariant, // Log the assigned variant
     });
     
     // Deduplicate debate creation: if no debateId and same user+topic within 30s, reuse existing
@@ -99,9 +117,18 @@ export async function POST(request: Request) {
       }
     }
 
+    // A/B Test for Aggressive Persona Spike
+    let systemPrompt: string;
     const isFirstResponse = !previousMessages || previousMessages.length === 0;
-    const persona = opponentStyle || getDailyPersona();
-    const systemPrompt = getDebatePrompt(persona, topic, isFirstResponse);
+
+    if (assignedVariant === 'aggressive') {
+      log.info('prompt.variant.used', { variant: 'aggressive', debateId: debateId || 'new' });
+      systemPrompt = getAggressiveDebatePrompt(topic, isFirstResponse);
+    } else {
+      // Default behavior
+      const persona = opponentStyle || getDailyPersona();
+      systemPrompt = getDebatePrompt(persona, topic, isFirstResponse);
+    }
 
     // Build conversation history for Anthropic SDK format
     const messages: Anthropic.MessageParam[] = [];
@@ -363,6 +390,7 @@ export async function POST(request: Request) {
                 messages: existingMessages,
                 debateId,
                 opponentStyle,
+                promptVariant: assignedVariant,
               });
             }
           }
