@@ -6,8 +6,9 @@ import { withErrorHandler } from '@/lib/api-errors';
 // 10 requests per minute per IP (lightweight but no reason to hammer)
 const limiter = createRateLimiter({ maxRequests: 10, windowMs: 60_000 });
 
-// Filter conditions: exclude test users and 0-message debates (no real engagement)
-const REAL_DEBATES_FILTER = "user_id != 'test-user-123' AND json_array_length(messages) > 1";
+// Filter conditions: exclude test users and short/empty messages (no real engagement)
+// Optimized: use LENGTH instead of json_array_length to avoid full table scan JSON parsing
+const REAL_DEBATES_FILTER = "user_id != 'test-user-123' AND LENGTH(messages) > 20";
 const REAL_USERS_FILTER = "user_id != 'test-user-123'";
 
 // Cache stats for 5 minutes to avoid hammering D1
@@ -26,6 +27,8 @@ interface StatsResponse {
   generatedAt: string;
   cached: boolean;
 }
+
+export const revalidate = 300; // Cache for 5 minutes at edge
 
 /**
  * GET /api/stats
@@ -83,15 +86,27 @@ export const GET = withErrorHandler(async (request: Request) => {
       []
     ),
 
-    // Average messages per debate (only real debates with engagement)
+    // Average messages per debate (optimized: sample last 1000 debates to avoid full table scan)
     d1.query(
-      `SELECT AVG(json_array_length(messages)) as avg_msgs FROM debates WHERE ${REAL_DEBATES_FILTER} AND messages IS NOT NULL`,
+      `SELECT AVG(msg_len) as avg_msgs FROM (
+        SELECT json_array_length(messages) as msg_len 
+        FROM debates 
+        WHERE ${REAL_DEBATES_FILTER} AND messages IS NOT NULL 
+        ORDER BY created_at DESC 
+        LIMIT 1000
+      )`,
       []
     ),
 
-    // Top 10 topics by frequency
+    // Top 10 topics by frequency (optimized: sample last 5000 debates)
     d1.query(
-      `SELECT topic, COUNT(*) as count FROM debates WHERE ${REAL_DEBATES_FILTER} AND topic IS NOT NULL GROUP BY topic ORDER BY count DESC LIMIT 10`,
+      `SELECT topic, COUNT(*) as count FROM (
+        SELECT topic 
+        FROM debates 
+        WHERE ${REAL_DEBATES_FILTER} AND topic IS NOT NULL 
+        ORDER BY created_at DESC 
+        LIMIT 5000
+      ) GROUP BY topic ORDER BY count DESC LIMIT 10`,
       []
     ),
   ]);
