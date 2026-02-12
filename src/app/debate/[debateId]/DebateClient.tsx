@@ -420,6 +420,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          debateId,
           topic: debate.topic,
           messages: messages.filter(m => m.role === 'user' || m.role === 'ai'),
         }),
