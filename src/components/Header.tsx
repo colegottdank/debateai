@@ -44,55 +44,59 @@ export default function Header() {
       <header className="sticky top-0 z-50 border-b border-[var(--border)]/30 bg-[var(--bg)]/50 backdrop-blur-xl">
         <div className="container-wide">
           <div className="flex items-center justify-between h-14">
-            {/* Logo */}
-            <Link href="/" className="flex items-center gap-2.5 group cursor-pointer">
-              <div className="relative w-8 h-8 rounded-lg overflow-hidden">
-                <Image 
-                  src="/logo-icon.png" 
-                  alt="DebateAI" 
-                  width={32}
-                  height={32}
-                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                  priority
-                />
-              </div>
-              <span className="text-[15px] font-semibold text-[var(--text)] tracking-tight">
-                DebateAI
-              </span>
-            </Link>
+            {/* Left Side: Logo & Main Navigation */}
+            <div className="flex items-center gap-6">
+              <Link href="/" className="flex items-center gap-2.5 group cursor-pointer">
+                <div className="relative w-8 h-8 rounded-lg overflow-hidden">
+                  <Image 
+                    src="/logo-icon.png" 
+                    alt="DebateAI" 
+                    width={32}
+                    height={32}
+                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    priority
+                  />
+                </div>
+                <span className="text-[15px] font-semibold text-[var(--text)] tracking-tight">
+                  DebateAI
+                </span>
+              </Link>
+              
+              <nav className="hidden sm:flex items-center gap-1">
+                <Link
+                  href="/explore"
+                  className="flex items-center gap-2 px-3 py-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text)] rounded-lg hover:bg-[var(--bg-sunken)] transition-all cursor-pointer"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                  </svg>
+                  Explore
+                </Link>
+
+                <Link
+                  href="/leaderboard"
+                  className="flex items-center gap-2 px-3 py-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text)] rounded-lg hover:bg-[var(--bg-sunken)] transition-all cursor-pointer"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                  </svg>
+                  Leaderboard
+                </Link>
+
+                <Link
+                  href="/blog"
+                  className="flex items-center gap-2 px-3 py-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text)] rounded-lg hover:bg-[var(--bg-sunken)] transition-all cursor-pointer"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/>
+                  </svg>
+                  Blog
+                </Link>
+              </nav>
+            </div>
             
-            {/* Navigation */}
-            <nav className="flex items-center gap-1">
-              <Link
-                href="/explore"
-                className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text)] rounded-lg hover:bg-[var(--bg-sunken)] transition-all cursor-pointer"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                </svg>
-                Explore
-              </Link>
-
-              <Link
-                href="/leaderboard"
-                className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text)] rounded-lg hover:bg-[var(--bg-sunken)] transition-all cursor-pointer"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                </svg>
-                Leaderboard
-              </Link>
-
-              <Link
-                href="/blog"
-                className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text)] rounded-lg hover:bg-[var(--bg-sunken)] transition-all cursor-pointer"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/>
-                </svg>
-                Blog
-              </Link>
-
+            {/* Right Side: Auth & Settings */}
+            <div className="flex items-center gap-1">
               {showSignedIn && (
                 <>
                   <Link
@@ -152,7 +156,7 @@ export default function Header() {
                 <ThemeToggle />
                 <MobileNav />
               </div>
-            </nav>
+            </div>
           </div>
         </div>
       </header>
