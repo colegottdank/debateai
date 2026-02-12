@@ -129,6 +129,12 @@ export interface AnalyticsEvents {
     vote: 'up' | 'down' | null;
     source: string;
   };
+  debate_vote_cast: {
+    debateId: string;
+    winner: 'user' | 'opponent';
+    userSide?: string;
+    opponentSide?: string;
+  };
 
   // Navigation & Attribution
   session_started: {

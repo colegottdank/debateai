@@ -11,6 +11,7 @@ import { useToast } from "@/components/Toast";
 import ShareButtons from "@/components/ShareButtons";
 import DebateScoreCard from "@/components/DebateScoreCard";
 import JudgeMessage from "@/components/JudgeMessage";
+import DebateVoting from "@/components/DebateVoting";
 import PostDebateEngagement from "@/components/PostDebateEngagement";
 import { DebatePageSkeleton } from "@/components/Skeleton";
 import type { DebateScore } from "@/lib/scoring";
@@ -1251,6 +1252,15 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
               messageCount={messages.filter(m => m.role === 'user').length}
               messages={messages}
               topic={debate?.topic || ""}
+            />
+          )}
+
+          {/* Community Voting */}
+          {debateScore && (
+            <DebateVoting
+              debateId={debateId}
+              userSideName="You"
+              opponentSideName={opponent?.name || debate?.opponentStyle || "AI"}
             />
           )}
 
