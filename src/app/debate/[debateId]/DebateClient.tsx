@@ -1278,18 +1278,35 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
           
           {/* Request Judgment Button - shown when enough messages but no score */}
           {!debateScore && messages.filter(m => m.role === 'user' || m.role === 'ai').length >= 2 && (
-            <div className="max-w-3xl mx-auto px-4 sm:px-6 py-4 text-center">
-              <button
-                onClick={requestJudgment}
-                disabled={isAILoading || isUserLoading}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--accent)]/10 border border-[var(--accent)]/30 text-[var(--accent)] hover:bg-[var(--accent)]/20 transition-colors text-sm font-medium"
-              >
-                <span>⚖️</span>
-                <span>Request Judge&apos;s Verdict</span>
-              </button>
-              <p className="text-xs text-[var(--text-tertiary)] mt-2">
-                Get an AI analysis of your debate performance
-              </p>
+            <div className="max-w-xl mx-auto px-4 py-8">
+              <div className="bg-[var(--bg-elevated)] border border-[var(--border)] rounded-2xl p-6 text-center shadow-sm relative overflow-hidden group">
+                <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent opacity-50" />
+                
+                <div className="relative z-10 flex flex-col items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-[var(--accent)]/10 flex items-center justify-center mb-1 text-2xl">
+                    ⚖️
+                  </div>
+                  
+                  <h3 className="text-lg font-semibold text-[var(--text)]">
+                    Ready for the verdict?
+                  </h3>
+                  
+                  <p className="text-sm text-[var(--text-secondary)] max-w-sm mx-auto mb-2">
+                    The debate has reached a good length. Ask the AI judge to analyze the arguments and declare a winner.
+                  </p>
+                  
+                  <button
+                    onClick={requestJudgment}
+                    disabled={isAILoading || isUserLoading}
+                    className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)] transition-all transform active:scale-95 font-medium shadow-md shadow-[var(--accent)]/20"
+                  >
+                    <span>Request Verdict</span>
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </div>
