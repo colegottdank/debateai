@@ -113,6 +113,7 @@ export async function POST(request: Request) {
     if (debateId && !isTestMode && !isLocalDev) {
       const messageLimit = await d1.checkDebateMessageLimit(debateId);
       if (!messageLimit.allowed) {
+        log.info('debate.limit_reached', { debateId, variant: assignedVariant });
         return errors.messageLimit(messageLimit.count, messageLimit.limit);
       }
     }
