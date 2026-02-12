@@ -18,13 +18,13 @@ export async function GET(request: Request) {
       SELECT 
         u.display_name as name,
         u.email,
+        d.user_id,
         d.topic,
         d.created_at,
         json_array_length(d.messages) as msg_count
       FROM debates d
-      JOIN users u ON d.user_id = u.user_id
+      LEFT JOIN users u ON d.user_id = u.user_id
       WHERE d.created_at > datetime('now', '-7 days')
-        AND u.email IS NOT NULL
       ORDER BY d.created_at DESC
       LIMIT 100
     `);
