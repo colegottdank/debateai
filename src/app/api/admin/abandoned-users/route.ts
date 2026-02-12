@@ -20,8 +20,7 @@ export async function GET(request: Request) {
         u.email,
         d.topic,
         d.created_at,
-        json_array_length(d.messages) as msg_count,
-        d.status
+        json_array_length(d.messages) as msg_count
       FROM debates d
       JOIN users u ON d.user_id = u.user_id
       WHERE d.created_at > datetime('now', '-7 days')
