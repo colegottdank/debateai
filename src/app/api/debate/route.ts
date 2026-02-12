@@ -9,6 +9,7 @@ import { errors, validateBody } from "@/lib/api-errors";
 import { sendMessageSchema, SendMessageInput } from "@/lib/api-schemas";
 import { logger } from "@/lib/logger";
 import { captureError } from "@/lib/sentry";
+import { track } from "@/lib/analytics";
 import Anthropic from "@anthropic-ai/sdk";
 
 const log = logger.scope('debate');
@@ -63,6 +64,7 @@ export async function POST(request: Request) {
       userArgument,
       previousMessages,
       isAIAssisted,
+      promptVariant,
     } = body;
 
     // Get existing debate state for A/B test variant
@@ -72,6 +74,9 @@ export async function POST(request: Request) {
     if (existingDebate.success && (existingDebate as any).debate?.promptVariant) {
       // 2. Debate exists, use its already-assigned variant
       assignedVariant = (existingDebate as any).debate.promptVariant as string;
+    } else if (promptVariant) {
+      // Explicit override
+      assignedVariant = promptVariant;
     } else {
       // 1. New debate, so assign a variant based on user ID hash
       // Simple deterministic hash: even/odd ASCII value of last char of userId
@@ -102,6 +107,18 @@ export async function POST(request: Request) {
           message: "A debate on this topic was just created. Resuming that debate.",
         });
       }
+    }
+
+    // Track new debate start with experiment variant (for first message in new debates)
+    // This ensures PostHog captures the variant even if create route wasn't used
+    if (!debateId && previousMessages.length === 0) {
+      track('debate_created', {
+        debateId: debateId || 'pending',
+        topic,
+        opponent: character,
+        source: 'quick_start',
+        experiment_variant: assignedVariant as 'aggressive' | 'default',
+      });
     }
 
 

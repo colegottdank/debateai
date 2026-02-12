@@ -8,6 +8,7 @@ import { createRateLimiter, getClientIp } from '@/lib/rate-limit';
 import { errors, validateBody, withRateLimitHeaders } from '@/lib/api-errors';
 import { createDebateSchema } from '@/lib/api-schemas';
 import { logger } from '@/lib/logger';
+import { track } from '@/lib/analytics';
 
 const log = logger.scope('debate');
 
@@ -66,6 +67,11 @@ export async function POST(request: Request) {
       content: `Welcome to the debate arena! Today's topic: "${topic}".${opponentStyle ? ` Your opponent's style: ${opponentStyle}` : ''}`
     }];
     
+    // Determine experiment variant for A/B test (same logic as debate route)
+    // Simple deterministic hash: even/odd ASCII value of last char of userId
+    const lastChar = userId.slice(-1);
+    const experimentVariant = lastChar.charCodeAt(0) % 2 === 0 ? 'aggressive' : 'default';
+
     // Save the debate to the database with custom opponent info
     const saveResult = await d1.saveDebate({
       userId,
@@ -73,7 +79,8 @@ export async function POST(request: Request) {
       topic,
       messages: initialMessages,
       debateId,
-      opponentStyle // Save the custom style for later use
+      opponentStyle, // Save the custom style for later use
+      promptVariant: experimentVariant, // Save the experiment variant
     } as any);
     
     if (!saveResult.success) {
@@ -85,6 +92,16 @@ export async function POST(request: Request) {
       topic: topic.slice(0, 100),
       opponent,
       userId,
+      experimentVariant,
+    });
+
+    // Track debate creation with experiment variant for PostHog
+    track('debate_created', {
+      debateId: saveResult.debateId || debateId,
+      topic,
+      opponent: effectiveOpponent,
+      source: 'custom_setup', // Default source, can be refined later
+      experiment_variant: experimentVariant,
     });
 
     // Return success with rate limit headers
