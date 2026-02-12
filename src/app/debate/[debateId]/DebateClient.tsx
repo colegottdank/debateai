@@ -27,6 +27,7 @@ export interface DebateClientProps {
     opponent?: string;
     character?: string;
     opponentStyle?: string;
+    promptVariant?: 'default' | 'aggressive';
     messages?: Array<{ role: string; content: string; aiAssisted?: boolean; citations?: Array<{ id: number; url: string; title: string }> }>;
     score_data?: Record<string, unknown>;
     [key: string]: unknown;
@@ -105,6 +106,7 @@ const Message = memo(
     messageIndex,
     isHighlighted,
     debateId,
+    variant,
   }: {
     msg: {
       role: string;
@@ -123,6 +125,7 @@ const Message = memo(
     messageIndex: number;
     isHighlighted?: boolean;
     debateId?: string;
+    variant?: 'default' | 'aggressive';
   }) => {
     const isUser = msg.role === "user";
     const isStreaming = (isUser && isUserLoading) || (!isUser && isAILoading);
@@ -180,7 +183,7 @@ const Message = memo(
       <div 
         ref={messageRef}
         id={`message-${messageIndex}`}
-        className={`py-5 relative group ${isUser ? '' : 'bg-[var(--bg-elevated)]/60 border-y border-[var(--border)]/30'} ${isFailed ? 'opacity-80' : ''} ${isHighlighted ? 'animate-highlight-pulse' : ''}`}
+        className={`py-5 relative group ${isUser ? '' : (variant === 'aggressive' ? 'bg-red-900/5 border-y border-red-500/10' : 'bg-[var(--bg-elevated)]/60 border-y border-[var(--border)]/30')} ${isFailed ? 'opacity-80' : ''} ${isHighlighted ? 'animate-highlight-pulse' : ''}`}
       >
         {/* Highlight overlay */}
         {isHighlighted && (
@@ -202,7 +205,9 @@ const Message = memo(
                 ? 'bg-[var(--error)]/10 text-[var(--error)] border border-[var(--error)]/30'
                 : isUser
                   ? 'bg-[var(--accent)]/10 text-[var(--accent)]'
-                  : 'bg-[var(--bg-sunken)] border border-[var(--border)]/50'
+                  : variant === 'aggressive'
+                    ? 'bg-red-500/10 text-red-500 border border-red-500/30 shadow-[0_0_8px_rgba(239,68,68,0.2)]'
+                    : 'bg-[var(--bg-sunken)] border border-[var(--border)]/50'
               }`}
             >
               {isUser ? (
@@ -396,6 +401,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
   const [showShareModal, setShowShareModal] = useState(false);
   const [rateLimitData, setRateLimitData] = useState<{ current: number; limit: number } | undefined>();
   const [debateScore, setDebateScore] = useState<DebateScore | null>(null);
+  const [variant, setVariant] = useState<'default' | 'aggressive'>('default');
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const hasUserInteracted = useRef(false);
@@ -526,6 +532,27 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
     // Always revalidate to ensure fresh data (fixes back button issues)
     revalidateDebate();
   }, [debateId, isDevMode]);
+
+  // Determine variant (A/B Test)
+  useEffect(() => {
+    if (debate?.promptVariant) {
+      setVariant(debate.promptVariant as 'aggressive' | 'default');
+    } else if (user?.id && !debate) {
+      // Replicate backend A/B logic for immediate UI feedback on new debates
+      const lastChar = user.id.slice(-1);
+      if (lastChar.charCodeAt(0) % 2 === 0) {
+        setVariant('aggressive');
+      } else {
+        setVariant('default');
+      }
+    } else if (isDevMode) {
+       // Allow testing via URL param
+       const variantParam = searchParams.get('variant');
+       if (variantParam === 'aggressive') {
+         setVariant('aggressive');
+       }
+    }
+  }, [debate, user, isDevMode, searchParams]);
 
   // Handle instant debate from landing page
   useEffect(() => {
@@ -1199,7 +1226,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
   const canSend = userInput.trim().length > 0 && !isUserLoading && !isAILoading && isOwner;
 
   return (
-    <div className="h-dvh flex flex-col overflow-hidden bg-[var(--bg)]">
+    <div className="h-dvh flex flex-col overflow-hidden bg-[var(--bg)] transition-colors duration-500">
       <Header />
 
       {/* Topic Header - Fixed */}
@@ -1209,6 +1236,11 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-2 text-sm flex-1 min-w-0">
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--accent)] flex-shrink-0">Topic</span>
+                {variant === 'aggressive' && (
+                   <span className="px-1.5 py-0.5 rounded bg-red-500/10 text-red-500 text-[10px] font-bold border border-red-500/20 uppercase tracking-wider">
+                     Hard Mode
+                   </span>
+                )}
                 <h1 className="font-medium text-[var(--text)] truncate">{debate.topic}</h1>
                 {(debate.opponentStyle || opponent) && (
                   <>
@@ -1236,6 +1268,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
               msg={msg}
               opponent={opponent}
               debate={debate}
+              variant={variant}
               isAILoading={isAILoading && idx === messages.length - 1}
               isUserLoading={isUserLoading && idx === messages.length - 1}
               onRetry={msg.failed ? () => {
