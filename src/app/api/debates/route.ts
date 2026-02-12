@@ -39,7 +39,6 @@ export const GET = withErrorHandler(async (request: Request) => {
     `SELECT 
       id,
       opponent,
-      opponent_style,
       topic,
       json_array_length(messages) as message_count,
       created_at,
@@ -54,8 +53,9 @@ export const GET = withErrorHandler(async (request: Request) => {
   if (result.success && result.result) {
     // Format the debates for the frontend
     const debates = result.result.map((debate: Record<string, unknown>) => {
-      // Use opponent_style from database, fallback to score_data if needed
-      let opponentStyle = debate.opponent_style;
+      // Try to get opponentStyle from score_data since it's not in the debates table
+      let opponentStyle = debate.opponent_style as string | undefined;
+      
       if (!opponentStyle && debate.score_data && typeof debate.score_data === 'string') {
         try {
           const scoreData = JSON.parse(debate.score_data);
@@ -68,7 +68,7 @@ export const GET = withErrorHandler(async (request: Request) => {
       return {
         id: debate.id,
         opponent: debate.opponent,
-        opponentStyle,
+        opponentStyle: opponentStyle || 'Default',
         topic: debate.topic,
         messageCount: debate.message_count || 0,
         createdAt: debate.created_at,
