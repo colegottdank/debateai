@@ -13,20 +13,19 @@ export async function GET(request: Request) {
   }
 
   try {
-    // Find debates created in last 72h that have < 3 messages (abandoned early)
-    // Join with users to get email
+    // Find ALL debates created in last 7 days with email
     const result = await d1.query(`
       SELECT 
         u.display_name as name,
         u.email,
         d.topic,
         d.created_at,
-        json_array_length(d.messages) as msg_count
+        json_array_length(d.messages) as msg_count,
+        d.status
       FROM debates d
       JOIN users u ON d.user_id = u.user_id
-      WHERE d.created_at > datetime('now', '-72 hours')
+      WHERE d.created_at > datetime('now', '-7 days')
         AND u.email IS NOT NULL
-        AND (json_array_length(d.messages) < 3)
       ORDER BY d.created_at DESC
       LIMIT 100
     `);
