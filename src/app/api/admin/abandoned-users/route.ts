@@ -13,29 +13,14 @@ export async function GET(request: Request) {
   }
 
   try {
-    // Find ALL debates created in last 7 days with email
-    const result = await d1.query(`
-      SELECT 
-        u.display_name as name,
-        u.email,
-        d.user_id,
-        d.topic,
-        d.created_at,
-        json_array_length(d.messages) as msg_count
-      FROM debates d
-      LEFT JOIN users u ON d.user_id = u.user_id
-      WHERE d.created_at > datetime('now', '-7 days')
-      ORDER BY d.created_at DESC
-      LIMIT 100
-    `);
-
-    if (!result.success) {
-      return NextResponse.json({ error: result.error }, { status: 500 });
-    }
+    const countResult = await d1.query('SELECT count(*) as total FROM debates');
+    const sampleResult = await d1.query('SELECT * FROM debates LIMIT 5');
 
     return NextResponse.json({
-      count: result.result?.length || 0,
-      users: result.result
+      totalDebates: countResult.result?.[0]?.total || 0,
+      countError: countResult.error,
+      samples: sampleResult.result,
+      sampleError: sampleResult.error
     });
   } catch (error) {
     console.error('Error fetching abandoned users:', error);
