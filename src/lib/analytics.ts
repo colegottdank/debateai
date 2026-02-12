@@ -110,6 +110,12 @@ export interface AnalyticsEvents {
     debateId: string;
     turnCount: number;
   };
+  guest_limit_modal_shown: {
+    turnCount: number;
+  };
+  guest_limit_signup_clicked: {
+    turnCount: number;
+  };
   debate_error: {
     debateId: string;
     source: string;
