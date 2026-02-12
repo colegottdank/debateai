@@ -19,6 +19,7 @@ import type { DebateScore } from "@/lib/scoring";
 // Lazy load modals - they're only shown on user interaction
 const UpgradeModal = lazy(() => import("@/components/UpgradeModal"));
 const ShareModal = lazy(() => import("@/components/ShareModal"));
+const GuestLimitModal = lazy(() => import("@/components/GuestLimitModal"));
 
 export interface DebateClientProps {
   initialDebate?: {
@@ -402,6 +403,17 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
   const [rateLimitData, setRateLimitData] = useState<{ current: number; limit: number } | undefined>();
   const [debateScore, setDebateScore] = useState<DebateScore | null>(null);
   const [variant, setVariant] = useState<'default' | 'aggressive'>('default');
+  const [guestTurnCount, setGuestTurnCount] = useState(0);
+  const [showGuestLimitModal, setShowGuestLimitModal] = useState(false);
+  const [isGuestOwner, setIsGuestOwner] = useState(false);
+  const isDevMode = searchParams.get('dev') === 'true';
+
+  // Set guest owner if this is a new debate and user is not signed in
+  useEffect(() => {
+    if (!isSignedIn && (isDevMode || (debateId && sessionStorage.getItem('guest_debate_id') === debateId))) {
+      setIsGuestOwner(true);
+    }
+  }, [debateId, isSignedIn, isDevMode]);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const hasUserInteracted = useRef(false);
@@ -458,9 +470,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
     }
   };
 
-  // Dev mode check from URL
-  const isDevMode = searchParams.get('dev') === 'true';
-// Duplicate removed
+  // Dev mode check moved up
 
   // Highlight message logic
   const highlightedMessageId = searchParams.get('highlight_message_id');
@@ -760,6 +770,16 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
       });
       return;
     }
+
+    if (!isSignedIn) {
+      if (guestTurnCount >= 3) {
+        setShowGuestLimitModal(true);
+        track('guest_limit_reached', { debateId, turnCount: guestTurnCount });
+        return;
+      }
+      setGuestTurnCount(prev => prev + 1);
+    }
+
     if (!userInput.trim() || isUserLoading || isAILoading) return;
 
     const startTime = Date.now();
@@ -1224,7 +1244,8 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
     );
   }
 
-  const canSend = userInput.trim().length > 0 && !isUserLoading && !isAILoading && isOwner;
+  const effectiveIsOwner = isOwner || isGuestOwner;
+  const canSend = userInput.trim().length > 0 && !isUserLoading && !isAILoading && effectiveIsOwner;
 
   return (
     <div className="h-dvh flex flex-col overflow-hidden bg-[var(--bg)] transition-colors duration-500">
@@ -1362,7 +1383,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
           <div className="flex gap-2">
             {/* Textarea Container */}
             <div className="flex-1 min-w-0 relative">
-              {!isOwner && (
+              {!effectiveIsOwner && (
                 <div className="absolute inset-0 bg-[var(--bg)]/80 backdrop-blur-sm rounded-xl flex items-center justify-center z-10">
                   <span className="text-sm text-[var(--text-secondary)] flex items-center gap-2">
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1393,14 +1414,14 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
                     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
                   }, 100);
                 }}
-                placeholder={isOwner ? "Make your argument..." : "Sign in to contribute..."}
+                placeholder={effectiveIsOwner ? "Make your argument..." : "Sign in to contribute..."}
                 className="w-full bg-[var(--bg-elevated)] border border-[var(--border)] rounded-xl
                   px-3 sm:px-4 py-2.5 sm:py-3 resize-none text-[var(--text)] placeholder-[var(--text-tertiary)]
                   outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/20
                   transition-all min-h-[44px] sm:min-h-[48px] max-h-[120px] text-[15px] leading-relaxed overflow-hidden
                   touch-manipulation disabled:opacity-50"
                 rows={1}
-                disabled={isUserLoading || isAILoading || !isOwner}
+                disabled={isUserLoading || isAILoading || !effectiveIsOwner}
               />
             </div>
 
@@ -1410,7 +1431,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
               <button
                 type="button"
                 onClick={handleAITakeover}
-                disabled={isAITakeoverLoading || isAILoading || !isOwner}
+                disabled={isAITakeoverLoading || isAILoading || !effectiveIsOwner}
                 className={`
                   w-10 h-10 rounded-lg border flex items-center justify-center
                   transition-all duration-200 flex-shrink-0
@@ -1420,7 +1441,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
                   }
                   disabled:opacity-40 disabled:cursor-not-allowed
                 `}
-                title={isOwner ? "Let AI argue for you" : "Sign in to contribute to this debate"}
+                title={effectiveIsOwner ? "Let AI argue for you" : "Sign in to contribute to this debate"}
               >
                 {isAITakeoverLoading ? (
                   <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -1479,6 +1500,16 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
             onClose={() => setShowUpgradeModal(false)}
             trigger="rate-limit-message"
             limitData={rateLimitData}
+          />
+        </Suspense>
+      )}
+
+      {showGuestLimitModal && (
+        <Suspense fallback={null}>
+          <GuestLimitModal
+            isOpen={showGuestLimitModal}
+            onClose={() => setShowGuestLimitModal(false)}
+            turnCount={guestTurnCount}
           />
         </Suspense>
       )}

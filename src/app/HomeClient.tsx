@@ -106,6 +106,7 @@ export default function HomeClient({
     markOnboarded();
     track('onboarding_started', { topic: dailyDebate.topic, source: 'onboarding' });
 
+    /* Guest Mode: Proceed without sign-in
     if (!isSignedIn) {
       sessionStorage.setItem(
         'pendingDebate',
@@ -119,6 +120,7 @@ export default function HomeClient({
       openSignIn({ afterSignInUrl: '/' });
       return;
     }
+    */
 
     setIsStarting(true);
     const debateId = crypto.randomUUID();
@@ -136,6 +138,9 @@ export default function HomeClient({
       });
 
       if (response.ok) {
+        if (!isSignedIn) {
+          sessionStorage.setItem('guest_debate_id', debateId);
+        }
         track('debate_created', {
           debateId,
           topic: dailyDebate.topic,
