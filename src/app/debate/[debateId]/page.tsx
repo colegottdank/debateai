@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import type { Metadata } from 'next';
-import { auth } from '@clerk/nextjs/server';
 import { d1 } from '@/lib/d1';
+import { getUserId } from '@/lib/auth-helper';
 import { getOpponentById } from '@/lib/opponents';
 import { debateJsonLd } from '@/lib/jsonld';
 import DebateClient from './DebateClient';
@@ -76,8 +76,8 @@ export default async function DebatePage({
       messages = Array.isArray(debate.messages)
         ? (debate.messages as Array<{ role: string; content: string }>)
         : [];
-      // Check ownership using Clerk auth
-      const { userId } = await auth();
+      // Check ownership using helper (supports guests)
+      const userId = await getUserId();
       isOwner = userId ? debate.user_id === userId : false;
     }
   } catch (error) {

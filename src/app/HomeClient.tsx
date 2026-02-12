@@ -106,18 +106,16 @@ export default function HomeClient({
     markOnboarded();
     track('onboarding_started', { topic: dailyDebate.topic, source: 'onboarding' });
 
+    // Guest Mode: If not signed in, generate/use guest ID
     if (!isSignedIn) {
-      sessionStorage.setItem(
-        'pendingDebate',
-        JSON.stringify({
-          userInput: userInput.trim(),
-          topic: dailyDebate.topic,
-          persona: dailyDebate.persona,
-          fromLandingPage: true,
-        })
-      );
-      openSignIn({ afterSignInUrl: '/' });
-      return;
+      let guestId = document.cookie.split('; ').find(row => row.startsWith('guest_id='))?.split('=')[1];
+      if (!guestId) {
+        guestId = crypto.randomUUID();
+        // Set guest_id cookie for 1 year
+        const expiry = new Date();
+        expiry.setFullYear(expiry.getFullYear() + 1);
+        document.cookie = `guest_id=${guestId}; expires=${expiry.toUTCString()}; path=/; SameSite=Lax`;
+      }
     }
 
     setIsStarting(true);
