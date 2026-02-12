@@ -453,6 +453,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
 
   // Dev mode check from URL
   const isDevMode = searchParams.get('dev') === 'true';
+// Duplicate removed
 
   // Highlight message logic
   const highlightedMessageId = searchParams.get('highlight_message_id');

@@ -69,9 +69,9 @@ export async function POST(request: Request) {
     const existingDebate = debateId ? await d1.getDebate(debateId) : { success: false };
     let assignedVariant = 'default';
 
-    if (existingDebate.success && existingDebate.debate?.promptVariant) {
+    if (existingDebate.success && (existingDebate as any).debate?.promptVariant) {
       // 2. Debate exists, use its already-assigned variant
-      assignedVariant = existingDebate.debate.promptVariant as string;
+      assignedVariant = (existingDebate as any).debate.promptVariant as string;
     } else {
       // 1. New debate, so assign a variant based on user ID hash
       // Simple deterministic hash: even/odd ASCII value of last char of userId
