@@ -2,8 +2,10 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { track } from '@/lib/analytics';
 import VoteButtons from '@/components/VoteButtons';
+import LeaderboardClient from '../leaderboard/LeaderboardClient';
 
 type Sort = 'recent' | 'top_scored' | 'most_messages' | 'top_voted';
 
@@ -18,7 +20,6 @@ interface DebateCard {
   winner: 'user' | 'ai' | 'draw' | null;
   summary: string | null;
   createdAt: string;
-  // Mock voting data (TODO: Replace with real data from API)
   upvotes?: number;
   downvotes?: number;
   userVote?: 'up' | 'down' | null;
@@ -68,6 +69,13 @@ function timeAgo(dateStr: string): string {
 }
 
 export default function ExploreClient() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const initialTab = searchParams.get('tab') === 'leaderboard' ? 'leaderboard' : 'debates';
+  const [activeTab, setActiveTab] = useState<'debates' | 'leaderboard'>(initialTab);
+  
   const [sort, setSort] = useState<Sort>('recent');
   const [debates, setDebates] = useState<DebateCard[]>([]);
   const [pagination, setPagination] = useState<Pagination | null>(null);
@@ -103,8 +111,18 @@ export default function ExploreClient() {
   );
 
   useEffect(() => {
-    fetchDebates(0, false);
-  }, [fetchDebates]);
+    if (activeTab === 'debates') {
+      fetchDebates(0, false);
+    }
+  }, [fetchDebates, activeTab]);
+
+  const handleTabChange = (tab: 'debates' | 'leaderboard') => {
+    setActiveTab(tab);
+    const params = new URLSearchParams(searchParams.toString());
+    if (tab === 'debates') params.delete('tab');
+    else params.set('tab', 'leaderboard');
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
 
   const handleCardClick = (debate: DebateCard) => {
     track('explore_debate_viewed', {
@@ -116,200 +134,228 @@ export default function ExploreClient() {
 
   return (
     <div>
-      {/* Sort controls */}
-      <div className="flex gap-1.5 mb-6 flex-wrap">
-        {SORT_OPTIONS.map((opt) => (
+      {/* Tabs */}
+      <div className="flex justify-center mb-8">
+        <div className="inline-flex rounded-lg border border-[var(--border)] p-1 bg-[var(--bg-elevated)]">
           <button
-            key={opt.value}
-            onClick={() => setSort(opt.value)}
-            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-              sort === opt.value
-                ? 'bg-[var(--accent)]/10 text-[var(--accent)] border border-[var(--accent)]/30'
-                : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] border border-[var(--border)] hover:border-[var(--accent)]/30'
+            onClick={() => handleTabChange('debates')}
+            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
+              activeTab === 'debates'
+                ? 'bg-[var(--bg)] text-[var(--text)] shadow-sm'
+                : 'text-[var(--text-secondary)] hover:text-[var(--text)]'
             }`}
           >
-            <span>{opt.icon}</span>
-            <span>{opt.label}</span>
+            Debates
           </button>
-        ))}
+          <button
+            onClick={() => handleTabChange('leaderboard')}
+            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
+              activeTab === 'leaderboard'
+                ? 'bg-[var(--bg)] text-[var(--text)] shadow-sm'
+                : 'text-[var(--text-secondary)] hover:text-[var(--text)]'
+            }`}
+          >
+            Leaderboard
+          </button>
+        </div>
       </div>
 
-      {/* Error */}
-      {error && (
-        <div className="text-center py-12">
-          <p className="text-sm text-[var(--error)]">{error}</p>
-          <button
-            onClick={() => fetchDebates(0, false)}
-            className="mt-2 text-xs text-[var(--accent)] hover:underline"
-          >
-            Try again
-          </button>
-        </div>
-      )}
-
-      {/* Loading skeleton */}
-      {loading && !error && (
-        <div className="space-y-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div
-              key={i}
-              className="rounded-xl border border-[var(--border)]/50 bg-[var(--bg-elevated)] p-4 sm:p-5"
-            >
-              {/* Top row: topic + badge */}
-              <div className="flex items-start justify-between gap-3 mb-3">
-                <div className="h-5 bg-[var(--bg-sunken)] rounded animate-pulse w-3/4" />
-                <div className="h-5 bg-[var(--bg-sunken)] rounded animate-pulse w-16 flex-shrink-0" />
-              </div>
-              {/* Preview text */}
-              <div className="h-3 bg-[var(--bg-sunken)] rounded animate-pulse w-full mb-2" />
-              <div className="h-3 bg-[var(--bg-sunken)] rounded animate-pulse w-2/3 mb-4" />
-              {/* Meta row */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="h-3 bg-[var(--bg-sunken)] rounded animate-pulse w-20" />
-                  <div className="h-3 bg-[var(--bg-sunken)] rounded animate-pulse w-24" />
-                </div>
-                <div className="h-3 bg-[var(--bg-sunken)] rounded animate-pulse w-12" />
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Empty state */}
-      {!loading && !error && debates.length === 0 && (
-        <div className="text-center py-16 px-4">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[var(--bg-sunken)] border border-[var(--border)] flex items-center justify-center">
-            <span className="text-3xl">💬</span>
+      {activeTab === 'leaderboard' ? (
+        <LeaderboardClient />
+      ) : (
+        <div>
+          {/* Sort controls */}
+          <div className="flex gap-1.5 mb-6 flex-wrap">
+            {SORT_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => setSort(opt.value)}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  sort === opt.value
+                    ? 'bg-[var(--accent)]/10 text-[var(--accent)] border border-[var(--accent)]/30'
+                    : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] border border-[var(--border)] hover:border-[var(--accent)]/30'
+                }`}
+              >
+                <span>{opt.icon}</span>
+                <span>{opt.label}</span>
+              </button>
+            ))}
           </div>
-          <h3 className="text-lg font-semibold text-[var(--text)] mb-2">No debates yet</h3>
-          <p className="text-sm text-[var(--text-secondary)] mb-6 max-w-sm mx-auto">
-            Be the first to complete a debate and inspire others with your arguments!
-          </p>
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--accent)] text-white text-sm font-medium hover:bg-[var(--accent-hover)] transition-colors"
-          >
-            <span>Start a Debate</span>
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-            </svg>
-          </Link>
-        </div>
-      )}
 
-      {/* Debate cards */}
-      {!loading && !error && debates.length > 0 && (
-        <div className="space-y-3">
-          {debates.map((debate) => (
-            <div
-              key={debate.id}
-              className="rounded-xl border border-[var(--border)]/50 bg-[var(--bg-elevated)] p-4 sm:p-5 transition-all hover:border-[var(--accent)]/30 hover:shadow-md"
-            >
-              {/* Top row: topic + winner badge */}
-              <div className="flex items-start justify-between gap-3 mb-2">
-                <Link
-                  href={`/debate/${debate.id}`}
-                  onClick={() => handleCardClick(debate)}
-                  className="group flex-1"
-                >
-                  <h3 className="text-sm sm:text-base font-semibold text-[var(--text)] group-hover:text-[var(--accent)] transition-colors leading-snug">
-                    {debate.topic}
-                  </h3>
-                </Link>
-                <WinnerBadge winner={debate.winner} />
-              </div>
-
-              {/* Preview text */}
-              {debate.previewMessage && (
-                <Link
-                  href={`/debate/${debate.id}`}
-                  onClick={() => handleCardClick(debate)}
-                  className="block"
-                >
-                  <p className="text-xs text-[var(--text-secondary)] leading-relaxed mb-3 line-clamp-2">
-                    &ldquo;{debate.previewMessage}&rdquo;
-                  </p>
-                </Link>
-              )}
-
-              {/* Bottom row: Meta + Voting */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3 text-[11px] text-[var(--text-tertiary)]">
-                  {debate.opponent && (
-                    <span>vs {debate.opponent}</span>
-                  )}
-                  <span>{debate.messageCount} messages</span>
-                  {debate.userScore != null && debate.aiScore != null && (
-                    <span className="font-medium">
-                      {debate.userScore}–{debate.aiScore}
-                    </span>
-                  )}
-                  <span>{timeAgo(debate.createdAt)}</span>
-                </div>
-                
-                {/* Voting */}
-                <VoteButtons
-                  debateId={debate.id}
-                  initialUpvotes={debate.upvotes || Math.floor(Math.random() * 50)}
-                  initialDownvotes={debate.downvotes || Math.floor(Math.random() * 10)}
-                  userVote={debate.userVote}
-                  size="sm"
-                  onVote={(vote) => {
-                    track('debate_vote', {
-                      debateId: debate.id,
-                      vote,
-                      source: 'explore',
-                    });
-                  }}
-                />
-              </div>
+          {/* Error */}
+          {error && (
+            <div className="text-center py-12">
+              <p className="text-sm text-[var(--error)]">{error}</p>
+              <button
+                onClick={() => fetchDebates(0, false)}
+                className="mt-2 text-xs text-[var(--accent)] hover:underline"
+              >
+                Try again
+              </button>
             </div>
-          ))}
-        </div>
-      )}
+          )}
 
-      {/* Load more */}
-      {pagination?.hasMore && !loading && (
-        <div className="mt-6 text-center">
-          <button
-            onClick={() => fetchDebates(pagination.offset + pagination.limit, true)}
-            disabled={loadingMore}
-            className="px-5 py-2.5 rounded-xl text-sm font-medium border border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text)] hover:border-[var(--accent)]/30 transition-all disabled:opacity-50"
-          >
-            {loadingMore ? (
-              <span className="flex items-center gap-2">
-                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          {/* Loading skeleton */}
+          {loading && !error && (
+            <div className="space-y-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="rounded-xl border border-[var(--border)]/50 bg-[var(--bg-elevated)] p-4 sm:p-5"
+                >
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div className="h-5 bg-[var(--bg-sunken)] rounded animate-pulse w-3/4" />
+                    <div className="h-5 bg-[var(--bg-sunken)] rounded animate-pulse w-16 flex-shrink-0" />
+                  </div>
+                  <div className="h-3 bg-[var(--bg-sunken)] rounded animate-pulse w-full mb-2" />
+                  <div className="h-3 bg-[var(--bg-sunken)] rounded animate-pulse w-2/3 mb-4" />
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="h-3 bg-[var(--bg-sunken)] rounded animate-pulse w-20" />
+                      <div className="h-3 bg-[var(--bg-sunken)] rounded animate-pulse w-24" />
+                    </div>
+                    <div className="h-3 bg-[var(--bg-sunken)] rounded animate-pulse w-12" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Empty state */}
+          {!loading && !error && debates.length === 0 && (
+            <div className="text-center py-16 px-4">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[var(--bg-sunken)] border border-[var(--border)] flex items-center justify-center">
+                <span className="text-3xl">💬</span>
+              </div>
+              <h3 className="text-lg font-semibold text-[var(--text)] mb-2">No debates yet</h3>
+              <p className="text-sm text-[var(--text-secondary)] mb-6 max-w-sm mx-auto">
+                Be the first to complete a debate and inspire others with your arguments!
+              </p>
+              <Link
+                href="/"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--accent)] text-white text-sm font-medium hover:bg-[var(--accent-hover)] transition-colors"
+              >
+                <span>Start a Debate</span>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                 </svg>
-                Loading…
-              </span>
-            ) : (
-              `Show more (${pagination.total - pagination.offset - pagination.limit} remaining)`
-            )}
-          </button>
-        </div>
-      )}
+              </Link>
+            </div>
+          )}
 
-      {/* CTA at bottom */}
-      {!loading && debates.length > 0 && (
-        <div className="mt-8 text-center p-6 rounded-2xl border border-[var(--accent)]/20 bg-[var(--accent)]/5">
-          <h3 className="text-base font-semibold text-[var(--text)] mb-1">
-            Ready to debate?
-          </h3>
-          <p className="text-xs text-[var(--text-secondary)] mb-3">
-            Pick today&apos;s topic and make your case.
-          </p>
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--accent)] text-white text-sm font-medium hover:bg-[var(--accent-hover)] shadow-lg shadow-[var(--accent)]/25 transition-all hover:-translate-y-0.5"
-          >
-            Start Debating
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-            </svg>
-          </Link>
+          {/* Debate cards */}
+          {!loading && !error && debates.length > 0 && (
+            <div className="space-y-3">
+              {debates.map((debate) => (
+                <div
+                  key={debate.id}
+                  className="rounded-xl border border-[var(--border)]/50 bg-[var(--bg-elevated)] p-4 sm:p-5 transition-all hover:border-[var(--accent)]/30 hover:shadow-md"
+                >
+                  {/* Top row: topic + winner badge */}
+                  <div className="flex items-start justify-between gap-3 mb-2">
+                    <Link
+                      href={`/debate/${debate.id}`}
+                      onClick={() => handleCardClick(debate)}
+                      className="group flex-1"
+                    >
+                      <h3 className="text-sm sm:text-base font-semibold text-[var(--text)] group-hover:text-[var(--accent)] transition-colors leading-snug">
+                        {debate.topic}
+                      </h3>
+                    </Link>
+                    <WinnerBadge winner={debate.winner} />
+                  </div>
+
+                  {/* Preview text */}
+                  {debate.previewMessage && (
+                    <Link
+                      href={`/debate/${debate.id}`}
+                      onClick={() => handleCardClick(debate)}
+                      className="block"
+                    >
+                      <p className="text-xs text-[var(--text-secondary)] leading-relaxed mb-3 line-clamp-2">
+                        &ldquo;{debate.previewMessage}&rdquo;
+                      </p>
+                    </Link>
+                  )}
+
+                  {/* Bottom row: Meta + Voting */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 text-[11px] text-[var(--text-tertiary)]">
+                      {debate.opponent && (
+                        <span>vs {debate.opponent}</span>
+                      )}
+                      <span>{debate.messageCount} messages</span>
+                      {debate.userScore != null && debate.aiScore != null && (
+                        <span className="font-medium">
+                          {debate.userScore}–{debate.aiScore}
+                        </span>
+                      )}
+                      <span>{timeAgo(debate.createdAt)}</span>
+                    </div>
+                    
+                    <VoteButtons
+                      debateId={debate.id}
+                      initialUpvotes={debate.upvotes || Math.floor(Math.random() * 50)}
+                      initialDownvotes={debate.downvotes || Math.floor(Math.random() * 10)}
+                      userVote={debate.userVote}
+                      size="sm"
+                      onVote={(vote) => {
+                        track('debate_vote', {
+                          debateId: debate.id,
+                          vote,
+                          source: 'explore',
+                        });
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Load more */}
+          {pagination?.hasMore && !loading && (
+            <div className="mt-6 text-center">
+              <button
+                onClick={() => fetchDebates(pagination.offset + pagination.limit, true)}
+                disabled={loadingMore}
+                className="px-5 py-2.5 rounded-xl text-sm font-medium border border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text)] hover:border-[var(--accent)]/30 transition-all disabled:opacity-50"
+              >
+                {loadingMore ? (
+                  <span className="flex items-center gap-2">
+                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Loading…
+                  </span>
+                ) : (
+                  `Show more (${pagination.total - pagination.offset - pagination.limit} remaining)`
+                )}
+              </button>
+            </div>
+          )}
+
+          {/* CTA at bottom */}
+          {!loading && debates.length > 0 && (
+            <div className="mt-8 text-center p-6 rounded-2xl border border-[var(--accent)]/20 bg-[var(--accent)]/5">
+              <h3 className="text-base font-semibold text-[var(--text)] mb-1">
+                Ready to debate?
+              </h3>
+              <p className="text-xs text-[var(--text-secondary)] mb-3">
+                Pick today&apos;s topic and make your case.
+              </p>
+              <Link
+                href="/"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--accent)] text-white text-sm font-medium hover:bg-[var(--accent-hover)] shadow-lg shadow-[var(--accent)]/25 transition-all hover:-translate-y-0.5"
+              >
+                Start Debating
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+              </Link>
+            </div>
+          )}
         </div>
       )}
     </div>
