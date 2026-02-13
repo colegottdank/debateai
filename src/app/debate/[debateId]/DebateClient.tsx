@@ -1393,35 +1393,19 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
           
           {/* Request Judgment Button - shown when enough messages but no score */}
           {!debateScore && messages.filter(m => m.role === 'user' || m.role === 'ai').length >= 2 && (
-            <div className="max-w-xl mx-auto px-4 py-8">
-              <div className="bg-[var(--bg-elevated)] border border-[var(--border)] rounded-2xl p-6 text-center shadow-sm relative overflow-hidden group">
-                <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/5 to-transparent opacity-50" />
-                
-                <div className="relative z-10 flex flex-col items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-[var(--accent)]/10 flex items-center justify-center mb-1 text-2xl">
-                    ⚖️
-                  </div>
-                  
-                  <h3 className="text-lg font-semibold text-[var(--text)]">
-                    Ready for the verdict?
-                  </h3>
-                  
-                  <p className="text-sm text-[var(--text-secondary)] max-w-sm mx-auto mb-2">
-                    The debate has reached a good length. Ask the AI judge to analyze the arguments and declare a winner.
-                  </p>
-                  
-                  <button
-                    onClick={requestJudgment}
-                    disabled={isAILoading || isUserLoading}
-                    className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)] transition-all transform active:scale-95 font-medium shadow-md shadow-[var(--accent)]/20"
-                  >
-                    <span>Request Verdict</span>
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/>
-                    </svg>
-                  </button>
-                </div>
-              </div>
+            <div className="flex justify-center my-6">
+              <button
+                onClick={requestJudgment}
+                disabled={isAILoading || isUserLoading}
+                className="group flex items-center gap-2 px-5 py-2.5 rounded-full bg-[var(--bg-elevated)] border border-[var(--border)]
+                  text-[13px] font-medium text-[var(--text-secondary)] hover:text-[var(--text)]
+                  hover:border-[var(--accent)]/30 hover:bg-[var(--bg-sunken)] hover:shadow-sm
+                  transition-all active:scale-95 disabled:opacity-50"
+              >
+                <span className="text-base group-hover:scale-110 transition-transform">⚖️</span>
+                <span>Ready for the verdict?</span>
+                <span className="text-[var(--accent)] group-hover:underline decoration-[var(--accent)]/30 underline-offset-4 ml-1">Ask Judge &rarr;</span>
+              </button>
             </div>
           )}
         </div>
