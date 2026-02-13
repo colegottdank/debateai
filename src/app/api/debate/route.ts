@@ -33,15 +33,15 @@ export async function POST(request: Request) {
 
   // IP-based rate limit first (before auth check)
   const ip = getClientIp(request);
-  // Use D1 for distributed rate limiting (10 req/min/IP)
-  const ipRl = await d1.checkRateLimit(`ip:${ip}`, 10, 60);
+  // Use D1 for distributed rate limiting (60 req/min/IP)
+  const ipRl = await d1.checkRateLimit(`ip:${ip}`, 60, 60);
   if (!ipRl.allowed) {
     return rateLimitResponse({
       allowed: false,
       remaining: 0,
       resetAt: ipRl.resetAt,
       headers: {
-        'X-RateLimit-Limit': '10',
+        'X-RateLimit-Limit': '60',
         'X-RateLimit-Remaining': '0',
         'X-RateLimit-Reset': String(ipRl.resetAt),
         'Retry-After': String(Math.max(0, ipRl.resetAt - Math.floor(Date.now()/1000)))

@@ -214,9 +214,11 @@ describe('rate limiting on API routes', () => {
 
     it(`${route}: IP limit is ${expectedIpLimit}/min`, () => {
       const src = readSrc(route);
-      expect(
-        src.includes(`maxRequests: ${expectedIpLimit}`) || src.includes(`maxRequests:${expectedIpLimit}`)
-      ).toBe(true);
+      // Support both createRateLimiter (memory) and d1.checkRateLimit (distributed)
+      const hasMemoryLimit = src.includes(`maxRequests: ${expectedIpLimit}`) || src.includes(`maxRequests:${expectedIpLimit}`);
+      const hasD1Limit = src.includes(`checkRateLimit(\`ip:\${ip}\`, ${expectedIpLimit}`);
+      
+      expect(hasMemoryLimit || hasD1Limit).toBe(true);
     });
   }
 });
