@@ -41,7 +41,7 @@ export async function POST(request: Request) {
       remaining: 0,
       resetAt: ipRl.resetAt,
       headers: {
-        'X-RateLimit-Limit': '10',
+        'X-RateLimit-Limit': '60',
         'X-RateLimit-Remaining': '0',
         'X-RateLimit-Reset': String(ipRl.resetAt),
         'Retry-After': String(Math.max(0, ipRl.resetAt - Math.floor(Date.now()/1000)))
