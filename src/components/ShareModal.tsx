@@ -52,8 +52,8 @@ export default function ShareModal({ isOpen, onClose, debateId, topic, opponentN
                 }
               });
               setGeneratedImage(dataUrl);
-            } catch (err) {
-              console.error('Failed to generate image:', err);
+            } catch {
+              // Ignore error
             }
           }
         }, 500);

@@ -47,6 +47,26 @@ export default function ShareImageModal({
   // Store previously focused element and handle body scroll
   useEffect(() => {
     setMounted(true);
+
+    const generateImage = async () => {
+      if (!cardRef.current || isGenerating) return;
+
+      setIsGenerating(true);
+      try {
+        const dataUrl = await toPng(cardRef.current, {
+          quality: 0.95,
+          pixelRatio: 2,
+        });
+        setImageUrl(dataUrl);
+        track('share_image_generated', { debateId });
+      } catch (error) {
+        console.error('Failed to generate image:', error);
+        showToast('Failed to generate image', 'error');
+      } finally {
+        setIsGenerating(false);
+      }
+    };
+
     if (isOpen) {
       previousFocusRef.current = document.activeElement as HTMLElement;
       document.body.style.overflow = 'hidden';
@@ -56,7 +76,7 @@ export default function ShareImageModal({
     return () => {
       document.body.style.overflow = '';
     };
-  }, [isOpen]);
+  }, [isOpen, debateId, isGenerating, showToast]);
 
   // Generate image when ready
   useEffect(() => {
