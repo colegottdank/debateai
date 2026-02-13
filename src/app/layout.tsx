@@ -28,6 +28,7 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
     <ClerkProvider
       appearance={{
         elements: {
+          modalBackdrop: "flex items-center justify-center bg-black/60 backdrop-blur-sm",
           modalContent: "max-w-[95vw] w-full mx-auto",
           card: "max-w-[95vw] w-full mx-auto shadow-xl rounded-xl overflow-hidden",
           headerTitle: "text-xl font-bold text-center break-words",
