@@ -1,94 +1,95 @@
-import { Metadata } from 'next';
+'use client';
 
-export const metadata: Metadata = {
-  title: 'Arena Mode - DebateAI',
-  description: 'Enter the arena.',
-};
+import React from 'react';
+import Link from 'next/link';
 
-export default function ArenaPage() {
+const OPPONENTS = [
+  {
+    id: 'gemini',
+    name: 'Gemini Pro',
+    role: 'Speedster',
+    difficulty: 'Easy',
+    color: 'from-blue-400 to-cyan-500',
+    avatar: '⚡',
+    rewards: '100 XP'
+  },
+  {
+    id: 'claude',
+    name: 'Claude 3.5',
+    role: 'Tactician',
+    difficulty: 'Medium',
+    color: 'from-orange-400 to-red-500',
+    avatar: '🧠',
+    rewards: '250 XP'
+  },
+  {
+    id: 'gpt4',
+    name: 'GPT-4o',
+    role: 'Grandmaster',
+    difficulty: 'Hard',
+    color: 'from-purple-500 to-pink-600',
+    avatar: '👑',
+    rewards: '500 XP'
+  }
+];
+
+export default function ArenaSelectionPage() {
   return (
-    <div className="min-h-screen bg-black text-white overflow-hidden relative font-mono">
-      {/* Background Effect */}
-      <div className="absolute inset-0 bg-gradient-to-b from-gray-900 to-black z-0" />
-      
-      {/* HUD Layer */}
-      <div className="relative z-10 w-full max-w-6xl mx-auto p-4 flex flex-col h-screen">
-        
-        {/* Health Bars */}
-        <div className="flex justify-between items-center w-full mb-8 pt-4 gap-8">
-          {/* Player 1 */}
-          <div className="flex-1 flex flex-col relative">
-            <div className="flex justify-between items-end mb-1">
-              <span className="text-xl font-bold text-yellow-400 drop-shadow-lg tracking-widest">CLAUDE 3.5</span>
-              <span className="text-sm text-gray-400">Lv. 99</span>
-            </div>
-            <div className="h-6 w-full bg-gray-800 border-2 border-gray-600 relative skew-x-[-12deg]">
-              <div className="absolute top-0 left-0 h-full bg-gradient-to-r from-yellow-600 to-yellow-400 w-[80%] transition-all duration-300" />
-            </div>
-            <div className="absolute -bottom-8 left-0 flex gap-2">
-               <div className="w-12 h-12 bg-blue-500 rounded-full border-2 border-white overflow-hidden">
-                 {/* Avatar Placeholder */}
-                 <div className="w-full h-full bg-blue-600 flex items-center justify-center text-xs">P1</div>
-               </div>
-            </div>
-          </div>
+    <div className="min-h-screen bg-slate-950 text-white p-6 pb-32">
+      <header className="mb-8">
+        <h1 className="text-3xl font-black bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent uppercase tracking-tighter">
+          Arena Selection
+        </h1>
+        <p className="text-slate-400 mt-2">Choose your opponent and prove your logic.</p>
+      </header>
 
-          {/* VS / Timer */}
-          <div className="flex flex-col items-center justify-center w-24 shrink-0">
-             <div className="text-4xl font-black text-red-600 drop-shadow-[0_0_10px_rgba(220,38,38,0.8)] italic">VS</div>
-             <div className="text-lg font-bold text-white mt-1">99</div>
-          </div>
-
-          {/* Player 2 */}
-          <div className="flex-1 flex flex-col items-end relative">
-            <div className="flex justify-between items-end mb-1 w-full flex-row-reverse">
-              <span className="text-xl font-bold text-red-400 drop-shadow-lg tracking-widest">GPT-4o</span>
-              <span className="text-sm text-gray-400">Lv. 100</span>
-            </div>
-            <div className="h-6 w-full bg-gray-800 border-2 border-gray-600 relative skew-x-[12deg]">
-              <div className="absolute top-0 right-0 h-full bg-gradient-to-l from-red-600 to-red-400 w-[60%] transition-all duration-300" />
-            </div>
-             <div className="absolute -bottom-8 right-0 flex gap-2">
-               <div className="w-12 h-12 bg-red-500 rounded-full border-2 border-white overflow-hidden">
-                 {/* Avatar Placeholder */}
-                 <div className="w-full h-full bg-red-600 flex items-center justify-center text-xs">P2</div>
-               </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Main Stage */}
-        <div className="flex-1 flex items-center justify-center relative my-8">
-           {/* Characters would be here */}
-           <div className="flex justify-between w-full px-12 items-end h-full">
-              <div className="w-32 h-64 bg-blue-500/20 border border-blue-500/50 flex items-center justify-center animate-pulse">
-                <span className="text-blue-400 font-bold">IDLE</span>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto">
+        {OPPONENTS.map((opp) => (
+          <Link 
+            href="/arena/battle" 
+            key={opp.id}
+            className="group relative bg-slate-900 rounded-2xl p-1 overflow-hidden transition-all hover:-translate-y-2 hover:shadow-2xl hover:shadow-purple-500/20"
+          >
+            <div className={`absolute inset-0 bg-gradient-to-br ${opp.color} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
+            
+            <div className="relative bg-slate-900 rounded-xl p-6 h-full border border-slate-800 group-hover:border-transparent flex flex-col items-center text-center z-10">
+              <div className={`w-24 h-24 rounded-full bg-gradient-to-br ${opp.color} flex items-center justify-center text-4xl mb-4 shadow-lg group-hover:scale-110 transition-transform`}>
+                {opp.avatar}
               </div>
               
-              {/* Damage Float */}
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-6xl font-black text-red-500 drop-shadow-lg animate-bounce hidden">
-                 -450
+              <h2 className="text-2xl font-bold mb-1">{opp.name}</h2>
+              <div className="text-xs font-mono uppercase tracking-widest text-slate-500 mb-4">{opp.role}</div>
+              
+              <div className="w-full bg-slate-800/50 rounded-lg p-3 mb-6">
+                <div className="flex justify-between text-sm mb-1">
+                  <span className="text-slate-400">Difficulty</span>
+                  <span className={
+                    opp.difficulty === 'Hard' ? 'text-red-400' : 
+                    opp.difficulty === 'Medium' ? 'text-yellow-400' : 'text-green-400'
+                  }>{opp.difficulty}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-400">Reward</span>
+                  <span className="text-yellow-400 font-bold">{opp.rewards}</span>
+                </div>
               </div>
+              
+              <div className="mt-auto w-full">
+                <button className="w-full py-3 rounded-lg bg-slate-800 group-hover:bg-white group-hover:text-black font-bold transition-colors">
+                  CHALLENGE
+                </button>
+              </div>
+            </div>
+          </Link>
+        ))}
+      </div>
 
-              <div className="w-32 h-64 bg-red-500/20 border border-red-500/50 flex items-center justify-center">
-                 <span className="text-red-400 font-bold">HIT!</span>
-              </div>
-           </div>
-           
-           {/* Combo Counter */}
-           <div className="absolute left-8 top-1/4">
-              <div className="text-5xl font-black text-orange-500 italic drop-shadow-[0_4px_0_rgba(0,0,0,1)] animate-bounce">
-                3 HIT COMBO!
-              </div>
-           </div>
-        </div>
-
-        {/* Text / Dialogue Area */}
-        <div className="h-48 w-full bg-gray-900/90 border-t-4 border-white/20 p-6 backdrop-blur-sm rounded-t-xl">
-           <div className="text-yellow-400 font-bold mb-2 uppercase tracking-wide">Claude 3.5 is arguing...</div>
-           <p className="text-xl text-white leading-relaxed font-medium">
-             &quot;Your logic is flawed because the premise assumes a static environment, whereas the variable factors clearly indicate a dynamic shift in user behavior...&quot;
-           </p>
+      <div className="mt-12 p-6 bg-slate-900/50 border border-slate-800 rounded-xl max-w-2xl mx-auto text-center">
+        <h3 className="text-xl font-bold text-slate-300 mb-2">Weekly Leaderboard</h3>
+        <div className="flex items-center justify-center gap-4 text-slate-500 text-sm">
+          <span>🏆 1. Spud (2400 XP)</span>
+          <span>🥈 2. Atlas (2100 XP)</span>
+          <span>🥉 3. Pixel (1950 XP)</span>
         </div>
       </div>
     </div>
