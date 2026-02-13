@@ -1,4 +1,7 @@
 {
+  "git": {
+    "ignoreCommand": "git diff --quiet HEAD^ HEAD -- src/ public/ next.config.ts package.json package-lock.json vercel.json"
+  },
   "crons": [
     {
       "path": "/api/cron/rotate-topic",
