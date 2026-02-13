@@ -311,7 +311,7 @@ export default function HomeClient({
             {/* Sign-in hint */}
             {!isSignedIn && (
               <p className="text-center text-xs text-[var(--text-secondary)] mt-3">
-                Sign in to start debating — takes 10 seconds
+                Start immediately — no account needed
               </p>
             )}
           </form>
