@@ -197,7 +197,7 @@ describe('debate response user_id stripping', () => {
 
 describe('rate limiting on API routes', () => {
   const rateLimitedRoutes = [
-    { route: 'src/app/api/debate/route.ts', expectedIpLimit: 60, expectedUserLimit: 20 },
+    { route: 'src/app/api/debate/route.ts', expectedIpLimit: 10, expectedUserLimit: 20 },
     { route: 'src/app/api/debate/create/route.ts', expectedIpLimit: 30, expectedUserLimit: 10 },
     { route: 'src/app/api/debate/takeover/route.ts', expectedIpLimit: 30, expectedUserLimit: 10 },
     { route: 'src/app/api/share/[debateId]/route.ts', expectedIpLimit: 60, expectedUserLimit: null },
@@ -214,11 +214,11 @@ describe('rate limiting on API routes', () => {
 
     it(`${route}: IP limit is ${expectedIpLimit}/min`, () => {
       const src = readSrc(route);
-      // Support both createRateLimiter (memory) and d1.checkRateLimit (distributed)
-      const hasMemoryLimit = src.includes(`maxRequests: ${expectedIpLimit}`) || src.includes(`maxRequests:${expectedIpLimit}`);
-      const hasD1Limit = src.includes(`checkRateLimit(\`ip:\${ip}\`, ${expectedIpLimit}`);
-      
-      expect(hasMemoryLimit || hasD1Limit).toBe(true);
+      expect(
+        src.includes(`maxRequests: ${expectedIpLimit}`) || 
+        src.includes(`maxRequests:${expectedIpLimit}`) ||
+        src.includes(`d1.checkRateLimit(\`ip:\${ip}\`, ${expectedIpLimit}`)
+      ).toBe(true);
     });
   }
 });

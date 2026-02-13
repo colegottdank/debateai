@@ -47,6 +47,7 @@ export default function ShareImageModal({
   // Store previously focused element and handle body scroll
   useEffect(() => {
     setMounted(true);
+
     if (isOpen) {
       previousFocusRef.current = document.activeElement as HTMLElement;
       document.body.style.overflow = 'hidden';
