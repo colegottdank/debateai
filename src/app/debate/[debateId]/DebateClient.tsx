@@ -10,7 +10,6 @@ import Header from "@/components/Header";
 import { track } from "@/lib/analytics";
 import { useToast } from "@/components/Toast";
 import ShareButtons from "@/components/ShareButtons";
-import DebateScoreCard from "@/components/DebateScoreCard";
 import JudgeMessage from "@/components/JudgeMessage";
 import DebateVoting from "@/components/DebateVoting";
 import PostDebateEngagement from "@/components/PostDebateEngagement";
@@ -373,14 +372,6 @@ const Message = memo(
   }
 );
 Message.displayName = "Message";
-
-// Search messages
-const SEARCH_MESSAGES = [
-  "🔍 Searching for evidence...",
-  "📚 Analyzing sources...",
-  "🧠 Formulating argument...",
-  "💡 Building counterpoints...",
-];
 
 export default function DebateClient({ initialDebate = null, initialMessages = [], initialIsOwner = false }: DebateClientProps = {}) {
   const params = useParams();
@@ -1361,9 +1352,6 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
             <JudgeMessage
               score={debateScore}
               opponentName={opponent?.name || debate?.opponentStyle || "AI"}
-              messageCount={messages.filter(m => m.role === 'user').length}
-              messages={messages}
-              topic={debate?.topic || ""}
             />
           )}
 

@@ -66,7 +66,6 @@ export async function POST(request: NextRequest) {
             subscriptionId: subscription.id
           });
           
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const subAny = subscription as any;
           const updateResult = await d1.upsertUser({
             clerkUserId,
@@ -100,7 +99,6 @@ export async function POST(request: NextRequest) {
         const clerkUserId = subscription.metadata?.clerkUserId;
         
         if (clerkUserId) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const subAny = subscription as any;
           const periodEnd = subAny.current_period_end 
             ? new Date(subAny.current_period_end * 1000).toISOString()

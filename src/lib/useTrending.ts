@@ -31,7 +31,7 @@ export function useTrending() {
         setTopics(data.topics || []);
         setIsFallback(data.fallback || false);
         setError(data.error || null);
-      } catch (e) {
+      } catch {
         setError('Failed to load trending topics');
         setTopics([]);
       } finally {

@@ -52,7 +52,7 @@ export default function ShareButtons({ debateId, topic, className = '', onOpenMo
           url: debateUrl,
         });
         track('debate_shared', { debateId, method: 'native_share' });
-      } catch (err) {
+      } catch {
         // User cancelled or share failed
         console.log('Share cancelled');
       }

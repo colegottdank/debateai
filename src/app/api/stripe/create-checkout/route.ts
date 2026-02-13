@@ -66,7 +66,6 @@ export const POST = withErrorHandler(async (request: Request) => {
       // Update database if it's out of sync
       if (dbUser && dbUser.subscription_status !== 'active') {
         const activeSubscription = subscriptions.data[0];
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const subAny = activeSubscription as any;
         await d1.upsertUser({
           clerkUserId: userId,

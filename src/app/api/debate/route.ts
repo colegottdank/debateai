@@ -25,8 +25,6 @@ const anthropic = new Anthropic({
 
 // 20 messages per minute per user (calls Claude API — expensive)
 const userLimiter = createRateLimiter({ maxRequests: 20, windowMs: 60_000 });
-// 60 per minute per IP as a broader safety net
-const ipLimiter = createRateLimiter({ maxRequests: 60, windowMs: 60_000 });
 
 export async function POST(request: Request) {
   // Check if app is disabled
@@ -226,7 +224,6 @@ export async function POST(request: Request) {
 
     // Always use streaming response
     const encoder = new TextEncoder();
-    // eslint-disable-next-line prefer-const
     let controllerClosed = false; // Track if controller is closed
 
     const streamResponse = new ReadableStream({

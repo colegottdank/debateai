@@ -37,8 +37,6 @@ export function debateJsonLd(debate: {
   createdAt?: string;
 }) {
   const debateUrl = `${BASE_URL}/debate/${debate.id}`;
-  const userMessages = debate.messages.filter((m) => m.role === 'user');
-  const aiMessages = debate.messages.filter((m) => m.role === 'ai');
 
   // Build comment list from the debate messages (up to 20)
   const comments = debate.messages
