@@ -349,7 +349,9 @@ class D1Client {
     
     if (result.success && result.result && result.result.length > 0) {
       const count = (result.result[0] as Record<string, unknown>).debate_count as number;
-      const limit = 3; // Free tier limit
+      // GUEST MODE: Guests get 1 debate, Free users get 3
+      const isGuest = userId.startsWith('guest_');
+      const limit = isGuest ? 1 : 3;
       return {
         success: true,
         count,
@@ -393,7 +395,8 @@ class D1Client {
 
       // Quick check: if total messages < limit*2, user is definitely under limit
       // (each user message is paired with an AI response)
-      const limit = 10; // Free tier limit per debate
+      const isGuest = userId.startsWith('guest_');
+      const limit = isGuest ? 5 : 10; // Free tier limit per debate (5 for guests)
       if (totalMsgCount < limit) {
         // Under limit for sure — user msgs can't exceed total msgs
         const estimatedUserMsgs = Math.ceil(totalMsgCount / 2);
