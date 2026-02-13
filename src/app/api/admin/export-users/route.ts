@@ -3,17 +3,42 @@ import { d1 } from '@/lib/d1';
 
 export const dynamic = 'force-dynamic';
 
+interface UserRow {
+  name: string | null;
+  email: string | null;
+  created_at: string | number | null; // D1 returns numbers sometimes
+  debate_count: number;
+}
+
+function escapeCsv(field: string | number | null): string {
+  if (field === null || field === undefined) return '';
+  const str = String(field);
+  if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const key = searchParams.get('key');
+  
+  // Use env var for secret, fallback only in development
+  const validKey = process.env.ADMIN_EXPORT_SECRET || process.env.ADMIN_SECRET;
 
-  // Emergency bypass
-  if (key !== 'openclaw-urgent-bypass') {
+  if (!validKey) {
+    console.error('ADMIN_EXPORT_SECRET or ADMIN_SECRET not configured');
+    return NextResponse.json({ error: 'Server misconfiguration' }, { status: 500 });
+  }
+
+  if (key !== validKey) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {
     // Query for all users
+    // Note: If user count grows significantly, we'll need to stream this or paginate.
+    // For now (<10k users), fetching all is acceptable.
     const result = await d1.query(`
       SELECT 
         u.display_name as name,
@@ -28,18 +53,23 @@ export async function GET(request: Request) {
     `);
 
     if (!result.success) {
-      return NextResponse.json({ error: result.error }, { status: 500 });
+      console.error('D1 query failed:', result.error);
+      return NextResponse.json({ error: 'Database error' }, { status: 500 });
     }
 
-    const rows = result.result || [];
+    const rows = (result.result || []) as unknown as UserRow[];
     
     // Convert to CSV
-    const csvHeader = 'Name,Email,Date,Debates\n';
-    const csvRows = rows.map((r: any) => {
-      // Escape quotes
-      const name = (r.name || 'Anonymous').replace(/"/g, '""');
-      const email = (r.email || '').replace(/"/g, '""');
-      return `"${name}","${email}","${r.created_at}",${r.debate_count}`;
+    const header = ['Name', 'Email', 'Date', 'Debates'];
+    const csvHeader = header.join(',') + '\n';
+    
+    const csvRows = rows.map((r) => {
+      return [
+        escapeCsv(r.name || 'Anonymous'),
+        escapeCsv(r.email),
+        escapeCsv(r.created_at),
+        escapeCsv(r.debate_count)
+      ].join(',');
     }).join('\n');
     
     const csvContent = csvHeader + csvRows;
@@ -47,8 +77,8 @@ export async function GET(request: Request) {
     return new NextResponse(csvContent, {
       status: 200,
       headers: {
-        'Content-Type': 'text/csv',
-        'Content-Disposition': 'attachment; filename="users-export.csv"',
+        'Content-Type': 'text/csv; charset=utf-8',
+        'Content-Disposition': `attachment; filename="users-export-${new Date().toISOString().split('T')[0]}.csv"`,
       },
     });
 
