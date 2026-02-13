@@ -61,59 +61,94 @@ export const GET = withErrorHandler(async (request: Request) => {
     return fallback;
   };
 
+  // Helper to wrap a promise with a timeout
+  const withTimeout = <T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> => {
+    return Promise.race([
+      promise,
+      new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms))
+    ]);
+  };
+
   const emptyD1Result = { result: [] };
 
-  // Run all queries in parallel safely
-  const results = await Promise.race([
-    Promise.allSettled([
-    // Total debates
-    d1.query(`SELECT COUNT(*) as total FROM debates WHERE ${REAL_DEBATES_FILTER}`, []),
-
-    // Completed debates
-    d1.query(
-      `SELECT COUNT(*) as total FROM debates WHERE ${REAL_DEBATES_FILTER} AND score_data IS NOT NULL AND json_extract(score_data, '$.debateScore') IS NOT NULL`,
-      []
+  // Run all queries in parallel with individual timeouts
+  const results = await Promise.allSettled([
+    // Total debates - 5s timeout
+    withTimeout(
+      d1.query(`SELECT COUNT(*) as total FROM debates WHERE ${REAL_DEBATES_FILTER}`, []),
+      5000,
+      { result: [{ total: 0 }] } as any
     ),
 
-    // Unique users
-    d1.query(`SELECT COUNT(DISTINCT user_id) as total FROM debates WHERE ${REAL_USERS_FILTER}`, []),
-
-    // Debates today
-    d1.query(
-      `SELECT COUNT(*) as total FROM debates WHERE ${REAL_DEBATES_FILTER} AND created_at >= date('now')`,
-      []
+    // Completed debates - 5s timeout
+    withTimeout(
+      d1.query(
+        `SELECT COUNT(*) as total FROM debates WHERE ${REAL_DEBATES_FILTER} AND score_data IS NOT NULL AND json_extract(score_data, '$.debateScore') IS NOT NULL`,
+        []
+      ),
+      5000,
+      { result: [{ total: 0 }] } as any
     ),
 
-    // Debates this week
-    d1.query(
-      `SELECT COUNT(*) as total FROM debates WHERE ${REAL_DEBATES_FILTER} AND created_at >= date('now', '-7 days')`,
-      []
+    // Unique users - 5s timeout
+    withTimeout(
+      d1.query(`SELECT COUNT(DISTINCT user_id) as total FROM debates WHERE ${REAL_USERS_FILTER}`, []),
+      5000,
+      { result: [{ total: 0 }] } as any
     ),
 
-    // Avg messages (heavy query)
-    d1.query(
-      `SELECT AVG(msg_len) as avg_msgs FROM (
-        SELECT json_array_length(messages) as msg_len 
-        FROM debates 
-        WHERE ${REAL_DEBATES_FILTER} AND messages IS NOT NULL 
-        ORDER BY created_at DESC 
-        LIMIT 1000
-      )`,
-      []
+    // Debates today - 3s timeout
+    withTimeout(
+      d1.query(
+        `SELECT COUNT(*) as total FROM debates WHERE ${REAL_DEBATES_FILTER} AND created_at >= date('now')`,
+        []
+      ),
+      3000,
+      { result: [{ total: 0 }] } as any
     ),
 
-    // Top topics (heavy query)
-    d1.query(
-      `SELECT topic, COUNT(*) as count FROM (
-        SELECT topic 
-        FROM debates 
-        WHERE ${REAL_DEBATES_FILTER} AND topic IS NOT NULL 
-        ORDER BY created_at DESC 
-        LIMIT 5000
-      ) GROUP BY topic ORDER BY count DESC LIMIT 10`,
-      []
+    // Debates this week - 3s timeout
+    withTimeout(
+      d1.query(
+        `SELECT COUNT(*) as total FROM debates WHERE ${REAL_DEBATES_FILTER} AND created_at >= date('now', '-7 days')`,
+        []
+      ),
+      3000,
+      { result: [{ total: 0 }] } as any
     ),
-  ]), new Promise<any>((_, reject) => setTimeout(() => reject(new Error('D1 Query Timeout')), 8000))]) as PromiseSettledResult<any>[];
+
+    // Avg messages (heavy query) - 4s timeout
+    withTimeout(
+      d1.query(
+        `SELECT AVG(msg_len) as avg_msgs FROM (
+          SELECT json_array_length(messages) as msg_len 
+          FROM debates 
+          WHERE ${REAL_DEBATES_FILTER} AND messages IS NOT NULL 
+          ORDER BY created_at DESC 
+          LIMIT 1000
+        )`,
+        []
+      ),
+      4000,
+      { result: [{ avg_msgs: 0 }] } as any
+    ),
+
+    // Top topics (heavy query) - 4s timeout
+    withTimeout(
+      d1.query(
+        `SELECT topic, COUNT(*) as count FROM (
+          SELECT topic 
+          FROM debates 
+          WHERE ${REAL_DEBATES_FILTER} AND topic IS NOT NULL 
+          ORDER BY created_at DESC 
+          LIMIT 5000
+        ) GROUP BY topic ORDER BY count DESC LIMIT 10`,
+        []
+      ),
+      4000,
+      { result: [] } as any
+    ),
+  ]);
 
   const totalResult = unwrap(results[0], emptyD1Result, 'totalDebates');
   const completedResult = unwrap(results[1], emptyD1Result, 'debatesCompleted');
