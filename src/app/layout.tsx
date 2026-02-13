@@ -24,7 +24,17 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
     // Build-time prerender (no env vars) — skip Clerk
     return <>{children}</>;
   }
-  return <ClerkProvider>{children}</ClerkProvider>;
+  return (
+    <ClerkProvider
+      appearance={{
+        elements: {
+          card: "max-w-[calc(100vw-2rem)] mx-auto",
+        }
+      }}
+    >
+      {children}
+    </ClerkProvider>
+  );
 }
 
 const geistSans = Geist({

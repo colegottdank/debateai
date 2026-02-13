@@ -168,7 +168,7 @@ export default function HomeClient({
         <div className="w-full max-w-2xl">
           {/* Hero — minimal */}
           <div className="text-center mb-10">
-            <div className="flex items-center justify-center gap-2 mb-3">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-2 mb-3">
               <h1 className="text-4xl sm:text-5xl font-serif font-bold text-[var(--text)] leading-tight">
                 The AI that fights back.
               </h1>
