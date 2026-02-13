@@ -538,3 +538,19 @@ textarea:focus-visible,
 .animate-shake {
   animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
 }
+
+/* ============================================
+   MOBILE KEYBOARD FIXES
+   ============================================ */
+@media (max-width: 640px) {
+  /* Hide floating widgets when input is focused to prevent overlap with keyboard/input area */
+  body.input-focused #intercom-container,
+  body.input-focused .intercom-lightweight-app-launcher,
+  body.input-focused .intercom-launcher-frame,
+  body.input-focused #drift-widget,
+  body.input-focused .crisp-client,
+  body.input-focused #launcher,
+  body.input-focused iframe[title="Intercom"] {
+    display: none !important;
+  }
+}

@@ -58,11 +58,6 @@ export async function POST(request: Request) {
       return errors.unauthorized();
     }
 
-    // Block unverified guest access for AI generation (prevent curl abuse)
-    if (userId.startsWith('guest_')) {
-      return errors.unauthorized("Sign in required for debate generation");
-    }
-
     // Per-user rate limit (protects Claude API costs)
     const userRl = userLimiter.check(`user:${userId}`);
     if (!userRl.allowed) return rateLimitResponse(userRl);
@@ -154,6 +149,9 @@ export async function POST(request: Request) {
       const messageLimit = await d1.checkDebateMessageLimit(debateId);
       if (!messageLimit.allowed) {
         log.info('debate.limit_reached', { debateId, variant: assignedVariant });
+        if (userId.startsWith('guest_')) {
+          return errors.guestLimit(messageLimit.count, messageLimit.limit);
+        }
         return errors.messageLimit(messageLimit.count, messageLimit.limit);
       }
     }

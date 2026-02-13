@@ -23,7 +23,7 @@ export async function GET() {
       status: result.success ? 'ok' : 'error',
       latencyMs: Date.now() - dbStart,
     };
-  } catch (err) {
+  } catch {
     checks.database = {
       status: 'error',
       error: 'Database unreachable',
@@ -35,6 +35,9 @@ export async function GET() {
     'ANTHROPIC_API_KEY',
     'HELICONE_API_KEY',
     'STRIPE_PRICE_ID',
+    'AGENTMAIL_API_KEY',
+    'NEXT_PUBLIC_POSTHOG_KEY',
+    'NEXT_PUBLIC_POSTHOG_HOST',
   ];
   const missingVars = requiredEnvVars.filter((v) => !process.env[v]);
   checks.config = {

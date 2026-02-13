@@ -7,7 +7,7 @@
 
 import { d1 } from './d1';
 import { sendEmail } from './email';
-import { streakWarningEmail } from './email-templates';
+import { streakWarningEmail, challengeNotificationEmail } from './email-templates';
 
 // ── Types ────────────────────────────────────────────────────────
 
@@ -352,14 +352,42 @@ export async function notifyChallenge(
   challengerName: string,
   topic: string,
   debateId: string,
+  userScore: number,
+  challengerScore: number,
 ) {
-  await createNotification(
+  // 1. Create in-app notification (respects preferences)
+  const created = await createNotification(
     userId,
     'challenge',
     '⚔️ You\'ve Been Challenged!',
     `${challengerName} challenged you to debate "${truncate(topic, 50)}"`,
     `/debate/${debateId}`,
   );
+
+  // 2. Send email if enabled and email available
+  if (created) {
+    const userResult = await d1.query(`SELECT email FROM users WHERE user_id = ?`, [userId]);
+    
+    if (userResult.success && userResult.result && userResult.result.length > 0) {
+      const email = (userResult.result[0] as any).email;
+      
+      if (email) {
+        const { subject, html } = challengeNotificationEmail({
+          topic,
+          userScore,
+          opponentScore: challengerScore,
+          unsubscribeToken: userId,
+        });
+
+        await sendEmail({
+          to: email,
+          subject,
+          html,
+          tags: [{ name: 'category', value: 'challenge' }],
+        });
+      }
+    }
+  }
 }
 
 // ── Utils ────────────────────────────────────────────────────────
