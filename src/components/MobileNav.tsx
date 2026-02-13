@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useSafeUser } from '@/lib/useSafeClerk';
+import ThemeToggle from './ThemeToggle';
 
 const NAV_ITEMS = [
   {
@@ -148,14 +149,14 @@ export default function MobileNav() {
             id="mobile-nav-panel"
             className={`fixed inset-y-0 right-0 z-[100] w-[280px] sm:hidden
               bg-[var(--bg)] border-l border-[var(--border)]
-              shadow-2xl
+              shadow-2xl flex flex-col
               transform transition-transform duration-300 cubic-bezier(0.16, 1, 0.3, 1)
               ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
             role="navigation"
             aria-label="Mobile navigation"
           >
             {/* Drawer Header */}
-            <div className="flex items-center justify-between px-5 py-5 border-b border-[var(--border)]/50">
+            <div className="flex items-center justify-between px-5 py-5 border-b border-[var(--border)]/50 shrink-0">
               <Link href="/" className="flex items-center gap-2" onClick={() => setIsOpen(false)}>
                 <div className="relative w-7 h-7 rounded-lg overflow-hidden">
                    <Image 
@@ -185,7 +186,7 @@ export default function MobileNav() {
             </div>
 
             {/* Links */}
-            <div className="px-3 py-4 overflow-y-auto h-[calc(100%-65px)]">
+            <div className="px-3 py-4 overflow-y-auto flex-1">
               <ul className="space-y-1">
                 {filteredItems.map((item) => {
                   const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
@@ -209,6 +210,14 @@ export default function MobileNav() {
                   );
                 })}
               </ul>
+            </div>
+
+            {/* Drawer Footer */}
+            <div className="p-4 border-t border-[var(--border)]/50 shrink-0">
+               <div className="flex items-center justify-between bg-[var(--bg-sunken)]/30 rounded-xl p-3">
+                  <span className="text-sm font-medium text-[var(--text-secondary)]">Appearance</span>
+                  <ThemeToggle />
+               </div>
             </div>
           </nav>
         </>,
