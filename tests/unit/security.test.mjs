@@ -437,10 +437,14 @@ describe('rate limiting on API routes', () => {
 
       it(`${route}: IP check runs BEFORE auth`, () => {
         const src = readSrc(route);
-        const ipCheckPos = src.indexOf('ipLimiter.check');
+        // Allow either local ipLimiter or D1 distributed limiter
+        let ipCheckPos = src.indexOf('ipLimiter.check');
+        if (ipCheckPos === -1) {
+          ipCheckPos = src.indexOf('d1.checkRateLimit');
+        }
         const authPos = src.indexOf('getUserId()');
 
-        assert.ok(ipCheckPos !== -1, 'Must have IP limiter check');
+        assert.ok(ipCheckPos !== -1, 'Must have IP limiter check (ipLimiter.check or d1.checkRateLimit)');
         assert.ok(authPos !== -1, 'Must have auth check');
         assert.ok(
           ipCheckPos < authPos,

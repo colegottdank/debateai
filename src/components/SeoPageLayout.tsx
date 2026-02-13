@@ -80,7 +80,11 @@ export default function SeoPageLayout({ page, backLink }: SeoPageLayoutProps) {
 
           {/* Meta */}
           <header className="mb-8">
-            <div className="flex flex-wrap items-center gap-3 text-sm text-[var(--text-secondary)] mb-4">
+            <h1 className="text-3xl sm:text-4xl font-serif font-semibold text-[var(--text)] mb-4 leading-tight">
+              {page.title}
+            </h1>
+
+            <div className="flex flex-wrap items-center gap-3 text-sm text-[var(--text-secondary)]">
               <span>{page.author}</span>
               <span className="w-1 h-1 rounded-full bg-[var(--border-strong)]" />
               <time dateTime={page.date}>
@@ -97,7 +101,7 @@ export default function SeoPageLayout({ page, backLink }: SeoPageLayoutProps) {
 
           {/* Content */}
           <div
-            className="blog-content prose prose-invert max-w-none
+            className="blog-content prose dark:prose-invert max-w-none
               prose-headings:font-serif prose-headings:text-[var(--text)] prose-headings:font-semibold
               prose-h1:text-3xl prose-h1:sm:text-4xl prose-h1:leading-tight prose-h1:mb-6
               prose-h2:mt-10 prose-h2:mb-4 prose-h2:text-2xl prose-h2:sm:text-3xl prose-h2:leading-tight

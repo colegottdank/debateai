@@ -3,18 +3,30 @@ import { d1 } from '@/lib/d1';
 import { getUserId } from '@/lib/auth-helper';
 import { checkAppDisabled } from '@/lib/app-disabled';
 
-// Mock Anthropic
-const mockAnthropicStream = {
-  on: vi.fn(),
-  finalMessage: vi.fn().mockResolvedValue({ content: [] }),
-};
-const mockAnthropicCreate = vi.fn().mockReturnValue(mockAnthropicStream);
+// Hoist mocks to ensure they are available in the factory
+const mocks = vi.hoisted(() => {
+  const on = vi.fn();
+  const finalMessage = vi.fn().mockResolvedValue({ content: [] });
+  const stream = { 
+    on, 
+    finalMessage, 
+    // Add internal properties if accessed by the SDK or test
+  };
+  // The create function returns the stream object
+  const create = vi.fn().mockReturnValue(stream);
+  return {
+    on,
+    finalMessage,
+    stream,
+    create
+  };
+});
 
 vi.mock('@anthropic-ai/sdk', () => {
   return {
     default: class Anthropic {
       messages = {
-        stream: mockAnthropicCreate
+        stream: mocks.create
       }
     }
   }
@@ -61,15 +73,19 @@ describe('POST /api/debate/takeover', () => {
     vi.mocked(checkAppDisabled).mockReturnValue(null);
     vi.mocked(d1.checkDebateMessageLimit).mockResolvedValue({ allowed: true, count: 5, limit: 10, isPremium: false });
 
+    // Re-apply return value after resetAllMocks
+    mocks.create.mockReturnValue(mocks.stream);
+
     // Mock stream response
-    mockAnthropicStream.on.mockImplementation((event, callback) => {
+    mocks.on.mockImplementation((event: string, callback: (text: string) => void) => {
       if (event === 'text') {
         callback('AI response');
       }
-      return mockAnthropicStream;
+      return mocks.stream;
     });
     
-    // mockOpenAIStream.mockResolvedValue(stream); 
+    // Ensure finalMessage returns a promise resolving to content
+    mocks.finalMessage.mockResolvedValue({ content: [] });
   });
 
   it('validates request body', async () => {
@@ -92,8 +108,8 @@ describe('POST /api/debate/takeover', () => {
     }));
 
     expect(res.status).toBe(200);
-    expect(mockAnthropicCreate).toHaveBeenCalled();
-    const calls = mockAnthropicCreate.mock.calls[0];
+    expect(mocks.create).toHaveBeenCalled();
+    const calls = mocks.create.mock.calls[0];
     expect(calls[0].model).toBe('claude-sonnet-4-20250514'); // Following CLAUDE.md
   });
 });

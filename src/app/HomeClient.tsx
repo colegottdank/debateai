@@ -66,12 +66,7 @@ export default function HomeClient({
             });
 
             if (response.ok) {
-              track('debate_created', {
-                debateId,
-                topic: pendingDebate.topic,
-                opponent: pendingDebate.persona,
-                source: 'daily_debate',
-              });
+              // Backend tracks debate_created with experiment_variant - avoid duplicate tracking
               if (pendingDebate.userInput) {
                 sessionStorage.setItem('firstArgument', pendingDebate.userInput);
               }
@@ -106,18 +101,16 @@ export default function HomeClient({
     markOnboarded();
     track('onboarding_started', { topic: dailyDebate.topic, source: 'onboarding' });
 
+    // Guest Mode: If not signed in, generate/use guest ID
     if (!isSignedIn) {
-      sessionStorage.setItem(
-        'pendingDebate',
-        JSON.stringify({
-          userInput: userInput.trim(),
-          topic: dailyDebate.topic,
-          persona: dailyDebate.persona,
-          fromLandingPage: true,
-        })
-      );
-      openSignIn({ afterSignInUrl: '/' });
-      return;
+      let guestId = document.cookie.split('; ').find(row => row.startsWith('guest_id='))?.split('=')[1];
+      if (!guestId) {
+        guestId = crypto.randomUUID();
+        // Set guest_id cookie for 1 year
+        const expiry = new Date();
+        expiry.setFullYear(expiry.getFullYear() + 1);
+        document.cookie = `guest_id=${guestId}; expires=${expiry.toUTCString()}; path=/; SameSite=Lax`;
+      }
     }
 
     setIsStarting(true);
@@ -136,12 +129,10 @@ export default function HomeClient({
       });
 
       if (response.ok) {
-        track('debate_created', {
-          debateId,
-          topic: dailyDebate.topic,
-          opponent: dailyDebate.persona,
-          source: 'daily_debate',
-        });
+        if (!isSignedIn) {
+          sessionStorage.setItem('guest_debate_id', debateId);
+        }
+        // Backend tracks debate_created with experiment_variant - avoid duplicate tracking
         sessionStorage.setItem('firstArgument', userInput.trim());
         sessionStorage.setItem('isInstantDebate', 'true');
         router.push(`/debate/${debateId}`);
@@ -320,7 +311,7 @@ export default function HomeClient({
             {/* Sign-in hint */}
             {!isSignedIn && (
               <p className="text-center text-xs text-[var(--text-secondary)] mt-3">
-                We&apos;ll save your debate after you sign in — takes 10 seconds
+                Start immediately — no account needed
               </p>
             )}
           </form>
