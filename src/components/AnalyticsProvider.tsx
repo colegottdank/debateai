@@ -7,6 +7,7 @@ import { captureUtmParams, getAttributionContext } from '@/lib/utm';
 import posthog from '@/lib/posthog';
 
 const SESSION_KEY = 'debateai_session_tracked';
+const DEBUG = process.env.NEXT_PUBLIC_POSTHOG_DEBUG === 'true';
 
 /**
  * Wires our custom analytics abstraction to Vercel Analytics and PostHog.
@@ -41,7 +42,12 @@ export default function AnalyticsProvider() {
 
       // Dispatch to PostHog
       if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_POSTHOG_KEY) {
+        if (DEBUG) {
+          console.log('[PostHog] Capturing event:', event, cleanProps);
+        }
         posthog.capture(event, cleanProps);
+      } else if (DEBUG) {
+        console.log('[PostHog] Skipped capture - no API key:', event, cleanProps);
       }
     });
 
