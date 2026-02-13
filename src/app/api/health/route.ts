@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { d1 } from '@/lib/d1';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/health
  *
