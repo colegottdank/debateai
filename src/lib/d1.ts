@@ -119,6 +119,12 @@ class D1Client {
       CREATE INDEX IF NOT EXISTS idx_users_subscription ON users(subscription_status, stripe_plan);
       CREATE INDEX IF NOT EXISTS idx_users_stripe_customer ON users(stripe_customer_id);
       CREATE INDEX IF NOT EXISTS idx_subscriptions_user ON subscriptions(user_id);
+
+      CREATE TABLE IF NOT EXISTS rate_limits (
+        key TEXT PRIMARY KEY,
+        count INTEGER DEFAULT 1,
+        expires_at INTEGER NOT NULL
+      );
     `;
 
     const queries = schema.split(';').filter(q => q.trim());
@@ -474,6 +480,66 @@ class D1Client {
       return { found: true, debateId: debate.id as string };
     }
     return { found: false, debateId: null };
+  }
+
+  async checkRateLimit(key: string, limit: number, windowSeconds: number) {
+    const now = Math.floor(Date.now() / 1000);
+    
+    // 1. Get current status
+    const result = await this.query(
+      `SELECT count, expires_at FROM rate_limits WHERE key = ?`,
+      [key]
+    );
+
+    let currentCount = 0;
+    let currentExpiresAt = now + windowSeconds;
+    let isNew = true;
+
+    if (result.success && result.result && result.result.length > 0) {
+      const row = result.result[0] as { count: number; expires_at: number };
+      if (row.expires_at > now) {
+        currentCount = row.count;
+        currentExpiresAt = row.expires_at;
+        isNew = false;
+      }
+    }
+
+    // 2. Decide action
+    if (currentCount >= limit) {
+      return {
+        success: true,
+        allowed: false,
+        remaining: 0,
+        resetAt: currentExpiresAt
+      };
+    }
+
+    // 3. Update or Insert
+    if (isNew) {
+      // New or expired
+      await this.query(
+        `INSERT OR REPLACE INTO rate_limits (key, count, expires_at) VALUES (?, 1, ?)`,
+        [key, currentExpiresAt]
+      );
+      return {
+        success: true,
+        allowed: true,
+        remaining: limit - 1,
+        resetAt: currentExpiresAt
+      };
+    } else {
+      // Increment existing
+      await this.query(
+        `UPDATE rate_limits SET count = count + 1 WHERE key = ?`,
+        [key]
+      );
+      return {
+        success: true,
+        allowed: true,
+        remaining: limit - (currentCount + 1),
+        resetAt: currentExpiresAt
+      };
+    }
   }
 }
 
