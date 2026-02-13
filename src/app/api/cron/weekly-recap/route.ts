@@ -3,6 +3,7 @@ import { getWeeklyRecapRecipients } from '@/lib/email-preferences';
 import { sendBatchEmails } from '@/lib/email';
 import { weeklyRecapEmail } from '@/lib/email-templates';
 import { d1 } from '@/lib/d1';
+import { getStreak } from '@/lib/streaks';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
     for (const r of recipients) {
       // Get User Stats
       // Parallelize queries for speed
-      const [totalResult, bestResult] = await Promise.all([
+      const [totalResult, bestResult, streakResult] = await Promise.all([
         d1.query(
           `SELECT COUNT(*) as total FROM debates WHERE user_id = ? AND created_at >= date('now', '-7 days')`,
           [r.user_id]
@@ -45,13 +46,15 @@ export async function POST(request: NextRequest) {
            WHERE user_id = ? AND created_at >= date('now', '-7 days') AND score_data IS NOT NULL 
            ORDER BY score DESC LIMIT 1`,
           [r.user_id]
-        )
+        ),
+        getStreak(r.user_id)
       ]);
 
       const totalDebates = (totalResult.result?.[0]?.total as number) || 0;
       const bestRow = bestResult.result?.[0] as Record<string, any> | undefined;
       const bestScore = (bestRow?.score as number) || 0;
       const bestTopic = (bestRow?.topic as string) || '';
+      const streakCount = streakResult.currentStreak;
 
       // Create email content
       const { subject, html } = weeklyRecapEmail({
@@ -59,7 +62,7 @@ export async function POST(request: NextRequest) {
           totalDebates,
           bestScore,
           bestTopic,
-          streakCount: 0, // Todo: Hook up to real streak data
+          streakCount,
         },
         trendingTopic,
         unsubscribeToken: r.unsubscribe_token,
