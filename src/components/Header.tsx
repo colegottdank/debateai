@@ -120,7 +120,7 @@ export default function Header() {
               )}
 
               {/* Auth section - stable width container */}
-              <div className="flex items-center gap-1 pl-2 ml-2 border-l border-[var(--border)] min-w-[80px]">
+              <div className="flex items-center justify-end gap-1 pl-2 ml-2 border-l border-[var(--border)] min-w-[120px]">
                 {showAuthLoading ? (
                   <AuthSkeleton />
                 ) : showSignedIn ? (
