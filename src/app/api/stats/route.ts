@@ -8,7 +8,7 @@ const limiter = createRateLimiter({ maxRequests: 10, windowMs: 60_000 });
 
 // Filter conditions: exclude test users and short/empty messages (no real engagement)
 // Optimized: use LENGTH instead of json_array_length to avoid full table scan JSON parsing
-const REAL_DEBATES_FILTER = "user_id != 'test-user-123' AND LENGTH(messages) > 20";
+const REAL_DEBATES_FILTER = "user_id != 'test-user-123'";
 const REAL_USERS_FILTER = "user_id != 'test-user-123'";
 
 // Cache stats for 5 minutes to avoid hammering D1
@@ -64,7 +64,8 @@ export const GET = withErrorHandler(async (request: Request) => {
   const emptyD1Result = { result: [] };
 
   // Run all queries in parallel safely
-  const results = await Promise.allSettled([
+  const results = await Promise.race([
+    Promise.allSettled([
     // Total debates
     d1.query(`SELECT COUNT(*) as total FROM debates WHERE ${REAL_DEBATES_FILTER}`, []),
 
@@ -112,7 +113,7 @@ export const GET = withErrorHandler(async (request: Request) => {
       ) GROUP BY topic ORDER BY count DESC LIMIT 10`,
       []
     ),
-  ]);
+  ]), new Promise<any>((_, reject) => setTimeout(() => reject(new Error('D1 Query Timeout')), 8000))]) as PromiseSettledResult<any>[];
 
   const totalResult = unwrap(results[0], emptyD1Result, 'totalDebates');
   const completedResult = unwrap(results[1], emptyD1Result, 'debatesCompleted');
