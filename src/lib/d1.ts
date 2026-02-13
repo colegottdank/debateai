@@ -1,5 +1,8 @@
 // Cloudflare D1 REST API client for Next.js/Vercel
 import { GUEST_MESSAGE_LIMIT, FREE_USER_MESSAGE_LIMIT } from './limits';
+import { MIGRATION_003_SQL } from './migrations/003-arena-mode';
+import { ArenaState } from './arena-schema';
+
 interface D1Response {
   success: boolean;
   result?: Record<string, unknown>[];
@@ -137,7 +140,10 @@ class D1Client {
       CREATE INDEX IF NOT EXISTS idx_votes_debate ON votes(debate_id);
     `;
 
-    const queries = schema.split(';').filter(q => q.trim());
+    // Combine base schema with migrations
+    const fullSchema = schema + '\n' + MIGRATION_003_SQL;
+
+    const queries = fullSchema.split(';').filter(q => q.trim());
     const results = [];
     for (const query of queries) {
       if (query.trim()) {
@@ -607,6 +613,97 @@ class D1Client {
         resetAt: currentExpiresAt
       };
     }
+  }
+
+  // --- Arena Mode ---
+
+  async createArenaMatch(data: {
+    debateId: string;
+    userId: string;
+    userHp?: number;
+    aiHp?: number;
+    maxHp?: number;
+  }) {
+    return this.query(
+      `INSERT INTO arena_matches (id, user_id, user_hp, ai_hp, max_hp, combo_count, status_effects, turn_history)
+       VALUES (?, ?, ?, ?, ?, 0, '[]', '[]')`,
+      [
+        data.debateId,
+        data.userId,
+        data.userHp ?? 100,
+        data.aiHp ?? 100,
+        data.maxHp ?? 100
+      ]
+    );
+  }
+
+  async getArenaMatch(debateId: string) {
+    const result = await this.query(
+      `SELECT * FROM arena_matches WHERE id = ?`,
+      [debateId]
+    );
+
+    if (result.success && result.result && result.result.length > 0) {
+      const match = result.result[0] as any;
+      // Parse JSON fields
+      try { match.status_effects = JSON.parse(match.status_effects || '[]'); } catch { match.status_effects = []; }
+      try { match.turn_history = JSON.parse(match.turn_history || '[]'); } catch { match.turn_history = []; }
+      
+      // Map to ArenaState interface
+      const state: ArenaState = {
+        userHp: match.user_hp,
+        aiHp: match.ai_hp,
+        maxHp: match.max_hp,
+        comboCount: match.combo_count,
+        userEffects: match.status_effects.filter((e: any) => e.target === 'user'),
+        aiEffects: match.status_effects.filter((e: any) => e.target === 'ai'),
+        turnCount: match.turn_history.length,
+        lastAction: match.turn_history.length > 0 ? match.turn_history[match.turn_history.length - 1].action : undefined,
+      };
+      
+      return { success: true, match, state };
+    }
+    return { success: false, error: 'Match not found' };
+  }
+
+  async saveArenaState(debateId: string, state: ArenaState) {
+    // Combine effects for storage
+    const allEffects = [
+      ...state.userEffects.map(e => ({ ...e, target: 'user' })),
+      ...state.aiEffects.map(e => ({ ...e, target: 'ai' }))
+    ];
+
+    return this.query(
+      `UPDATE arena_matches 
+       SET user_hp = ?, ai_hp = ?, max_hp = ?, combo_count = ?, status_effects = ?, updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+      [
+        state.userHp,
+        state.aiHp,
+        state.maxHp,
+        state.comboCount,
+        JSON.stringify(allEffects),
+        debateId
+      ]
+    );
+  }
+
+  async logArenaTurn(debateId: string, turn: any) {
+    // We need to fetch current history to append properly
+    // Ideally we'd use JSON functions but D1 support varies by SQLite version
+    const result = await this.query(`SELECT turn_history FROM arena_matches WHERE id = ?`, [debateId]);
+    
+    if (result.success && result.result && result.result.length > 0) {
+      let history = [];
+      try { history = JSON.parse((result.result[0] as any).turn_history || '[]'); } catch { history = []; }
+      history.push({ ...turn, timestamp: Date.now() });
+      
+      return this.query(
+        `UPDATE arena_matches SET turn_history = ? WHERE id = ?`,
+        [JSON.stringify(history), debateId]
+      );
+    }
+    return { success: false, error: 'Match not found' };
   }
 }
 
