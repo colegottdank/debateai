@@ -8,20 +8,8 @@ import DebateClient from './DebateClient';
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://debateai.org';
 
-// Active debates: revalidate every minute
-// This enables ISR (Incremental Static Regeneration)
-export const revalidate = 60;
-
-export async function generateStaticParams() {
-  // Prerender the most recent 100 debates at build time
-  const result = await d1.getAllRecentDebates(100);
-  if (result.success && result.result) {
-    return result.result.map((row: any) => ({
-      debateId: row.id,
-    }));
-  }
-  return [];
-}
+// Force dynamic rendering because we access headers/cookies for auth (getUserId)
+export const dynamic = 'force-dynamic';
 
 // Generate dynamic metadata for SEO
 export async function generateMetadata({
