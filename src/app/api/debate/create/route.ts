@@ -32,20 +32,26 @@ export async function POST(request: Request) {
   }
 
   try {
-    const userId = await getUserId();
+    let userId = await getUserId();
+    let isGuest = false;
     
     if (!userId) {
-      return errors.unauthorized();
+      // Guest mode: generate a temporary ID
+      userId = `guest_${crypto.randomUUID()}`;
+      isGuest = true;
     }
 
-    // Per-user rate limit
-    const userRl = userLimiter.check(`user:${userId}`);
-    if (!userRl.allowed) {
-      return errors.rateLimited({
-        limit: 10,
-        remaining: userRl.remaining,
-        reset: Math.ceil(userRl.resetAt / 1000),
-      });
+    // Per-user rate limit (skip for guests, use IP limit only)
+    let userRl;
+    if (!isGuest) {
+      userRl = userLimiter.check(`user:${userId}`);
+      if (!userRl.allowed) {
+        return errors.rateLimited({
+          limit: 10,
+          remaining: userRl.remaining,
+          reset: Math.ceil(userRl.resetAt / 1000),
+        });
+      }
     }
 
     // Validate request body with Zod
@@ -89,6 +95,7 @@ export async function POST(request: Request) {
       opponent,
       userId,
       experimentVariant,
+      isGuest
     });
 
     // Track debate creation with experiment variant for PostHog
@@ -98,19 +105,26 @@ export async function POST(request: Request) {
       opponent: effectiveOpponent,
       source: 'custom_setup', // Default source, can be refined later
       experiment_variant: experimentVariant,
+      is_guest: isGuest
     });
 
     // Return success with rate limit headers
     const response = NextResponse.json({ 
       success: true, 
-      debateId: saveResult.debateId || debateId 
+      debateId: saveResult.debateId || debateId,
+      isGuest,
+      guestId: isGuest ? userId : undefined
     });
 
-    return withRateLimitHeaders(response, {
-      limit: 10,
-      remaining: userRl.remaining,
-      reset: Math.ceil(userRl.resetAt / 1000),
-    });
+    if (userRl) {
+      return withRateLimitHeaders(response, {
+        limit: 10,
+        remaining: userRl.remaining,
+        reset: Math.ceil(userRl.resetAt / 1000),
+      });
+    }
+    
+    return response;
   } catch (error) {
     // If it's already a NextResponse (from validateBody), return it
     if (error instanceof NextResponse) {

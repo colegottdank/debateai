@@ -110,6 +110,24 @@ export async function POST(
       memoryDebates.set(debateId, debate);
     }
 
+    // Check for guest message limit
+    const debateOwnerId = (debate.user_id as string) || '';
+    const isGuest = debateOwnerId.startsWith('guest_');
+    
+    if (isGuest) {
+      const messages = Array.isArray(debate.messages) ? debate.messages as any[] : [];
+      const userMessageCount = messages.filter(m => m.role === 'user').length;
+      // Limit: 5 user messages (allows 5 turns)
+      if (userMessageCount >= 5) {
+        return NextResponse.json({
+          success: false,
+          error: 'guest_limit_reached',
+          message: 'You have reached the free limit. Please sign up to continue.',
+          limit: 5
+        }, { status: 403 });
+      }
+    }
+
     // Add user message
     const userMessage = {
       role: 'user',
