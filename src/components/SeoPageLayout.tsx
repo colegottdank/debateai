@@ -97,7 +97,7 @@ export default function SeoPageLayout({ page, backLink }: SeoPageLayoutProps) {
 
           {/* Content */}
           <div
-            className="blog-content prose prose-invert max-w-none
+            className="blog-content prose dark:prose-invert max-w-none
               prose-headings:font-serif prose-headings:text-[var(--text)] prose-headings:font-semibold
               prose-h1:text-3xl prose-h1:sm:text-4xl prose-h1:leading-tight prose-h1:mb-6
               prose-h2:mt-10 prose-h2:mb-4 prose-h2:text-2xl prose-h2:sm:text-3xl prose-h2:leading-tight
