@@ -129,6 +129,9 @@ export default function HomeClient({
       });
 
       if (response.ok) {
+        if (!isSignedIn) {
+          sessionStorage.setItem('guest_debate_id', debateId);
+        }
         // Backend tracks debate_created with experiment_variant - avoid duplicate tracking
         sessionStorage.setItem('firstArgument', userInput.trim());
         sessionStorage.setItem('isInstantDebate', 'true');
