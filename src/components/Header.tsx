@@ -15,9 +15,15 @@ import { useSubscription } from '@/lib/useSubscription';
 function AuthSkeleton() {
   return (
     <div className="flex items-center gap-1">
+      {/* Streak placeholder */}
+      <div className="w-8 h-8 flex items-center justify-center">
+         <div className="w-4 h-4 rounded-full bg-[var(--bg-sunken)] animate-pulse" />
+      </div>
+      {/* Bell placeholder */}
       <div className="w-9 h-9 flex items-center justify-center">
         <div className="w-6 h-6 rounded-full bg-[var(--bg-sunken)] animate-pulse" />
       </div>
+      {/* User placeholder */}
       <div className="w-8 h-8 rounded-lg bg-[var(--bg-sunken)] animate-pulse" />
     </div>
   );

@@ -1,9 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useSafeUser, useSafeClerk } from '@/lib/useSafeClerk';
+import { useSafeUser } from '@/lib/useSafeClerk';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import Header from '@/components/Header';
 import UpgradeModal from '@/components/UpgradeModal';
 import OnboardingOverlay from '@/components/OnboardingOverlay';
@@ -27,7 +26,6 @@ export default function HomeClient({
 }) {
   const router = useRouter();
   const { isSignedIn } = useSafeUser();
-  const { openSignIn } = useSafeClerk();
   const { isPremium, debatesUsed, debatesLimit } = useSubscription();
   const [dailyDebate] = useState<DailyDebateData>(initialDebate);
   const [userInput, setUserInput] = useState('');
@@ -191,12 +189,6 @@ export default function HomeClient({
                   Today&apos;s Debate
                 </span>
                 <span className="h-px flex-1 bg-[var(--border)]" />
-                <a
-                  href="/topics/history"
-                  className="text-[10px] font-medium text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors cursor-pointer"
-                >
-                  Past topics →
-                </a>
               </div>
 
               {/* Topic */}
@@ -228,7 +220,7 @@ export default function HomeClient({
                   ? 'animate-shake ring-2 ring-[var(--error)]'
                   : isFocused
                     ? 'ring-1 ring-[var(--accent)]/30'
-                    : 'ring-1 ring-[var(--border)]'
+                    : 'ring-1 ring-[var(--border)]/30'
                 }
               `}
             >
@@ -268,12 +260,12 @@ export default function HomeClient({
                     {charCount > 0 ? `${charCount} / ${maxChars}` : '\u00A0'}
                   </span>
 
-                  <span className="hidden sm:flex items-center gap-1 text-xs text-[var(--text-secondary)]">
-                    <kbd className="px-1.5 py-0.5 rounded bg-[var(--bg-sunken)] border border-[var(--border)] text-[10px] font-mono cursor-default">
+                  <span className="hidden sm:flex items-center gap-1 text-xs text-[var(--text-secondary)] cursor-default select-none">
+                    <kbd className="px-1.5 py-0.5 rounded bg-[var(--bg-sunken)] border border-[var(--border)] text-[10px] font-mono">
                       ⌘
                     </kbd>
                     <span>+</span>
-                    <kbd className="px-1.5 py-0.5 rounded bg-[var(--bg-sunken)] border border-[var(--border)] text-[10px] font-mono cursor-default">
+                    <kbd className="px-1.5 py-0.5 rounded bg-[var(--bg-sunken)] border border-[var(--border)] text-[10px] font-mono">
                       Enter
                     </kbd>
                   </span>
@@ -290,7 +282,7 @@ export default function HomeClient({
                 w-full mt-3 h-12 px-6 rounded-xl font-medium text-base transition-all duration-200
                 flex items-center justify-center gap-2
                 ${!isStarting
-                  ? 'bg-[var(--accent)] text-white shadow-lg shadow-[var(--accent)]/25 hover:shadow-xl hover:shadow-[var(--accent)]/35 hover:-translate-y-0.5 active:translate-y-0'
+                  ? 'bg-[var(--accent)] text-white shadow-lg shadow-[var(--accent)]/25 hover:shadow-xl hover:shadow-[var(--accent)]/35 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer'
                   : 'bg-[var(--bg-sunken)] text-[var(--text-secondary)] cursor-not-allowed'
                 }
               `}
