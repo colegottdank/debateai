@@ -330,6 +330,40 @@ export function winBackEmail(opts: {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Streak Warning                                                     */
+/* ------------------------------------------------------------------ */
+
+export function streakWarningEmail(opts: {
+  streak: number;
+  unsubscribeToken: string;
+}): { subject: string; html: string } {
+  const content = `
+    <h1 style="font-size:22px;font-weight:700;color:#fafaf9;margin:0 0 16px;line-height:1.3;font-family:Georgia,'Times New Roman',serif;">
+      ⚠️ Your ${opts.streak}-day streak is about to expire
+    </h1>
+    
+    <p style="font-size:15px;color:#a8a29e;line-height:1.6;margin:0 0 16px;">
+      You've debated for <strong>${opts.streak} days in a row</strong>. That's impressive dedication.
+    </p>
+
+    <p style="font-size:15px;color:#a8a29e;line-height:1.6;margin:0 0 24px;">
+      If you don't debate before midnight UTC, your streak will reset to zero. Don't break the chain now.
+    </p>
+
+    <div style="text-align:center;">
+      <a href="${BASE_URL}/debate" style="display:inline-block;background-color:#f59e0b;color:#0c0a09;font-size:14px;font-weight:600;padding:12px 28px;border-radius:12px;text-decoration:none;">
+        Keep the Streak Alive →
+      </a>
+    </div>
+  `;
+
+  return {
+    subject: `⚠️ Your ${opts.streak}-day streak expires in a few hours`,
+    html: emailLayout(content, opts.unsubscribeToken),
+  };
+}
+
+/* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
 
