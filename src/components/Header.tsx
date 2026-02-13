@@ -147,7 +147,9 @@ export default function Header() {
                   </SafeSignInButton>
                 ) : null}
                 
-                <ThemeToggle />
+                <div className="hidden sm:block">
+                  <ThemeToggle />
+                </div>
                 <MobileNav />
               </div>
             </div>
