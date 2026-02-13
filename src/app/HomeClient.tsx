@@ -225,10 +225,11 @@ export default function HomeClient({
               `}
             >
               <div className="p-5">
-                <label className="block text-xs font-medium text-[var(--text)] mb-2">
+                <label htmlFor="argument-input" className="block text-xs font-medium text-[var(--text)] mb-2">
                   What&apos;s your opening argument?
                 </label>
                 <textarea
+                  id="argument-input"
                   ref={inputRef}
                   value={userInput}
                   onChange={(e) => {
