@@ -312,11 +312,4 @@ CRITICAL INSTRUCTION: Attack the opponent's position. Counter their arguments. Y
 Generate the human's next argument AGAINST the opponent. Hit hard, hit fast.`;
 }
 
-// ============================================
-// TOPIC-BASED STYLE SUGGESTIONS
-// (For when user doesn't specify a persona)
-// ============================================
-export function suggestStyleForTopic(topic: string): string {
-  // For homepage quick debates, we'll use the daily persona
-  return getDailyPersona();
-}
+// Deprecated: suggestStyleForTopic removed

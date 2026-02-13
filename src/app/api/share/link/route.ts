@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     const url = `${baseUrl}/debate/${debateId}?msg=${messageIndex}`;
 
     return NextResponse.json({ url });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { error: 'Invalid request' },
       { status: 400 }

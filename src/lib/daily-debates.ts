@@ -2,9 +2,6 @@
  * Daily Debate System - Combines topics and personas
  */
 
-import { TOPIC_CATEGORIES, type Topic } from './topics';
-import { PERSONAS, type Persona } from './personas';
-
 export interface DailyDebate {
   persona: string;
   personaId?: string;

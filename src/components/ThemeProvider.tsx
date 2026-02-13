@@ -22,7 +22,6 @@ export function useTheme() {
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>('dark');
-  const [mounted, setMounted] = useState(false);
 
   // Apply theme to DOM
   const applyTheme = useCallback((newTheme: Theme) => {
@@ -45,8 +44,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       setThemeState(initialTheme);
       applyTheme(initialTheme);
     }
-    
-    setMounted(true);
   }, [applyTheme]);
 
   // Listen for system preference changes

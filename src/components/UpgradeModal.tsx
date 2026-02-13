@@ -50,7 +50,7 @@ export default function UpgradeModal({ isOpen, onClose, trigger = 'button', limi
         alert(data.error || 'Failed to start checkout. Please try again.');
         setIsUpgrading(false);
       }
-    } catch (error) {
+    } catch {
       alert('Connection error. Please check your internet and try again.');
       setIsUpgrading(false);
     }

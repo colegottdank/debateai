@@ -225,7 +225,7 @@ export default function ShareModal({ isOpen, onClose, debateId, topic, opponentN
         });
         track('debate_shared', { debateId, method: 'native_share', source: 'modal' });
         onClose();
-      } catch (err) {
+      } catch {
         console.log('Share cancelled');
       }
     }
