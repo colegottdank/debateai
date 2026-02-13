@@ -121,18 +121,3 @@ export async function POST(request: Request) {
     return errors.internal('Failed to create debate');
   }
 }
-
-export async function GET() {
-  return new NextResponse(null, { status: 405, headers: { Allow: 'POST' } });
-}
-
-export async function OPTIONS() {
-  return new NextResponse(null, {
-    status: 200,
-    headers: {
-      Allow: 'POST, OPTIONS',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    },
-  });
-}
