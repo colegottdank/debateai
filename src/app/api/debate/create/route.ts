@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { currentUser } from '@clerk/nextjs/server';
 import { d1 } from '@/lib/d1';
 import { OpponentType } from '@/lib/opponents';
 import { getUserId } from '@/lib/auth-helper';
@@ -57,9 +56,6 @@ export async function POST(request: Request) {
     
     // Use custom style if provided, otherwise use the character type
     const effectiveOpponent = opponent || 'custom';
-
-    // Get user info for the debate
-    const user = await currentUser();
 
     // Create initial debate with welcome message
     const initialMessages = [{
@@ -124,4 +120,19 @@ export async function POST(request: Request) {
     console.error('Create debate error:', error);
     return errors.internal('Failed to create debate');
   }
+}
+
+export async function GET() {
+  return new NextResponse(null, { status: 405, headers: { Allow: 'POST' } });
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      Allow: 'POST, OPTIONS',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    },
+  });
 }

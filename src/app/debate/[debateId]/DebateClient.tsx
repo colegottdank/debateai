@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, memo, lazy, Suspense } from "react";
 import React from "react";
 import { useSafeUser } from "@/lib/useSafeClerk";
 import { useParams, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { getOpponentById } from "@/lib/opponents";
 import Header from "@/components/Header";
 import { track } from "@/lib/analytics";
@@ -1281,22 +1282,39 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
         <div className="flex-shrink-0 z-10 border-b border-[var(--border)] bg-[var(--bg)]/95 backdrop-blur supports-[backdrop-filter]:bg-[var(--bg)]/80">
           <div className="max-w-3xl mx-auto px-4 sm:px-6 py-3">
             <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-2 text-sm flex-1 min-w-0">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--accent)] flex-shrink-0">Topic</span>
-                {variant === 'aggressive' && (
-                   <span className="px-1.5 py-0.5 rounded bg-red-500/10 text-red-500 text-[10px] font-bold border border-red-500/20 uppercase tracking-wider">
-                     Hard Mode
-                   </span>
-                )}
-                <h1 className="font-medium text-[var(--text)] truncate">{debate.topic}</h1>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-2 text-sm flex-1 min-w-0">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--accent)] flex-shrink-0">Topic</span>
+                  {variant === 'aggressive' && (
+                    <span className="px-1.5 py-0.5 rounded bg-red-500/10 text-red-500 text-[10px] font-bold border border-red-500/20 uppercase tracking-wider">
+                      Hard Mode
+                    </span>
+                  )}
+                  <h1 className="font-medium text-[var(--text)] truncate hidden sm:block">{debate.topic}</h1>
+                </div>
+
+                <h1 className="font-medium text-[var(--text)] truncate sm:hidden">{debate.topic}</h1>
+
                 {(debate.opponentStyle || opponent) && (
-                  <>
-                    <span className="text-[var(--border-strong)] flex-shrink-0">·</span>
-                    <span className="text-[var(--text-secondary)] truncate">vs {debate.opponentStyle || opponent?.name}</span>
-                  </>
+                  <div className="flex items-center gap-1 min-w-0 sm:ml-0">
+                    <span className="text-[var(--border-strong)] flex-shrink-0 hidden sm:inline mr-1">·</span>
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)] sm:hidden flex-shrink-0">vs</span>
+                    <span className="text-[var(--text-secondary)] truncate">{debate.opponentStyle || opponent?.name}</span>
+                  </div>
                 )}
               </div>
-              <ShareButtons debateId={debateId} topic={debate.topic} onOpenModal={() => setShowShareModal(true)} />
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <ShareButtons debateId={debateId} topic={debate.topic} onOpenModal={() => setShowShareModal(true)} />
+                <Link
+                  href="/"
+                  className="p-2 rounded-lg text-[var(--text-tertiary)] hover:bg-[var(--bg-sunken)] hover:text-[var(--text)] transition-colors"
+                  title="Close Debate"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </Link>
+              </div>
             </div>
           </div>
         </div>

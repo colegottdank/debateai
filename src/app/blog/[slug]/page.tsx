@@ -129,7 +129,7 @@ export default async function BlogPostPage({
 
             {/* Content */}
             <div
-              className="blog-content prose prose-invert max-w-none
+              className="blog-content prose dark:prose-invert max-w-none
                 prose-headings:font-serif prose-headings:text-[var(--text)] prose-headings:font-semibold
                 prose-h2:mt-10 prose-h2:mb-4 prose-h2:text-2xl prose-h2:sm:text-3xl prose-h2:leading-tight
                 prose-h3:mt-8 prose-h3:mb-3 prose-h3:text-xl prose-h3:sm:text-2xl
