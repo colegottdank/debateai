@@ -66,3 +66,6 @@ process.env.STRIPE_PRICE_ID = 'price_test123';
 process.env.STRIPE_WEBHOOK_SECRET = 'whsec_test123';
 process.env.ANTHROPIC_API_KEY = 'test-key';
 process.env.HELICONE_API_KEY = 'test-helicone-key';
+process.env.AGENTMAIL_API_KEY = 'test-agentmail-key';
+process.env.NEXT_PUBLIC_POSTHOG_KEY = 'test-ph-key';
+process.env.NEXT_PUBLIC_POSTHOG_HOST = 'https://us.i.posthog.com';
