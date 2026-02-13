@@ -24,6 +24,11 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [
       {
+        source: '/explore',
+        destination: '/leaderboard',
+        permanent: true,
+      },
+      {
         source: '/:path*',
         has: [
           {
