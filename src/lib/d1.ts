@@ -1,6 +1,7 @@
 // Cloudflare D1 REST API client for Next.js/Vercel
 import { GUEST_MESSAGE_LIMIT, FREE_USER_MESSAGE_LIMIT } from './limits';
 import { MIGRATION_003_SQL } from './migrations/003-arena-mode';
+import { MIGRATION_005_SQL } from './migrations/005-missing-users-cols';
 import { ArenaState } from './arena-schema';
 
 interface D1Response {
@@ -203,7 +204,7 @@ class D1Client {
     `;
 
     // Combine base schema with migrations
-    const fullSchema = schema + '\n' + MIGRATION_003_SQL;
+    const fullSchema = schema + '\n' + MIGRATION_003_SQL + '\n' + MIGRATION_005_SQL;
 
     const queries = fullSchema.split(';').filter(q => q.trim());
     const results = [];
