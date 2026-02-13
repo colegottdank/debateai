@@ -15,7 +15,8 @@ class D1Client {
 
   constructor() {
     this.accountId = process.env.CLOUDFLARE_ACCOUNT_ID!;
-    this.databaseId = process.env.CLOUDFLARE_D1_DATABASE_ID!;
+    // Fallback to known production DB ID if env var is missing
+    this.databaseId = process.env.CLOUDFLARE_D1_DATABASE_ID || '28578b68-25d4-447b-aaf3-4fa3cc01a99b';
     this.apiToken = process.env.CLOUDFLARE_API_TOKEN!;
     this.email = process.env.CLOUDFLARE_EMAIL!;
 
