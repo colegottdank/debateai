@@ -396,7 +396,7 @@ class D1Client {
       // Quick check: if total messages < limit*2, user is definitely under limit
       // (each user message is paired with an AI response)
       const isGuest = userId.startsWith('guest_');
-      const limit = isGuest ? 5 : 10; // Free tier limit per debate (5 for guests)
+      const limit = isGuest ? 15 : 20; // Free tier limit per debate (15 for guests, 20 for free)
       if (totalMsgCount < limit) {
         // Under limit for sure — user msgs can't exceed total msgs
         const estimatedUserMsgs = Math.ceil(totalMsgCount / 2);

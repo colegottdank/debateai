@@ -783,7 +783,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
     }
 
     if (!isSignedIn) {
-      if (guestTurnCount >= 3) {
+      if (guestTurnCount >= 15) {
         setShowGuestLimitModal(true);
         track('guest_limit_reached', { debateId, turnCount: guestTurnCount });
         return;
