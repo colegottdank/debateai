@@ -7,8 +7,6 @@ author: "DebateAI Team"
 date: "2026-02-10"
 ---
 
-# DebateAI vs ChatGPT for Debate Practice
-
 You've probably tried debating ChatGPT. You type a position, it pushes back a little, then agrees with you three messages in. Or worse — it gives you a balanced essay when you wanted a fight.
 
 That's the fundamental tension: ChatGPT was built to be helpful. Debate requires genuine opposition.

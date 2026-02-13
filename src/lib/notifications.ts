@@ -6,6 +6,8 @@
  */
 
 import { d1 } from './d1';
+import { sendEmail } from './email';
+import { streakWarningEmail } from './email-templates';
 
 // ── Types ────────────────────────────────────────────────────────
 
@@ -291,10 +293,12 @@ export async function sendStreakWarnings(): Promise<number> {
   const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
 
   // Find users who debated yesterday but not today, with streak >= 2
+  // JOIN with users table to get email
   const result = await d1.query(
-    `SELECT user_id, current_streak
-     FROM user_streaks
-     WHERE last_debate_date = ? AND current_streak >= 2`,
+    `SELECT us.user_id, us.current_streak, u.email
+     FROM user_streaks us
+     JOIN users u ON us.user_id = u.user_id
+     WHERE us.last_debate_date = ? AND us.current_streak >= 2`,
     [yesterday],
   );
 
@@ -305,7 +309,9 @@ export async function sendStreakWarnings(): Promise<number> {
     const r = row as Record<string, unknown>;
     const userId = r.user_id as string;
     const streak = (r.current_streak as number) || 0;
+    const email = r.email as string | null;
 
+    // 1. Create in-app notification (checks preferences)
     const created = await createNotification(
       userId,
       'streak_warning',
@@ -313,6 +319,22 @@ export async function sendStreakWarnings(): Promise<number> {
       `Your ${streak}-day streak expires at midnight UTC! Debate now to keep it alive.`,
       '/',
     );
+    
+    // 2. Send email if user has email and opted in (created === true)
+    if (created && email) {
+      const { subject, html } = streakWarningEmail({ 
+        streak, 
+        unsubscribeToken: userId 
+      });
+      
+      await sendEmail({
+        to: email,
+        subject,
+        html,
+        tags: [{ name: 'category', value: 'streak_warning' }]
+      });
+    }
+
     if (created) sent++;
   }
 
