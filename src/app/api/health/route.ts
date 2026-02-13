@@ -38,6 +38,13 @@ export async function GET() {
     'AGENTMAIL_API_KEY',
     'NEXT_PUBLIC_POSTHOG_KEY',
     'NEXT_PUBLIC_POSTHOG_HOST',
+    // Critical Infrastructure
+    'CLOUDFLARE_ACCOUNT_ID',
+    'CLOUDFLARE_D1_DATABASE_ID',
+    'CLOUDFLARE_API_TOKEN',
+    'CLOUDFLARE_EMAIL',
+    'NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY',
+    'CLERK_SECRET_KEY',
   ];
   const missingVars = requiredEnvVars.filter((v) => !process.env[v]);
   checks.config = {
