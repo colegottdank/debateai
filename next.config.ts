@@ -6,6 +6,9 @@ const withBundleAnalyzer = bundleAnalyzer({
 });
 
 const nextConfig: NextConfig = {
+  // Standalone output for Docker/Coolify
+  output: 'standalone',
+
   // Sentry is initialized via:
   // - instrumentation.ts for server/edge (auto-detected by Next.js)
   // - SentryProvider component for client
@@ -23,6 +26,11 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
+      {
+        source: '/explore',
+        destination: '/leaderboard',
+        permanent: true,
+      },
       {
         source: '/:path*',
         has: [

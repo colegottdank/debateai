@@ -17,8 +17,9 @@ const API_TOKEN = process.env.CLOUDFLARE_API_TOKEN;
 
 async function exportUsers() {
   if (!ACCOUNT_ID || !DATABASE_ID || !API_TOKEN) {
-    console.error('❌ Missing D1 credentials. Please set CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_D1_DATABASE_ID, and CLOUDFLARE_API_TOKEN in .env.local');
-    process.exit(1);
+    console.warn('⚠️  Missing D1 credentials. Skipping abandoned user export.');
+    console.warn('   (To fix: Set CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_D1_DATABASE_ID, and CLOUDFLARE_API_TOKEN in repo secrets or .env.local)');
+    process.exit(0);
   }
 
   console.log('🔍 Querying for abandoned debates (last 72h, < 3 messages)...');

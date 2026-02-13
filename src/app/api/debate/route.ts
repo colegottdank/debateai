@@ -34,14 +34,33 @@ export async function POST(request: Request) {
   if (disabledResponse) return disabledResponse;
 
   // IP-based rate limit first (before auth check)
-  const ipRl = ipLimiter.check(getClientIp(request));
-  if (!ipRl.allowed) return rateLimitResponse(ipRl);
+  const ip = getClientIp(request);
+  // Use D1 for distributed rate limiting (10 req/min/IP)
+  const ipRl = await d1.checkRateLimit(`ip:${ip}`, 10, 60);
+  if (!ipRl.allowed) {
+    return rateLimitResponse({
+      allowed: false,
+      remaining: 0,
+      resetAt: ipRl.resetAt,
+      headers: {
+        'X-RateLimit-Limit': '10',
+        'X-RateLimit-Remaining': '0',
+        'X-RateLimit-Reset': String(ipRl.resetAt),
+        'Retry-After': String(Math.max(0, ipRl.resetAt - Math.floor(Date.now()/1000)))
+      }
+    });
+  }
 
   try {
     const userId = await getUserId();
 
     if (!userId) {
       return errors.unauthorized();
+    }
+
+    // Block unverified guest access for AI generation (prevent curl abuse)
+    if (userId.startsWith('guest_')) {
+      return errors.unauthorized("Sign in required for debate generation");
     }
 
     // Per-user rate limit (protects Claude API costs)
