@@ -72,7 +72,6 @@ export async function POST(request: Request) {
     }
 
     const {
-      debateId,
       character,
       opponentStyle,
       topic,
@@ -84,9 +83,16 @@ export async function POST(request: Request) {
       comboCount = 0,
       currentMood = 'neutral',
     } = body;
+    
+    let { debateId } = body;
+
+    // Generate a debateId if this is a new debate
+    if (!debateId) {
+      debateId = crypto.randomUUID();
+    }
 
     // Get existing debate state for A/B test variant
-    const existingDebate = debateId ? await d1.getDebate(debateId) : { success: false };
+    const existingDebate = await d1.getDebate(debateId);
     let assignedVariant = 'default';
 
     if (existingDebate.success && (existingDebate as any).debate?.promptVariant) {
@@ -115,7 +121,7 @@ export async function POST(request: Request) {
     });
     
     // Deduplicate debate creation: if no debateId and same user+topic within 30s, reuse existing
-    if (!debateId) {
+    if (!body.debateId) {
       const dup = await d1.findRecentDuplicate(userId, topic, 30);
       if (dup.found && dup.debateId) {
         // Return the existing debate ID so the client uses it instead of creating a duplicate
@@ -129,7 +135,7 @@ export async function POST(request: Request) {
 
     // Track new debate start with experiment variant (for first message in new debates)
     // This ensures PostHog captures the variant even if create route wasn't used
-    if (!debateId && previousMessages.length === 0) {
+    if (!body.debateId && previousMessages.length === 0) {
       track('debate_created', {
         debateId: debateId || 'pending',
         topic,
@@ -431,33 +437,47 @@ export async function POST(request: Request) {
           // Save the complete debate turn - fetch existing debate, add messages, and save
           if (debateId && accumulatedContent) {
             const existingDebate = await d1.getDebate(debateId);
+            
+            let messages: any[] = [];
+            let currentTopic = topic;
+            let currentOpponent = character;
+
             if (existingDebate.success && existingDebate.debate) {
-              const existingMessages = Array.isArray(
-                existingDebate.debate.messages
-              )
+              messages = Array.isArray(existingDebate.debate.messages)
                 ? existingDebate.debate.messages
                 : [];
-              existingMessages.push({
-                role: "user",
-                content: userArgument,
-                ...(isAIAssisted && { aiAssisted: true }),
-              });
-              existingMessages.push({
-                role: "ai",
-                content: accumulatedContent,
-                ...(citations.length > 0 && { citations }),
-              });
-
-              await d1.saveDebate({
-                userId,
-                opponent: character,
-                topic: (existingDebate.debate.topic as string) || topic, // Preserve original topic
-                messages: existingMessages,
-                debateId,
-                opponentStyle,
-                promptVariant: assignedVariant,
-              });
+              currentTopic = (existingDebate.debate.topic as string) || topic;
+              currentOpponent = (existingDebate.debate.opponent as string) || character;
+            } else {
+              // New debate: initialize with system message if starting fresh
+              if (!previousMessages || previousMessages.length === 0) {
+                 messages.push({
+                   role: 'system',
+                   content: `Welcome to the debate arena! Today's topic: "${topic}".${opponentStyle ? ` Your opponent's style: ${opponentStyle}` : ''}`
+                 });
+              }
             }
+
+            messages.push({
+              role: "user",
+              content: userArgument,
+              ...(isAIAssisted && { aiAssisted: true }),
+            });
+            messages.push({
+              role: "ai",
+              content: accumulatedContent,
+              ...(citations.length > 0 && { citations }),
+            });
+
+            await d1.saveDebate({
+              userId,
+              opponent: currentOpponent,
+              topic: currentTopic,
+              messages: messages,
+              debateId,
+              opponentStyle,
+              promptVariant: assignedVariant,
+            });
           }
 
           // Send completion message
