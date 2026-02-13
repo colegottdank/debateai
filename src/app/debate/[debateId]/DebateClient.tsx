@@ -1452,10 +1452,14 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
                   }
                 }}
                 onFocus={() => {
+                  document.body.classList.add('input-focused');
                   // Scroll to bottom on mobile when focusing input
                   setTimeout(() => {
                     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
                   }, 100);
+                }}
+                onBlur={() => {
+                  document.body.classList.remove('input-focused');
                 }}
                 placeholder={effectiveIsOwner ? "Make your argument..." : "Sign in to contribute..."}
                 className="w-full bg-[var(--bg-elevated)] border border-[var(--border)] rounded-xl
