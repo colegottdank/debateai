@@ -126,6 +126,15 @@ class D1Client {
         count INTEGER DEFAULT 1,
         expires_at INTEGER NOT NULL
       );
+
+      CREATE TABLE IF NOT EXISTS votes (
+        debate_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        vote_type TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (debate_id, user_id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_votes_debate ON votes(debate_id);
     `;
 
     const queries = schema.split(';').filter(q => q.trim());
@@ -326,6 +335,53 @@ class D1Client {
       console.error('D1 upsert user error:', error);
       return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
     }
+  }
+
+  // Vote functions
+  async vote(debateId: string, userId: string, type: 'up' | 'down' | null) {
+    if (type === null) {
+      // Remove vote
+      return this.query(
+        `DELETE FROM votes WHERE debate_id = ? AND user_id = ?`,
+        [debateId, userId]
+      );
+    } else {
+      // Upsert vote
+      return this.query(
+        `INSERT OR REPLACE INTO votes (debate_id, user_id, vote_type) VALUES (?, ?, ?)`,
+        [debateId, userId, type]
+      );
+    }
+  }
+
+  async getVoteCounts(debateId: string) {
+    const result = await this.query(
+      `SELECT vote_type, COUNT(*) as count FROM votes WHERE debate_id = ? GROUP BY vote_type`,
+      [debateId]
+    );
+
+    let upvotes = 0;
+    let downvotes = 0;
+
+    if (result.success && result.result) {
+      for (const row of result.result as any[]) {
+        if (row.vote_type === 'up') upvotes = row.count as number;
+        if (row.vote_type === 'down') downvotes = row.count as number;
+      }
+    }
+    return { upvotes, downvotes };
+  }
+
+  async getUserVote(debateId: string, userId: string) {
+    const result = await this.query(
+      `SELECT vote_type FROM votes WHERE debate_id = ? AND user_id = ?`,
+      [debateId, userId]
+    );
+
+    if (result.success && result.result && result.result.length > 0) {
+      return (result.result[0] as any).vote_type as 'up' | 'down';
+    }
+    return null;
   }
 
   // Rate limiting functions

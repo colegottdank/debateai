@@ -53,15 +53,15 @@ export default function VoteButtons({
     setDownvotes(newDownvotes);
 
     try {
-      // TODO: Replace with real API call once Forge provides endpoint
-      // const response = await fetch('/api/vote', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ debateId, vote: newVote }),
-      // });
+      const response = await fetch('/api/vote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ debateId, vote: newVote }),
+      });
       
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 300));
+      if (!response.ok) {
+        throw new Error('Vote failed');
+      }
       
       onVote?.(newVote);
     } catch (error) {
