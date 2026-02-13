@@ -159,7 +159,7 @@ export default function HomeClient({
           {/* Hero — minimal */}
           <div className="text-center mb-10 animate-fade-up">
             <div className="flex items-center justify-center gap-2 mb-3">
-              <h1 className="text-4xl sm:text-5xl font-serif font-bold text-[var(--text)] leading-tight">
+              <h1 className="text-4xl sm:text-5xl font-serif font-bold text-gray-900 dark:text-gray-100 leading-tight">
                 The AI that fights back.
               </h1>
               <StreakIndicator />
