@@ -61,11 +61,12 @@ export default function ShareButtons({ debateId, topic, className = '', onOpenMo
 
   return (
     <div className={`flex items-center gap-1.5 ${className}`}>
-      {/* Native Share Button (Mobile) */}
+      {/* Native Share Button (Mobile Only) */}
       {showNativeShare && (
         <button
           onClick={handleNativeShare}
           className="
+            sm:hidden
             inline-flex items-center justify-center w-8 h-8 rounded-lg 
             bg-[var(--accent)]/10 border border-[var(--accent)]/20 
             text-[var(--accent)] 
@@ -82,12 +83,13 @@ export default function ShareButtons({ debateId, topic, className = '', onOpenMo
         </button>
       )}
       
-      {/* Copy Link Button */}
+      {/* Copy Link Button (Desktop Only) */}
       <button
         onClick={handleCopyLink}
         disabled={isCopying}
         className={`
-          inline-flex items-center justify-center w-8 h-8 rounded-lg 
+          hidden sm:inline-flex
+          items-center justify-center w-8 h-8 rounded-lg 
           bg-[var(--bg-elevated)] border border-[var(--border)]/30 
           text-[var(--text-secondary)] 
           hover:text-[var(--text)] hover:border-[var(--border)]/60 hover:bg-[var(--bg-sunken)] hover:scale-110 hover:shadow-md
@@ -105,11 +107,12 @@ export default function ShareButtons({ debateId, topic, className = '', onOpenMo
         </svg>
       </button>
       
-      {/* Twitter/X Share */}
+      {/* Twitter/X Share (Desktop Only) */}
       <button
         onClick={handleTwitterShare}
         className="
-          inline-flex items-center justify-center w-8 h-8 rounded-lg 
+          hidden sm:inline-flex
+          items-center justify-center w-8 h-8 rounded-lg 
           bg-[var(--bg-elevated)] border border-[var(--border)]/30 
           text-[var(--text-secondary)] 
           hover:text-[var(--text)] hover:border-[var(--border)]/60 hover:bg-[var(--bg-sunken)] hover:scale-110 hover:shadow-md
@@ -125,18 +128,20 @@ export default function ShareButtons({ debateId, topic, className = '', onOpenMo
       </button>
       
       {/* More Options Button (opens modal) */}
+      {/* On mobile: Show if Native Share is NOT available. On desktop: Always show. */}
       {onOpenModal && (
         <button
           onClick={onOpenModal}
-          className="
-            inline-flex items-center justify-center w-8 h-8 rounded-lg 
+          className={`
+            items-center justify-center w-8 h-8 rounded-lg 
             bg-[var(--accent)]/10 border border-[var(--accent)]/20 
             text-[var(--accent)] 
             hover:bg-[var(--accent)]/20 hover:scale-110 hover:shadow-md hover:shadow-[var(--accent)]/10
             active:scale-95
             transition-all duration-150 ease-out
             focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50
-          "
+            ${showNativeShare ? 'hidden sm:inline-flex' : 'inline-flex'}
+          `}
           aria-label="More sharing options"
           aria-haspopup="dialog"
           aria-expanded="false"

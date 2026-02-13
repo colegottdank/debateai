@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, memo, lazy, Suspense } from "react";
 import React from "react";
 import { useSafeUser } from "@/lib/useSafeClerk";
 import { useParams, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { getOpponentById } from "@/lib/opponents";
 import Header from "@/components/Header";
 import { track } from "@/lib/analytics";
@@ -1256,7 +1257,18 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
                   </div>
                 )}
               </div>
-              <ShareButtons debateId={debateId} topic={debate.topic} onOpenModal={() => setShowShareModal(true)} />
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <ShareButtons debateId={debateId} topic={debate.topic} onOpenModal={() => setShowShareModal(true)} />
+                <Link
+                  href="/"
+                  className="p-2 rounded-lg text-[var(--text-tertiary)] hover:bg-[var(--bg-sunken)] hover:text-[var(--text)] transition-colors"
+                  title="Close Debate"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </Link>
+              </div>
             </div>
           </div>
         </div>
