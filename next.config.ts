@@ -31,17 +31,6 @@ const nextConfig: NextConfig = {
         destination: '/leaderboard',
         permanent: true,
       },
-      {
-        source: '/:path*',
-        has: [
-          {
-            type: 'host',
-            value: 'debateai.org',
-          },
-        ],
-        destination: 'https://www.debateai.org/:path*',
-        permanent: true, // Defaults to 308 (Permanent Redirect) which preserves method (POST->POST)
-      },
     ];
   },
 };
