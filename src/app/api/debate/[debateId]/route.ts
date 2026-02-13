@@ -4,6 +4,7 @@ import { d1 } from '@/lib/d1';
 import { getUserId } from '@/lib/auth-helper';
 import { errors, validateBody } from '@/lib/api-errors';
 import { trackEvent } from '@/lib/posthog-server';
+import { GUEST_MESSAGE_LIMIT } from '@/lib/limits';
 
 // Schema for POST body
 const addMessageSchema = z.object({
@@ -117,13 +118,13 @@ export async function POST(
     if (isGuest) {
       const messages = Array.isArray(debate.messages) ? debate.messages as any[] : [];
       const userMessageCount = messages.filter(m => m.role === 'user').length;
-      // Limit: 5 user messages (allows 5 turns)
-      if (userMessageCount >= 5) {
+      // Limit: GUEST_MESSAGE_LIMIT user messages
+      if (userMessageCount >= GUEST_MESSAGE_LIMIT) {
         return NextResponse.json({
           success: false,
           error: 'guest_limit_reached',
           message: 'You have reached the free limit. Please sign up to continue.',
-          limit: 5
+          limit: GUEST_MESSAGE_LIMIT
         }, { status: 403 });
       }
     }
