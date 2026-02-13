@@ -2,12 +2,25 @@ import { NextResponse } from 'next/server';
 import { d1 } from '@/lib/d1';
 import { withErrorHandler } from '@/lib/api-errors';
 
-// Temporary endpoint for Feb 7 engagement metrics check
-// TODO: Remove after measurement check or move to admin
+// Engagement metrics endpoint - Secured for Admin use
 
 const REAL_DEBATES_BASE = "user_id != 'test-user-123'";
 
-export const GET = withErrorHandler(async () => {
+export const GET = withErrorHandler(async (request: Request) => {
+  const { searchParams } = new URL(request.url);
+  const key = searchParams.get('key');
+  
+  const validKey = process.env.ADMIN_SECRET;
+
+  if (!validKey) {
+    console.error('ADMIN_SECRET not configured');
+    return NextResponse.json({ error: 'Server misconfiguration' }, { status: 500 });
+  }
+
+  if (key !== validKey) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
     // Run all engagement queries in parallel
     const [
       totalDebatesResult,

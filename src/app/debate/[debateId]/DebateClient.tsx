@@ -783,12 +783,11 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
     }
 
     if (!isSignedIn) {
-      // Guest limit removed to improve completion rate
-      // if (guestTurnCount >= 15) {
-      //   setShowGuestLimitModal(true);
-      //   track('guest_limit_reached', { debateId, turnCount: guestTurnCount });
-      //   return;
-      // }
+      if (guestTurnCount >= 15) {
+        setShowGuestLimitModal(true);
+        track('guest_limit_reached', { debateId, turnCount: guestTurnCount });
+        return;
+      }
       setGuestTurnCount(prev => prev + 1);
     }
 
