@@ -109,6 +109,7 @@ const Message = memo(
     isHighlighted,
     debateId,
     variant,
+    onShare,
   }: {
     msg: {
       role: string;
@@ -128,6 +129,7 @@ const Message = memo(
     isHighlighted?: boolean;
     debateId?: string;
     variant?: 'default' | 'aggressive';
+    onShare?: (msg: any, index: number) => void;
   }) => {
     const isUser = msg.role === "user";
     const isStreaming = (isUser && isUserLoading) || (!isUser && isAILoading);
@@ -146,15 +148,15 @@ const Message = memo(
       }
     }, [isHighlighted]);
 
-    const handleShare = async () => {
-      if (!debateId) return;
-      const url = `${window.location.origin}/debate/${debateId}?highlight_message_id=${messageIndex}`;
-      try {
-        await navigator.clipboard.writeText(url);
-        setShowShareToast(true);
-        setTimeout(() => setShowShareToast(false), 2000);
-      } catch {
-        // Silent fail
+    const handleShare = () => {
+      if (onShare) {
+        onShare(msg, messageIndex);
+      } else if (debateId) {
+        const url = `${window.location.origin}/debate/${debateId}?highlight_message_id=${messageIndex}`;
+        navigator.clipboard.writeText(url).then(() => {
+          setShowShareToast(true);
+          setTimeout(() => setShowShareToast(false), 2000);
+        }).catch(() => {});
       }
     };
 
@@ -401,6 +403,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
   const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(true);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [activeShareMessage, setActiveShareMessage] = useState<{message: any, index: number} | null>(null);
   const [rateLimitData, setRateLimitData] = useState<{ current: number; limit: number } | undefined>();
   const [debateScore, setDebateScore] = useState<DebateScore | null>(null);
   const [variant, setVariant] = useState<'default' | 'aggressive'>('default');
@@ -1348,6 +1351,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
               messageIndex={idx}
               isHighlighted={highlightedMessageIndex === idx}
               debateId={debateId}
+              onShare={(msg, index) => setActiveShareMessage({ message: msg, index })}
             />
           ))}
 
@@ -1557,14 +1561,19 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
         </Suspense>
       )}
 
-      {showShareModal && (
+      {(showShareModal || activeShareMessage) && (
         <Suspense fallback={null}>
           <ShareModal
-            isOpen={showShareModal}
-            onClose={() => setShowShareModal(false)}
+            isOpen={showShareModal || !!activeShareMessage}
+            onClose={() => {
+              setShowShareModal(false);
+              setActiveShareMessage(null);
+            }}
             debateId={debateId}
             topic={debate?.topic || ''}
             opponentName={opponent?.name || debate?.opponentStyle}
+            message={activeShareMessage?.message}
+            messageIndex={activeShareMessage?.index}
           />
         </Suspense>
       )}
