@@ -252,7 +252,7 @@ export default function HomeClient({
                     }
                   }}
                   placeholder="Type your argument here..."
-                  className="w-full bg-transparent resize-none outline-none text-[var(--text)] placeholder-[var(--text-secondary)]/50 min-h-[100px] text-[15px] leading-relaxed"
+                  className="w-full bg-transparent resize-none outline-none text-[var(--text)] placeholder-[var(--text-secondary)]/50 min-h-[100px] text-base sm:text-[15px] leading-relaxed"
                   disabled={isStarting}
                   autoFocus
                 />

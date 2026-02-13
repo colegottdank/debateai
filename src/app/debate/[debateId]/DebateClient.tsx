@@ -1469,7 +1469,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
                 className="w-full bg-[var(--bg-elevated)] border border-[var(--border)] rounded-xl
                   px-3 sm:px-4 py-2.5 sm:py-3 resize-none text-[var(--text)] placeholder-[var(--text-tertiary)]
                   outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/20
-                  transition-all min-h-[44px] sm:min-h-[48px] max-h-[120px] text-[15px] leading-relaxed overflow-hidden
+                  transition-all min-h-[44px] sm:min-h-[48px] max-h-[120px] text-base sm:text-[15px] leading-relaxed overflow-hidden
                   touch-manipulation disabled:opacity-50"
                 rows={1}
                 disabled={isUserLoading || isAILoading || !effectiveIsOwner}
