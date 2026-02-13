@@ -34,6 +34,7 @@ export default function HomeClient({
   const [isStarting, setIsStarting] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
+  const [shakeInput, setShakeInput] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Handle pending debate from sign-in redirect
@@ -95,7 +96,14 @@ export default function HomeClient({
 
   const startDebate = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!dailyDebate || !userInput.trim()) return;
+    if (!dailyDebate) return;
+
+    if (!userInput.trim()) {
+      setShakeInput(true);
+      inputRef.current?.focus();
+      setTimeout(() => setShakeInput(false), 500);
+      return;
+    }
 
     // Mark onboarding complete as soon as user initiates a debate
     markOnboarded();
@@ -151,7 +159,6 @@ export default function HomeClient({
 
   const charCount = userInput.length;
   const maxChars = 2000;
-  const canStart = userInput.trim().length > 0 && !isStarting;
 
   return (
     <div className="min-h-dvh flex flex-col relative overflow-hidden">
@@ -217,9 +224,11 @@ export default function HomeClient({
               data-onboarding="input"
               className={`
                 rounded-2xl bg-[var(--bg-elevated)] transition-all duration-200
-                ${isFocused
-                  ? 'ring-1 ring-[var(--accent)]/30'
-                  : 'ring-1 ring-[var(--border)]'
+                ${shakeInput
+                  ? 'animate-shake ring-2 ring-[var(--error)]'
+                  : isFocused
+                    ? 'ring-1 ring-[var(--accent)]/30'
+                    : 'ring-1 ring-[var(--border)]'
                 }
               `}
             >
@@ -238,7 +247,7 @@ export default function HomeClient({
                   onFocus={() => setIsFocused(true)}
                   onBlur={() => setIsFocused(false)}
                   onKeyDown={(e) => {
-                    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && canStart) {
+                    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && !isStarting) {
                       startDebate();
                     }
                   }}
@@ -275,12 +284,12 @@ export default function HomeClient({
             {/* CTA */}
             <button
               type="submit"
-              disabled={!canStart}
+              disabled={isStarting}
               data-onboarding="cta"
               className={`
                 w-full mt-3 h-12 px-6 rounded-xl font-medium text-base transition-all duration-200
                 flex items-center justify-center gap-2
-                ${canStart
+                ${!isStarting
                   ? 'bg-[var(--accent)] text-white shadow-lg shadow-[var(--accent)]/25 hover:shadow-xl hover:shadow-[var(--accent)]/35 hover:-translate-y-0.5 active:translate-y-0'
                   : 'bg-[var(--bg-sunken)] text-[var(--text-secondary)] cursor-not-allowed'
                 }
