@@ -132,6 +132,20 @@ export interface AnalyticsEvents {
     type: 'retry_clicked' | 'upgrade_clicked_limit' | 'send_while_loading' | 'invalid_input';
   };
 
+  // Guest mode conversion
+  guest_mode_wall_shown: {
+    messageCount: number;
+  };
+  guest_mode_sign_up_clicked: {
+    messageCount: number;
+  };
+  guest_mode_continue_clicked: {
+    messageCount: number;
+  };
+  guest_mode_wall_dismissed: {
+    messageCount: number;
+  };
+
   // Engagement
   cta_clicked: {
     ctaId: string;

@@ -14,6 +14,7 @@ import DebateScoreCard from "@/components/DebateScoreCard";
 import JudgeMessage from "@/components/JudgeMessage";
 import DebateVoting from "@/components/DebateVoting";
 import PostDebateEngagement from "@/components/PostDebateEngagement";
+import GuestModeWall from "@/components/GuestModeWall";
 import { DebatePageSkeleton } from "@/components/Skeleton";
 import type { DebateScore } from "@/lib/scoring";
 
@@ -1386,6 +1387,20 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
           )}
 
           <div ref={messagesEndRef} />
+          
+          {/* Guest Mode Wall - shown after 2 messages for non-signed-in users */}
+          {!isSignedIn && messages.filter(m => m.role === 'user').length >= 2 && (
+            <GuestModeWall 
+              isOpen={true} 
+              messageCount={messages.filter(m => m.role === 'user').length}
+              onClose={() => {
+                // Allow 1 more message then show again
+                track('guest_mode_wall_dismissed', { 
+                  messageCount: messages.filter(m => m.role === 'user').length 
+                });
+              }}
+            />
+          )}
           
           {/* Request Judgment Button - shown when enough messages but no score */}
           {!debateScore && messages.filter(m => m.role === 'user' || m.role === 'ai').length >= 2 && (
