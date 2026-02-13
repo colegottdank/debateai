@@ -21,6 +21,21 @@ const nextConfig: NextConfig = {
     // Optimize package imports for smaller bundles
     optimizePackageImports: ['@clerk/nextjs', 'sonner'],
   },
+  async redirects() {
+    return [
+      {
+        source: '/:path*',
+        has: [
+          {
+            type: 'host',
+            value: 'debateai.org',
+          },
+        ],
+        destination: 'https://www.debateai.org/:path*',
+        permanent: true, // Defaults to 308 (Permanent Redirect) which preserves method (POST->POST)
+      },
+    ];
+  },
 };
 
 export default withBundleAnalyzer(nextConfig);
