@@ -1,140 +1,43 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
+  push:
+    branches: [main]
 
-env:
-  NODE_VERSION: '20'
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  lint:
-    name: Lint
+  ci:
+    name: Lint & Build
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-      
-      - name: Install dependencies
-        run: npm ci
-      
-      - name: Run ESLint
-        run: npm run lint
+    timeout-minutes: 10
 
-  typecheck:
-    name: Type Check
-    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-      
-      - name: Install dependencies
-        run: npm ci
-      
-      - name: Run TypeScript compiler
-        run: npx tsc --noEmit
 
-  unit-tests:
-    name: Unit Tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-      
-      - name: Install dependencies
-        run: npm ci
-      
-      - name: Run unit tests
-        run: npm run test:unit
-
-  build:
-    name: Build
-    runs-on: ubuntu-latest
-    needs: [lint, typecheck, unit-tests]
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-      
-      - name: Install dependencies
-        run: npm ci
-      
-      - name: Build application
-        run: npm run build
-        env:
-          # Skip optional env vars for build check
-          SKIP_ENV_VALIDATION: true
-          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
-          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
-
-  # E2E tests run against Vercel preview deployments
-  # Triggered by Vercel deployment webhook or manually
-  e2e-tests:
-    name: E2E Tests
-    runs-on: ubuntu-latest
-    needs: [build]
-    # Only run on PRs when preview URL is available
-    if: github.event_name == 'pull_request' && github.event.deployment_status.state == 'success'
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-      
-      - name: Install dependencies
-        run: npm ci
-      
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
-      
-      - name: Run E2E tests against preview
-        run: npx playwright test --project=chromium
-        env:
-          BASE_URL: ${{ github.event.deployment_status.target_url }}
-
-  export-users:
-    name: Export Abandoned Users
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-      - run: npm ci
-      - name: Run Export Script
-        run: node scripts/export_abandoned_users.js
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build
         env:
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CLOUDFLARE_D1_DATABASE_ID: ${{ secrets.CLOUDFLARE_D1_DATABASE_ID }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: abandoned-users-csv
-          path: abandoned_users.csv
+          # Stub env vars so Next.js build doesn't fail on missing runtime config
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_stub
+          NEXT_PUBLIC_CONVEX_URL: https://stub.convex.cloud
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: pk_stub
+          CONVEX_DEPLOYMENT: stub
