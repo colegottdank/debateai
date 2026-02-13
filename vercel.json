@@ -11,19 +11,14 @@
     {
       "path": "/api/cron/streak-warnings",
       "schedule": "0 22 * * *"
-    }
-  ],
-  "redirects": [
+    },
     {
-      "source": "/:path*",
-      "has": [
-        {
-          "type": "host",
-          "value": "debateai.org"
-        }
-      ],
-      "destination": "https://www.debateai.org/:path*",
-      "permanent": true
+      "path": "/api/cron/weekly-recap",
+      "schedule": "0 9 * * 1"
+    },
+    {
+      "path": "/api/cron/win-back",
+      "schedule": "0 14 * * *"
     }
   ]
 }

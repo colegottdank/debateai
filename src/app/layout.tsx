@@ -101,6 +101,7 @@ export default function RootLayout({
               __html: JSON.stringify(websiteJsonLd()),
             }}
           />
+          <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover" />
           <meta name="theme-color" content="#0c0a09" media="(prefers-color-scheme: dark)" />
           <meta name="theme-color" content="#fafaf9" media="(prefers-color-scheme: light)" />
           <script

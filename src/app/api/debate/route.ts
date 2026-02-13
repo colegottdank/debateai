@@ -10,6 +10,7 @@ import { sendMessageSchema, SendMessageInput } from "@/lib/api-schemas";
 import { logger } from "@/lib/logger";
 import { captureError } from "@/lib/sentry";
 import { track } from "@/lib/analytics";
+import { calculateNewState, POWERUPS, MOOD_PROMPTS, Mood } from "@/lib/mechanics";
 import Anthropic from "@anthropic-ai/sdk";
 
 const log = logger.scope('debate');
@@ -33,14 +34,33 @@ export async function POST(request: Request) {
   if (disabledResponse) return disabledResponse;
 
   // IP-based rate limit first (before auth check)
-  const ipRl = ipLimiter.check(getClientIp(request));
-  if (!ipRl.allowed) return rateLimitResponse(ipRl);
+  const ip = getClientIp(request);
+  // Use D1 for distributed rate limiting (10 req/min/IP)
+  const ipRl = await d1.checkRateLimit(`ip:${ip}`, 10, 60);
+  if (!ipRl.allowed) {
+    return rateLimitResponse({
+      allowed: false,
+      remaining: 0,
+      resetAt: ipRl.resetAt,
+      headers: {
+        'X-RateLimit-Limit': '10',
+        'X-RateLimit-Remaining': '0',
+        'X-RateLimit-Reset': String(ipRl.resetAt),
+        'Retry-After': String(Math.max(0, ipRl.resetAt - Math.floor(Date.now()/1000)))
+      }
+    });
+  }
 
   try {
     const userId = await getUserId();
 
     if (!userId) {
       return errors.unauthorized();
+    }
+
+    // Block unverified guest access for AI generation (prevent curl abuse)
+    if (userId.startsWith('guest_')) {
+      return errors.unauthorized("Sign in required for debate generation");
     }
 
     // Per-user rate limit (protects Claude API costs)
@@ -65,6 +85,9 @@ export async function POST(request: Request) {
       previousMessages,
       isAIAssisted,
       promptVariant,
+      activePowerup,
+      comboCount = 0,
+      currentMood = 'neutral',
     } = body;
 
     // Get existing debate state for A/B test variant
@@ -148,6 +171,24 @@ export async function POST(request: Request) {
       systemPrompt = getDebatePrompt(persona, topic, isFirstResponse);
     }
 
+    // --- NEW MECHANICS START ---
+    // 1. Calculate new state
+    const { newCombo, newMood } = calculateNewState(userArgument, comboCount, currentMood as Mood);
+    
+    // 2. Inject Mood
+    if (MOOD_PROMPTS[newMood]) {
+      systemPrompt += `\n\n${MOOD_PROMPTS[newMood]}`;
+    }
+
+    // 3. Inject Power-up
+    if (activePowerup && POWERUPS[activePowerup]) {
+      systemPrompt += `\n\n${POWERUPS[activePowerup].promptInjection}`;
+      log.info('mechanics.powerup_used', { debateId, powerup: activePowerup });
+    }
+    
+    log.info('mechanics.state_update', { oldMood: currentMood, newMood, oldCombo: comboCount, newCombo });
+    // --- NEW MECHANICS END ---
+
     // Build conversation history for Anthropic SDK format
     const messages: Anthropic.MessageParam[] = [];
 
@@ -190,6 +231,14 @@ export async function POST(request: Request) {
           // Send initial message
           controller.enqueue(
             encoder.encode(`data: ${JSON.stringify({ type: "start" })}\n\n`)
+          );
+
+          // Send new mechanics state
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify({ 
+              type: "state", 
+              data: { comboCount: newCombo, mood: newMood } 
+            })}\n\n`)
           );
 
           // Use Anthropic directly with web search tool

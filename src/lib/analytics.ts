@@ -32,6 +32,7 @@ export interface AnalyticsEvents {
     opponent: string;
     source: 'quick_start' | 'custom_setup' | 'daily_debate';
     experiment_variant?: 'aggressive' | 'default';
+    is_guest?: boolean;
   };
   debate_message_sent: {
     debateId: string;
@@ -97,6 +98,24 @@ export interface AnalyticsEvents {
     debateId: string;
     messageIndex: number;
     latencyMs: number;
+  };
+  debate_ai_ttft: {
+    debateId: string;
+    messageIndex: number;
+    latencyMs: number;
+  };
+  debate_viewed: {
+    debateId: string;
+  };
+  guest_limit_reached: {
+    debateId: string;
+    turnCount: number;
+  };
+  guest_limit_modal_shown: {
+    turnCount: number;
+  };
+  guest_limit_signup_clicked: {
+    turnCount: number;
   };
   debate_error: {
     debateId: string;

@@ -84,6 +84,34 @@ async function createTables() {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )`
+    },
+    {
+      name: 'user_streaks',
+      sql: `CREATE TABLE IF NOT EXISTS user_streaks (
+        user_id TEXT PRIMARY KEY,
+        current_streak INTEGER DEFAULT 0,
+        longest_streak INTEGER DEFAULT 0,
+        last_debate_date TEXT,
+        total_points INTEGER DEFAULT 0,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )`
+    },
+    {
+      name: 'user_stats',
+      sql: `CREATE TABLE IF NOT EXISTS user_stats (
+        user_id TEXT PRIMARY KEY,
+        display_name TEXT,
+        total_debates INTEGER DEFAULT 0,
+        total_wins INTEGER DEFAULT 0,
+        total_draws INTEGER DEFAULT 0,
+        total_losses INTEGER DEFAULT 0,
+        total_score REAL DEFAULT 0,
+        week_debates INTEGER DEFAULT 0,
+        week_wins INTEGER DEFAULT 0,
+        week_score REAL DEFAULT 0,
+        week_start TEXT,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )`
     }
   ];
 
@@ -92,6 +120,10 @@ async function createTables() {
     { name: 'idx_debates_created', sql: 'CREATE INDEX IF NOT EXISTS idx_debates_created ON debates(created_at DESC)' },
     { name: 'idx_users_email', sql: 'CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)' },
     { name: 'idx_subscriptions_user', sql: 'CREATE INDEX IF NOT EXISTS idx_subscriptions_user ON subscriptions(user_id)' },
+    { name: 'idx_user_stats_points', sql: 'CREATE INDEX IF NOT EXISTS idx_user_stats_points ON user_streaks(total_points DESC)' },
+    { name: 'idx_user_stats_streak', sql: 'CREATE INDEX IF NOT EXISTS idx_user_stats_streak ON user_streaks(current_streak DESC)' },
+    { name: 'idx_user_stats_debates', sql: 'CREATE INDEX IF NOT EXISTS idx_user_stats_debates ON user_stats(total_debates DESC)' },
+    { name: 'idx_user_stats_week', sql: 'CREATE INDEX IF NOT EXISTS idx_user_stats_week ON user_stats(week_debates DESC)' },
   ];
 
   // Create tables

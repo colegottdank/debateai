@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 @import "../components/backgrounds/artistic-styles.css";
 
 /* Prevent horizontal scroll on mobile — gradient orbs extend past viewport */
@@ -7,7 +8,7 @@ body {
   overflow-x: hidden;
 }
 
-:root {
+:root, .light {
   /* ============================================
      DESIGN SYSTEM - DebateAI
      ============================================ */
@@ -527,4 +528,13 @@ textarea:focus-visible,
 
 .animate-highlight-pulse {
   animation: highlight-pulse 2s ease-in-out 3;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+.animate-shake {
+  animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
 }

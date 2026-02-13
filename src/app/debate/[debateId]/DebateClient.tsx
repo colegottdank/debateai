@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, memo, lazy, Suspense } from "react";
 import React from "react";
 import { useSafeUser } from "@/lib/useSafeClerk";
 import { useParams, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { getOpponentById } from "@/lib/opponents";
 import Header from "@/components/Header";
 import { track } from "@/lib/analytics";
@@ -19,6 +20,7 @@ import type { DebateScore } from "@/lib/scoring";
 // Lazy load modals - they're only shown on user interaction
 const UpgradeModal = lazy(() => import("@/components/UpgradeModal"));
 const ShareModal = lazy(() => import("@/components/ShareModal"));
+const GuestLimitModal = lazy(() => import("@/components/GuestLimitModal"));
 
 export interface DebateClientProps {
   initialDebate?: {
@@ -27,6 +29,7 @@ export interface DebateClientProps {
     opponent?: string;
     character?: string;
     opponentStyle?: string;
+    promptVariant?: 'default' | 'aggressive';
     messages?: Array<{ role: string; content: string; aiAssisted?: boolean; citations?: Array<{ id: number; url: string; title: string }> }>;
     score_data?: Record<string, unknown>;
     [key: string]: unknown;
@@ -105,6 +108,7 @@ const Message = memo(
     messageIndex,
     isHighlighted,
     debateId,
+    variant,
   }: {
     msg: {
       role: string;
@@ -123,6 +127,7 @@ const Message = memo(
     messageIndex: number;
     isHighlighted?: boolean;
     debateId?: string;
+    variant?: 'default' | 'aggressive';
   }) => {
     const isUser = msg.role === "user";
     const isStreaming = (isUser && isUserLoading) || (!isUser && isAILoading);
@@ -180,7 +185,7 @@ const Message = memo(
       <div 
         ref={messageRef}
         id={`message-${messageIndex}`}
-        className={`py-5 relative group ${isUser ? '' : 'bg-[var(--bg-elevated)]/60 border-y border-[var(--border)]/30'} ${isFailed ? 'opacity-80' : ''} ${isHighlighted ? 'animate-highlight-pulse' : ''}`}
+        className={`py-5 relative group ${isUser ? '' : (variant === 'aggressive' ? 'bg-red-900/5 border-y border-red-500/10' : 'bg-[var(--bg-elevated)]/60 border-y border-[var(--border)]/30')} ${isFailed ? 'opacity-80' : ''} ${isHighlighted ? 'animate-highlight-pulse' : ''}`}
       >
         {/* Highlight overlay */}
         {isHighlighted && (
@@ -202,7 +207,9 @@ const Message = memo(
                 ? 'bg-[var(--error)]/10 text-[var(--error)] border border-[var(--error)]/30'
                 : isUser
                   ? 'bg-[var(--accent)]/10 text-[var(--accent)]'
-                  : 'bg-[var(--bg-sunken)] border border-[var(--border)]/50'
+                  : variant === 'aggressive'
+                    ? 'bg-red-500/10 text-red-500 border border-red-500/30 shadow-[0_0_8px_rgba(239,68,68,0.2)]'
+                    : 'bg-[var(--bg-sunken)] border border-[var(--border)]/50'
               }`}
             >
               {isUser ? (
@@ -396,6 +403,18 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
   const [showShareModal, setShowShareModal] = useState(false);
   const [rateLimitData, setRateLimitData] = useState<{ current: number; limit: number } | undefined>();
   const [debateScore, setDebateScore] = useState<DebateScore | null>(null);
+  const [variant, setVariant] = useState<'default' | 'aggressive'>('default');
+  const [guestTurnCount, setGuestTurnCount] = useState(0);
+  const [showGuestLimitModal, setShowGuestLimitModal] = useState(false);
+  const [isGuestOwner, setIsGuestOwner] = useState(false);
+  const isDevMode = searchParams.get('dev') === 'true';
+
+  // Set guest owner if this is a new debate and user is not signed in
+  useEffect(() => {
+    if (!isSignedIn && (isDevMode || (debateId && sessionStorage.getItem('guest_debate_id') === debateId))) {
+      setIsGuestOwner(true);
+    }
+  }, [debateId, isSignedIn, isDevMode]);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const hasUserInteracted = useRef(false);
@@ -414,6 +433,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          debateId,
           topic: debate.topic,
           messages: messages.filter(m => m.role === 'user' || m.role === 'ai'),
         }),
@@ -451,9 +471,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
     }
   };
 
-  // Dev mode check from URL
-  const isDevMode = searchParams.get('dev') === 'true';
-// Duplicate removed
+  // Dev mode check moved up
 
   // Highlight message logic
   const highlightedMessageId = searchParams.get('highlight_message_id');
@@ -526,6 +544,34 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
     // Always revalidate to ensure fresh data (fixes back button issues)
     revalidateDebate();
   }, [debateId, isDevMode]);
+
+  // Track debate view
+  useEffect(() => {
+    if (debateId) {
+      track('debate_viewed', { debateId });
+    }
+  }, [debateId]);
+
+  // Determine variant (A/B Test)
+  useEffect(() => {
+    if (debate?.promptVariant) {
+      setVariant(debate.promptVariant as 'aggressive' | 'default');
+    } else if (user?.id && !debate) {
+      // Replicate backend A/B logic for immediate UI feedback on new debates
+      const lastChar = user.id.slice(-1);
+      if (lastChar.charCodeAt(0) % 2 === 0) {
+        setVariant('aggressive');
+      } else {
+        setVariant('default');
+      }
+    } else if (isDevMode) {
+       // Allow testing via URL param
+       const variantParam = searchParams.get('variant');
+       if (variantParam === 'aggressive') {
+         setVariant('aggressive');
+       }
+    }
+  }, [debate, user, isDevMode, searchParams]);
 
   // Handle instant debate from landing page
   useEffect(() => {
@@ -732,6 +778,16 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
       });
       return;
     }
+
+    if (!isSignedIn) {
+      if (guestTurnCount >= 3) {
+        setShowGuestLimitModal(true);
+        track('guest_limit_reached', { debateId, turnCount: guestTurnCount });
+        return;
+      }
+      setGuestTurnCount(prev => prev + 1);
+    }
+
     if (!userInput.trim() || isUserLoading || isAILoading) return;
 
     const startTime = Date.now();
@@ -836,6 +892,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
         const decoder = new TextDecoder();
         let accumulatedContent = '';
         let citations: Array<{ id: number; url: string; title: string }> = [];
+        let hasReceivedFirstToken = false;
 
         while (true) {
           const { done, value } = await reader.read();
@@ -849,6 +906,14 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
               try {
                 const data = JSON.parse(line.substring(6));
                 if (data.type === 'chunk') {
+                  if (!hasReceivedFirstToken) {
+                    hasReceivedFirstToken = true;
+                    track('debate_ai_ttft', {
+                      debateId,
+                      messageIndex: messages.length + 1,
+                      latencyMs: Date.now() - startTime
+                    });
+                  }
                   accumulatedContent += data.content;
                   setMessages(prev => {
                     const newMessages = [...prev];
@@ -875,7 +940,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
                   const latencyMs = Date.now() - startTime;
                   track('debate_ai_response_latency', {
                     debateId,
-                    messageIndex: messages.length,
+                    messageIndex: messages.length + 1,
                     latencyMs,
                   });
                   setMessages(prev => {
@@ -1071,6 +1136,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
       const debateDecoder = new TextDecoder();
       let debateAccumulatedContent = '';
       let debateCitations: Array<{ id: number; url: string; title: string }> = [];
+      let hasReceivedFirstToken = false;
 
       while (true) {
         const { done, value } = await debateReader.read();
@@ -1084,6 +1150,14 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
             try {
               const data = JSON.parse(line.substring(6));
               if (data.type === 'chunk') {
+                if (!hasReceivedFirstToken) {
+                  hasReceivedFirstToken = true;
+                  track('debate_ai_ttft', {
+                    debateId,
+                    messageIndex: messages.length + 1,
+                    latencyMs: Date.now() - startTime
+                  });
+                }
                 debateAccumulatedContent += data.content;
                 setMessages(prev => {
                   const newMessages = [...prev];
@@ -1100,7 +1174,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
                 const latencyMs = Date.now() - startTime;
                 track('debate_ai_response_latency', {
                   debateId,
-                  messageIndex: messages.length,
+                  messageIndex: messages.length + 1,
                   latencyMs,
                 });
                 setMessages(prev => {
@@ -1196,10 +1270,11 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
     );
   }
 
-  const canSend = userInput.trim().length > 0 && !isUserLoading && !isAILoading && isOwner;
+  const effectiveIsOwner = isOwner || isGuestOwner;
+  const canSend = userInput.trim().length > 0 && !isUserLoading && !isAILoading && effectiveIsOwner;
 
   return (
-    <div className="h-dvh flex flex-col overflow-hidden bg-[var(--bg)]">
+    <div className="h-dvh flex flex-col overflow-hidden bg-[var(--bg)] transition-colors duration-500">
       <Header />
 
       {/* Topic Header - Fixed */}
@@ -1207,17 +1282,39 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
         <div className="flex-shrink-0 z-10 border-b border-[var(--border)] bg-[var(--bg)]/95 backdrop-blur supports-[backdrop-filter]:bg-[var(--bg)]/80">
           <div className="max-w-3xl mx-auto px-4 sm:px-6 py-3">
             <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-2 text-sm flex-1 min-w-0">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--accent)] flex-shrink-0">Topic</span>
-                <h1 className="font-medium text-[var(--text)] truncate">{debate.topic}</h1>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-2 text-sm flex-1 min-w-0">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--accent)] flex-shrink-0">Topic</span>
+                  {variant === 'aggressive' && (
+                    <span className="px-1.5 py-0.5 rounded bg-red-500/10 text-red-500 text-[10px] font-bold border border-red-500/20 uppercase tracking-wider">
+                      Hard Mode
+                    </span>
+                  )}
+                  <h1 className="font-medium text-[var(--text)] truncate hidden sm:block">{debate.topic}</h1>
+                </div>
+
+                <h1 className="font-medium text-[var(--text)] truncate sm:hidden">{debate.topic}</h1>
+
                 {(debate.opponentStyle || opponent) && (
-                  <>
-                    <span className="text-[var(--border-strong)] flex-shrink-0">·</span>
-                    <span className="text-[var(--text-secondary)] truncate">vs {debate.opponentStyle || opponent?.name}</span>
-                  </>
+                  <div className="flex items-center gap-1 min-w-0 sm:ml-0">
+                    <span className="text-[var(--border-strong)] flex-shrink-0 hidden sm:inline mr-1">·</span>
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)] sm:hidden flex-shrink-0">vs</span>
+                    <span className="text-[var(--text-secondary)] truncate">{debate.opponentStyle || opponent?.name}</span>
+                  </div>
                 )}
               </div>
-              <ShareButtons debateId={debateId} topic={debate.topic} onOpenModal={() => setShowShareModal(true)} />
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <ShareButtons debateId={debateId} topic={debate.topic} onOpenModal={() => setShowShareModal(true)} />
+                <Link
+                  href="/"
+                  className="p-2 rounded-lg text-[var(--text-tertiary)] hover:bg-[var(--bg-sunken)] hover:text-[var(--text)] transition-colors"
+                  title="Close Debate"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </Link>
+              </div>
             </div>
           </div>
         </div>
@@ -1236,6 +1333,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
               msg={msg}
               opponent={opponent}
               debate={debate}
+              variant={variant}
               isAILoading={isAILoading && idx === messages.length - 1}
               isUserLoading={isUserLoading && idx === messages.length - 1}
               onRetry={msg.failed ? () => {
@@ -1328,7 +1426,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
           <div className="flex gap-2">
             {/* Textarea Container */}
             <div className="flex-1 min-w-0 relative">
-              {!isOwner && (
+              {!effectiveIsOwner && (
                 <div className="absolute inset-0 bg-[var(--bg)]/80 backdrop-blur-sm rounded-xl flex items-center justify-center z-10">
                   <span className="text-sm text-[var(--text-secondary)] flex items-center gap-2">
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1359,14 +1457,14 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
                     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
                   }, 100);
                 }}
-                placeholder={isOwner ? "Make your argument..." : "Sign in to contribute..."}
+                placeholder={effectiveIsOwner ? "Make your argument..." : "Sign in to contribute..."}
                 className="w-full bg-[var(--bg-elevated)] border border-[var(--border)] rounded-xl
                   px-3 sm:px-4 py-2.5 sm:py-3 resize-none text-[var(--text)] placeholder-[var(--text-tertiary)]
                   outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/20
                   transition-all min-h-[44px] sm:min-h-[48px] max-h-[120px] text-[15px] leading-relaxed overflow-hidden
                   touch-manipulation disabled:opacity-50"
                 rows={1}
-                disabled={isUserLoading || isAILoading || !isOwner}
+                disabled={isUserLoading || isAILoading || !effectiveIsOwner}
               />
             </div>
 
@@ -1376,7 +1474,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
               <button
                 type="button"
                 onClick={handleAITakeover}
-                disabled={isAITakeoverLoading || isAILoading || !isOwner}
+                disabled={isAITakeoverLoading || isAILoading || !effectiveIsOwner}
                 className={`
                   w-10 h-10 rounded-lg border flex items-center justify-center
                   transition-all duration-200 flex-shrink-0
@@ -1386,7 +1484,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
                   }
                   disabled:opacity-40 disabled:cursor-not-allowed
                 `}
-                title={isOwner ? "Let AI argue for you" : "Sign in to contribute to this debate"}
+                title={effectiveIsOwner ? "Let AI argue for you" : "Sign in to contribute to this debate"}
               >
                 {isAITakeoverLoading ? (
                   <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -1445,6 +1543,16 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
             onClose={() => setShowUpgradeModal(false)}
             trigger="rate-limit-message"
             limitData={rateLimitData}
+          />
+        </Suspense>
+      )}
+
+      {showGuestLimitModal && (
+        <Suspense fallback={null}>
+          <GuestLimitModal
+            isOpen={showGuestLimitModal}
+            onClose={() => setShowGuestLimitModal(false)}
+            turnCount={guestTurnCount}
           />
         </Suspense>
       )}

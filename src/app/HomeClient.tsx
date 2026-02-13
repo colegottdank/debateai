@@ -34,6 +34,7 @@ export default function HomeClient({
   const [isStarting, setIsStarting] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
+  const [shakeInput, setShakeInput] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Handle pending debate from sign-in redirect
@@ -66,12 +67,7 @@ export default function HomeClient({
             });
 
             if (response.ok) {
-              track('debate_created', {
-                debateId,
-                topic: pendingDebate.topic,
-                opponent: pendingDebate.persona,
-                source: 'daily_debate',
-              });
+              // Backend tracks debate_created with experiment_variant - avoid duplicate tracking
               if (pendingDebate.userInput) {
                 sessionStorage.setItem('firstArgument', pendingDebate.userInput);
               }
@@ -100,24 +96,29 @@ export default function HomeClient({
 
   const startDebate = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!dailyDebate || !userInput.trim()) return;
+    if (!dailyDebate) return;
+
+    if (!userInput.trim()) {
+      setShakeInput(true);
+      inputRef.current?.focus();
+      setTimeout(() => setShakeInput(false), 500);
+      return;
+    }
 
     // Mark onboarding complete as soon as user initiates a debate
     markOnboarded();
     track('onboarding_started', { topic: dailyDebate.topic, source: 'onboarding' });
 
+    // Guest Mode: If not signed in, generate/use guest ID
     if (!isSignedIn) {
-      sessionStorage.setItem(
-        'pendingDebate',
-        JSON.stringify({
-          userInput: userInput.trim(),
-          topic: dailyDebate.topic,
-          persona: dailyDebate.persona,
-          fromLandingPage: true,
-        })
-      );
-      openSignIn({ afterSignInUrl: '/' });
-      return;
+      let guestId = document.cookie.split('; ').find(row => row.startsWith('guest_id='))?.split('=')[1];
+      if (!guestId) {
+        guestId = crypto.randomUUID();
+        // Set guest_id cookie for 1 year
+        const expiry = new Date();
+        expiry.setFullYear(expiry.getFullYear() + 1);
+        document.cookie = `guest_id=${guestId}; expires=${expiry.toUTCString()}; path=/; SameSite=Lax`;
+      }
     }
 
     setIsStarting(true);
@@ -136,12 +137,10 @@ export default function HomeClient({
       });
 
       if (response.ok) {
-        track('debate_created', {
-          debateId,
-          topic: dailyDebate.topic,
-          opponent: dailyDebate.persona,
-          source: 'daily_debate',
-        });
+        if (!isSignedIn) {
+          sessionStorage.setItem('guest_debate_id', debateId);
+        }
+        // Backend tracks debate_created with experiment_variant - avoid duplicate tracking
         sessionStorage.setItem('firstArgument', userInput.trim());
         sessionStorage.setItem('isInstantDebate', 'true');
         router.push(`/debate/${debateId}`);
@@ -160,7 +159,6 @@ export default function HomeClient({
 
   const charCount = userInput.length;
   const maxChars = 2000;
-  const canStart = userInput.trim().length > 0 && !isStarting;
 
   return (
     <div className="min-h-dvh flex flex-col relative overflow-hidden">
@@ -171,7 +169,7 @@ export default function HomeClient({
           {/* Hero — minimal */}
           <div className="text-center mb-10 animate-fade-up">
             <div className="flex items-center justify-center gap-2 mb-3">
-              <h1 className="text-4xl sm:text-5xl font-serif font-bold text-[var(--text)] leading-tight">
+              <h1 className="text-4xl sm:text-5xl font-serif font-bold text-gray-900 dark:text-gray-100 leading-tight">
                 The AI that fights back.
               </h1>
               <StreakIndicator />
@@ -226,9 +224,11 @@ export default function HomeClient({
               data-onboarding="input"
               className={`
                 rounded-2xl bg-[var(--bg-elevated)] transition-all duration-200
-                ${isFocused
-                  ? 'ring-1 ring-[var(--accent)]/30'
-                  : 'ring-1 ring-[var(--border)]'
+                ${shakeInput
+                  ? 'animate-shake ring-2 ring-[var(--error)]'
+                  : isFocused
+                    ? 'ring-1 ring-[var(--accent)]/30'
+                    : 'ring-1 ring-[var(--border)]'
                 }
               `}
             >
@@ -247,7 +247,7 @@ export default function HomeClient({
                   onFocus={() => setIsFocused(true)}
                   onBlur={() => setIsFocused(false)}
                   onKeyDown={(e) => {
-                    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && canStart) {
+                    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && !isStarting) {
                       startDebate();
                     }
                   }}
@@ -284,12 +284,12 @@ export default function HomeClient({
             {/* CTA */}
             <button
               type="submit"
-              disabled={!canStart}
+              disabled={isStarting}
               data-onboarding="cta"
               className={`
                 w-full mt-3 h-12 px-6 rounded-xl font-medium text-base transition-all duration-200
                 flex items-center justify-center gap-2
-                ${canStart
+                ${!isStarting
                   ? 'bg-[var(--accent)] text-white shadow-lg shadow-[var(--accent)]/25 hover:shadow-xl hover:shadow-[var(--accent)]/35 hover:-translate-y-0.5 active:translate-y-0'
                   : 'bg-[var(--bg-sunken)] text-[var(--text-secondary)] cursor-not-allowed'
                 }
@@ -320,7 +320,7 @@ export default function HomeClient({
             {/* Sign-in hint */}
             {!isSignedIn && (
               <p className="text-center text-xs text-[var(--text-secondary)] mt-3">
-                We&apos;ll save your debate after you sign in — takes 10 seconds
+                Start immediately — no account needed
               </p>
             )}
           </form>

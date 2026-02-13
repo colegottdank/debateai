@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSafeUser } from '@/lib/useSafeClerk';
@@ -44,15 +45,6 @@ const NAV_ITEMS = [
     ),
   },
   {
-    label: 'Explore',
-    href: '/explore',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-      </svg>
-    ),
-  },
-  {
     label: 'Leaderboard',
     href: '/leaderboard',
     icon: (
@@ -83,8 +75,13 @@ const NAV_ITEMS = [
 
 export default function MobileNav() {
   const [isOpen, setIsOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
   const { isSignedIn } = useSafeUser();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Close on route change
   useEffect(() => {
@@ -148,54 +145,60 @@ export default function MobileNav() {
         </div>
       </button>
 
-      {/* Overlay */}
-      <div
-        className={`fixed inset-0 bg-black/40 backdrop-blur-sm z-40 transition-opacity duration-300 sm:hidden
-          ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
-        onClick={() => setIsOpen(false)}
-        aria-hidden="true"
-      />
+      {/* Portal the menu to document.body to escape sticky/blur stacking contexts */}
+      {mounted && createPortal(
+        <>
+          {/* Overlay */}
+          <div
+            className={`fixed inset-0 bg-black/40 backdrop-blur-sm z-[99] transition-opacity duration-300 sm:hidden
+              ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+            onClick={() => setIsOpen(false)}
+            aria-hidden="true"
+          />
 
-      {/* Slide-down panel */}
-      <nav
-        id="mobile-nav-panel"
-        className={`fixed top-[57px] left-0 right-0 z-50 sm:hidden
-          bg-[var(--bg)] border-b border-[var(--border)]
-          shadow-xl shadow-black/10
-          transition-all duration-300 ease-out
-          ${isOpen
-            ? 'translate-y-0 opacity-100'
-            : '-translate-y-4 opacity-0 pointer-events-none'
-          }`}
-        role="navigation"
-        aria-label="Mobile navigation"
-      >
-        <div className="px-4 py-3 max-h-[calc(100dvh-57px)] overflow-y-auto">
-          <ul className="space-y-1">
-            {filteredItems.map((item) => {
-              const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
+          {/* Slide-down panel */}
+          <nav
+            id="mobile-nav-panel"
+            className={`fixed top-[57px] left-0 right-0 z-[100] sm:hidden
+              bg-[var(--bg)] border-b border-[var(--border)]
+              shadow-xl shadow-black/10
+              transition-all duration-300 ease-out
+              ${isOpen
+                ? 'translate-y-0 opacity-100'
+                : '-translate-y-4 opacity-0 pointer-events-none'
+              }`}
+            role="navigation"
+            aria-label="Mobile navigation"
+          >
+            <div className="px-4 py-3 max-h-[calc(100dvh-57px)] overflow-y-auto">
+              <ul className="space-y-1">
+                {filteredItems.map((item) => {
+                  const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
 
-              return (
-                <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    className={`flex items-center gap-3 px-3 py-3 rounded-xl text-[15px] font-medium transition-all duration-150 cursor-pointer
-                      ${isActive
-                        ? 'bg-[var(--accent)]/10 text-[var(--accent)]'
-                        : 'text-[var(--text)] hover:bg-[var(--bg-sunken)]'
-                      }`}
-                  >
-                    <span className={isActive ? 'text-[var(--accent)]' : 'text-[var(--text-secondary)]'}>
-                      {item.icon}
-                    </span>
-                    {item.label}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      </nav>
+                  return (
+                    <li key={item.href}>
+                      <Link
+                        href={item.href}
+                        className={`flex items-center gap-3 px-3 py-3 rounded-xl text-[15px] font-medium transition-all duration-150 cursor-pointer
+                          ${isActive
+                            ? 'bg-[var(--accent)]/10 text-[var(--accent)]'
+                            : 'text-[var(--text)] hover:bg-[var(--bg-sunken)]'
+                          }`}
+                      >
+                        <span className={isActive ? 'text-[var(--accent)]' : 'text-[var(--text-secondary)]'}>
+                          {item.icon}
+                        </span>
+                        {item.label}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </nav>
+        </>,
+        document.body
+      )}
     </>
   );
 }

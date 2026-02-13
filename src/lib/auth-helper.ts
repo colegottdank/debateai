@@ -1,7 +1,8 @@
 import { auth } from '@clerk/nextjs/server';
+import { cookies } from 'next/headers';
 
 /**
- * Gets the user ID, supporting test mode in development
+ * Gets the user ID, supporting test mode in development and guest users
  */
 export async function getUserId(): Promise<string | null> {
   const isTestMode = process.env.NEXT_PUBLIC_TEST_MODE === 'true';
@@ -13,7 +14,22 @@ export async function getUserId(): Promise<string | null> {
   
   // Use real auth
   const authResult = await auth();
-  return authResult.userId;
+  if (authResult.userId) {
+    return authResult.userId;
+  }
+
+  // Check for guest user
+  try {
+    const cookieStore = await cookies();
+    const guestId = cookieStore.get('guest_id')?.value;
+    if (guestId) {
+      return `guest_${guestId}`;
+    }
+  } catch (e) {
+    // Ignore error if cookies() fails
+  }
+
+  return null;
 }
 
 /**
