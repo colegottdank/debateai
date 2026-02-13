@@ -28,7 +28,12 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
     <ClerkProvider
       appearance={{
         elements: {
-          card: "max-w-[calc(100vw-2rem)] mx-auto",
+          card: "max-w-[90vw] w-full mx-auto shadow-xl rounded-xl overflow-hidden",
+          headerTitle: "text-xl font-bold text-center break-words",
+          headerSubtitle: "text-center break-words text-muted-foreground",
+          socialButtonsBlockButton: "h-auto py-3 whitespace-normal",
+          footerActionLink: "text-primary hover:text-primary-600",
+          formButtonPrimary: "bg-primary-600 hover:bg-primary-700 text-white",
         }
       }}
     >
