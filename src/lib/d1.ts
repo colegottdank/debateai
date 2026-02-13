@@ -229,6 +229,13 @@ class D1Client {
     );
   }
 
+  async getAllRecentDebates(limit = 100) {
+    return this.query(
+      `SELECT id FROM debates ORDER BY created_at DESC LIMIT ?`,
+      [limit]
+    );
+  }
+
   async updateLeaderboard(userId: string, username: string, wonDebate: boolean) {
     // Check if user exists
     const existing = await this.query(
