@@ -167,9 +167,9 @@ export default function HomeClient({
       <main className="flex-1 flex flex-col items-center justify-center px-5 py-8 relative z-10">
         <div className="w-full max-w-2xl">
           {/* Hero — minimal */}
-          <div className="text-center mb-10 animate-fade-up">
+          <div className="text-center mb-10">
             <div className="flex items-center justify-center gap-2 mb-3">
-              <h1 className="text-4xl sm:text-5xl font-serif font-bold text-gray-900 dark:text-gray-100 leading-tight">
+              <h1 className="text-4xl sm:text-5xl font-serif font-bold text-[var(--text)] leading-tight">
                 The AI that fights back.
               </h1>
               <StreakIndicator />
