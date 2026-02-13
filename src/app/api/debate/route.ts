@@ -305,7 +305,7 @@ export async function POST(request: Request) {
 
           // Handle content block events for web search
           (stream as any).on("contentBlockStart", (event: any) => {
-            console.log("📚 [ANTHROPIC] Content block start:", JSON.stringify(event, null, 2));
+            log.debug("anthropic.content_block_start", event);
             if (event.content_block?.type === "server_tool_use" && event.content_block?.name === "web_search") {
               if (!searchIndicatorSent) {
                 searchIndicatorSent = true;
@@ -322,7 +322,7 @@ export async function POST(request: Request) {
 
           // Handle the full message to extract citations
           const finalMessage = await stream.finalMessage();
-          console.log("📚 [ANTHROPIC] Final message content blocks:", finalMessage.content.length);
+          log.debug("anthropic.final_message", { length: finalMessage.content.length });
 
           // Extract citations from the response
           const MAX_CITATIONS = 5;
@@ -342,7 +342,7 @@ export async function POST(request: Request) {
               };
 
               if (textBlock.citations && Array.isArray(textBlock.citations)) {
-                console.log("📚 [CITATIONS] Found text block with", textBlock.citations.length, "citations");
+                log.debug("citations.text_block_found", { count: textBlock.citations.length });
                 for (const citation of textBlock.citations) {
                   if (citations.length >= MAX_CITATIONS) break;
                   if (citation.type === "web_search_result_location" && citation.url) {
@@ -355,7 +355,7 @@ export async function POST(request: Request) {
                         title: citation.title || new URL(citation.url).hostname,
                       };
                       citations.push(citationData);
-                      console.log("📚 [CITATIONS] Added citation:", citationData);
+                      log.debug("citations.added", citationData);
                     }
                   }
                 }
@@ -366,7 +366,7 @@ export async function POST(request: Request) {
 
           // Fallback: if no citations found in text blocks, extract from web_search_tool_result
           if (citations.length === 0) {
-            console.log("📚 [CITATIONS] No citations in text blocks, checking web_search_tool_result");
+            log.debug("citations.fallback_check");
             for (const block of finalMessage.content) {
               if (block.type === "web_search_tool_result") {
                 const resultBlock = block as typeof block & {
@@ -377,7 +377,7 @@ export async function POST(request: Request) {
                   }>;
                 };
                 if (resultBlock.content && Array.isArray(resultBlock.content)) {
-                  console.log("📚 [CITATIONS] Found web_search_tool_result with", resultBlock.content.length, "results");
+                  log.debug("citations.web_search_found", { count: resultBlock.content.length });
                   for (const result of resultBlock.content) {
                     if (citations.length >= MAX_CITATIONS) break;
                     if (result.type === "web_search_result" && result.url) {
@@ -389,7 +389,7 @@ export async function POST(request: Request) {
                           title: result.title || new URL(result.url).hostname,
                         };
                         citations.push(citationData);
-                        console.log("📚 [CITATIONS] Added fallback citation:", citationData);
+                        log.debug("citations.fallback_added", citationData);
                       }
                     }
                   }
@@ -399,11 +399,11 @@ export async function POST(request: Request) {
             }
           }
 
-          console.log("📚 [CITATIONS] Total extracted:", citations.length);
+          log.debug("citations.total", { count: citations.length });
 
           // Send citations if any
           if (citations.length > 0 && !controllerClosed) {
-            console.log("📚 [CITATIONS] Sending to frontend. Total citations:", citations.length);
+            log.info("citations.sending", { count: citations.length });
             flushBuffer(); // Flush any pending content first
             controller.enqueue(
               encoder.encode(
@@ -462,7 +462,7 @@ export async function POST(request: Request) {
 
           // Send completion message
           if (!controllerClosed) {
-            console.log('📚 [CITATIONS] Stream complete. Final citations count:', citations.length);
+            log.info('citations.complete', { count: citations.length });
             controller.enqueue(
               encoder.encode(
                 `data: ${JSON.stringify({
