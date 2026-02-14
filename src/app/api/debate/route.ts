@@ -431,28 +431,21 @@ export async function POST(request: Request) {
             buffer = "";
           }
 
-          // Save the complete debate turn - fetch existing debate, add messages, and save
+          // Save the complete debate turn
           if (debateId && accumulatedContent) {
-            const existingDebate = await d1.getDebate(debateId);
+            // OPTIMIZATION: Use request context instead of fetching from DB
+            // This reduces latency by avoiding a round-trip + large payload download
             
             let messages: any[] = [];
-            let currentTopic = topic;
-            let currentOpponent = character;
-
-            if (existingDebate.success && existingDebate.debate) {
-              messages = Array.isArray(existingDebate.debate.messages)
-                ? existingDebate.debate.messages
-                : [];
-              currentTopic = (existingDebate.debate.topic as string) || topic;
-              currentOpponent = (existingDebate.debate.opponent as string) || character;
+            
+            if (previousMessages && previousMessages.length > 0) {
+              messages = [...previousMessages];
             } else {
               // New debate: initialize with system message if starting fresh
-              if (!previousMessages || previousMessages.length === 0) {
-                 messages.push({
-                   role: 'system',
-                   content: `Welcome to the debate arena! Today's topic: "${topic}".${opponentStyle ? ` Your opponent's style: ${opponentStyle}` : ''}`
-                 });
-              }
+              messages.push({
+                role: 'system',
+                content: `Welcome to the debate arena! Today's topic: "${topic}".${opponentStyle ? ` Your opponent's style: ${opponentStyle}` : ''}`
+              });
             }
 
             messages.push({
@@ -468,8 +461,8 @@ export async function POST(request: Request) {
 
             await d1.saveDebate({
               userId,
-              opponent: currentOpponent,
-              topic: currentTopic,
+              opponent: character,
+              topic: topic,
               messages: messages,
               debateId,
               opponentStyle,
