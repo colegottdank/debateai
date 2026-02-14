@@ -27,8 +27,7 @@ export default function ShareButtons({ debateId, topic, className = '', onOpenMo
       await navigator.clipboard.writeText(debateUrl);
       track('debate_shared', { debateId, method: 'copy_link' });
       showToast('Link copied to clipboard!', 'success');
-    } catch (err) {
-      console.error('Failed to copy:', err);
+    } catch {
       showToast('Failed to copy link', 'error');
     } finally {
       setTimeout(() => setIsCopying(false), 500);
@@ -52,7 +51,7 @@ export default function ShareButtons({ debateId, topic, className = '', onOpenMo
           url: debateUrl,
         });
         track('debate_shared', { debateId, method: 'native_share' });
-      } catch (err) {
+      } catch {
         // User cancelled or share failed
         console.log('Share cancelled');
       }

@@ -1,13 +1,29 @@
 'use client';
 
 import { useTheme } from '@/components/ThemeProvider';
+import { useEffect, useState } from 'react';
 
 export default function ThemeToggle() {
-  const { theme, toggleTheme } = useTheme();
+  const { resolvedTheme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return (
+      <button className="relative w-9 h-9 rounded-xl flex items-center justify-center text-[var(--text-secondary)] bg-[var(--bg-sunken)]/50 border border-[var(--border)]/30 cursor-pointer">
+        <div className="w-4 h-4" />
+      </button>
+    );
+  }
+
+  const isDark = resolvedTheme === 'dark';
 
   return (
     <button
-      onClick={toggleTheme}
+      onClick={() => setTheme(isDark ? 'light' : 'dark')}
       className="
         relative w-9 h-9 rounded-xl 
         flex items-center justify-center 
@@ -21,14 +37,14 @@ export default function ThemeToggle() {
         focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50
         cursor-pointer
       "
-      aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-      title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+      aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+      title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
     >
       <span className="sr-only">
-        {theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+        {isDark ? 'Switch to light mode' : 'Switch to dark mode'}
       </span>
       <div className="relative w-4 h-4">
-        {theme === 'dark' ? (
+        {isDark ? (
           <>
             {/* Sun icon for dark mode (click to switch to light) */}
             <svg 

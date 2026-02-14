@@ -25,8 +25,6 @@ const anthropic = new Anthropic({
 
 // 20 messages per minute per user (calls Claude API — expensive)
 const userLimiter = createRateLimiter({ maxRequests: 20, windowMs: 60_000 });
-// 60 per minute per IP as a broader safety net
-const ipLimiter = createRateLimiter({ maxRequests: 60, windowMs: 60_000 });
 
 export async function POST(request: Request) {
   // Check if app is disabled
@@ -43,7 +41,7 @@ export async function POST(request: Request) {
       remaining: 0,
       resetAt: ipRl.resetAt,
       headers: {
-        'X-RateLimit-Limit': '10',
+        'X-RateLimit-Limit': '60',
         'X-RateLimit-Remaining': '0',
         'X-RateLimit-Reset': String(ipRl.resetAt),
         'Retry-After': String(Math.max(0, ipRl.resetAt - Math.floor(Date.now()/1000)))
@@ -56,11 +54,6 @@ export async function POST(request: Request) {
 
     if (!userId) {
       return errors.unauthorized();
-    }
-
-    // Block unverified guest access for AI generation (prevent curl abuse)
-    if (userId.startsWith('guest_')) {
-      return errors.unauthorized("Sign in required for debate generation");
     }
 
     // Per-user rate limit (protects Claude API costs)
@@ -77,7 +70,6 @@ export async function POST(request: Request) {
     }
 
     const {
-      debateId,
       character,
       opponentStyle,
       topic,
@@ -89,9 +81,16 @@ export async function POST(request: Request) {
       comboCount = 0,
       currentMood = 'neutral',
     } = body;
+    
+    let { debateId } = body;
+
+    // Generate a debateId if this is a new debate
+    if (!debateId) {
+      debateId = crypto.randomUUID();
+    }
 
     // Get existing debate state for A/B test variant
-    const existingDebate = debateId ? await d1.getDebate(debateId) : { success: false };
+    const existingDebate = await d1.getDebate(debateId);
     let assignedVariant = 'default';
 
     if (existingDebate.success && (existingDebate as any).debate?.promptVariant) {
@@ -120,7 +119,7 @@ export async function POST(request: Request) {
     });
     
     // Deduplicate debate creation: if no debateId and same user+topic within 30s, reuse existing
-    if (!debateId) {
+    if (!body.debateId) {
       const dup = await d1.findRecentDuplicate(userId, topic, 30);
       if (dup.found && dup.debateId) {
         // Return the existing debate ID so the client uses it instead of creating a duplicate
@@ -134,7 +133,7 @@ export async function POST(request: Request) {
 
     // Track new debate start with experiment variant (for first message in new debates)
     // This ensures PostHog captures the variant even if create route wasn't used
-    if (!debateId && previousMessages.length === 0) {
+    if (!body.debateId && previousMessages.length === 0) {
       track('debate_created', {
         debateId: debateId || 'pending',
         topic,
@@ -154,6 +153,9 @@ export async function POST(request: Request) {
       const messageLimit = await d1.checkDebateMessageLimit(debateId);
       if (!messageLimit.allowed) {
         log.info('debate.limit_reached', { debateId, variant: assignedVariant });
+        if (userId.startsWith('guest_')) {
+          return errors.guestLimit(messageLimit.count, messageLimit.limit);
+        }
         return errors.messageLimit(messageLimit.count, messageLimit.limit);
       }
     }
@@ -222,7 +224,6 @@ export async function POST(request: Request) {
 
     // Always use streaming response
     const encoder = new TextEncoder();
-    // eslint-disable-next-line prefer-const
     let controllerClosed = false; // Track if controller is closed
 
     const streamResponse = new ReadableStream({
@@ -307,7 +308,7 @@ export async function POST(request: Request) {
 
           // Handle content block events for web search
           (stream as any).on("contentBlockStart", (event: any) => {
-            console.log("📚 [ANTHROPIC] Content block start:", JSON.stringify(event, null, 2));
+            log.debug("anthropic.content_block_start", event);
             if (event.content_block?.type === "server_tool_use" && event.content_block?.name === "web_search") {
               if (!searchIndicatorSent) {
                 searchIndicatorSent = true;
@@ -324,7 +325,7 @@ export async function POST(request: Request) {
 
           // Handle the full message to extract citations
           const finalMessage = await stream.finalMessage();
-          console.log("📚 [ANTHROPIC] Final message content blocks:", finalMessage.content.length);
+          log.debug("anthropic.final_message", { length: finalMessage.content.length });
 
           // Extract citations from the response
           const MAX_CITATIONS = 5;
@@ -344,7 +345,7 @@ export async function POST(request: Request) {
               };
 
               if (textBlock.citations && Array.isArray(textBlock.citations)) {
-                console.log("📚 [CITATIONS] Found text block with", textBlock.citations.length, "citations");
+                log.debug("citations.text_block_found", { count: textBlock.citations.length });
                 for (const citation of textBlock.citations) {
                   if (citations.length >= MAX_CITATIONS) break;
                   if (citation.type === "web_search_result_location" && citation.url) {
@@ -357,7 +358,7 @@ export async function POST(request: Request) {
                         title: citation.title || new URL(citation.url).hostname,
                       };
                       citations.push(citationData);
-                      console.log("📚 [CITATIONS] Added citation:", citationData);
+                      log.debug("citations.added", citationData);
                     }
                   }
                 }
@@ -368,7 +369,7 @@ export async function POST(request: Request) {
 
           // Fallback: if no citations found in text blocks, extract from web_search_tool_result
           if (citations.length === 0) {
-            console.log("📚 [CITATIONS] No citations in text blocks, checking web_search_tool_result");
+            log.debug("citations.fallback_check");
             for (const block of finalMessage.content) {
               if (block.type === "web_search_tool_result") {
                 const resultBlock = block as typeof block & {
@@ -379,7 +380,7 @@ export async function POST(request: Request) {
                   }>;
                 };
                 if (resultBlock.content && Array.isArray(resultBlock.content)) {
-                  console.log("📚 [CITATIONS] Found web_search_tool_result with", resultBlock.content.length, "results");
+                  log.debug("citations.web_search_found", { count: resultBlock.content.length });
                   for (const result of resultBlock.content) {
                     if (citations.length >= MAX_CITATIONS) break;
                     if (result.type === "web_search_result" && result.url) {
@@ -391,7 +392,7 @@ export async function POST(request: Request) {
                           title: result.title || new URL(result.url).hostname,
                         };
                         citations.push(citationData);
-                        console.log("📚 [CITATIONS] Added fallback citation:", citationData);
+                        log.debug("citations.fallback_added", citationData);
                       }
                     }
                   }
@@ -401,11 +402,11 @@ export async function POST(request: Request) {
             }
           }
 
-          console.log("📚 [CITATIONS] Total extracted:", citations.length);
+          log.debug("citations.total", { count: citations.length });
 
           // Send citations if any
           if (citations.length > 0 && !controllerClosed) {
-            console.log("📚 [CITATIONS] Sending to frontend. Total citations:", citations.length);
+            log.info("citations.sending", { count: citations.length });
             flushBuffer(); // Flush any pending content first
             controller.enqueue(
               encoder.encode(
@@ -433,38 +434,52 @@ export async function POST(request: Request) {
           // Save the complete debate turn - fetch existing debate, add messages, and save
           if (debateId && accumulatedContent) {
             const existingDebate = await d1.getDebate(debateId);
+            
+            let messages: any[] = [];
+            let currentTopic = topic;
+            let currentOpponent = character;
+
             if (existingDebate.success && existingDebate.debate) {
-              const existingMessages = Array.isArray(
-                existingDebate.debate.messages
-              )
+              messages = Array.isArray(existingDebate.debate.messages)
                 ? existingDebate.debate.messages
                 : [];
-              existingMessages.push({
-                role: "user",
-                content: userArgument,
-                ...(isAIAssisted && { aiAssisted: true }),
-              });
-              existingMessages.push({
-                role: "ai",
-                content: accumulatedContent,
-                ...(citations.length > 0 && { citations }),
-              });
-
-              await d1.saveDebate({
-                userId,
-                opponent: character,
-                topic: (existingDebate.debate.topic as string) || topic, // Preserve original topic
-                messages: existingMessages,
-                debateId,
-                opponentStyle,
-                promptVariant: assignedVariant,
-              });
+              currentTopic = (existingDebate.debate.topic as string) || topic;
+              currentOpponent = (existingDebate.debate.opponent as string) || character;
+            } else {
+              // New debate: initialize with system message if starting fresh
+              if (!previousMessages || previousMessages.length === 0) {
+                 messages.push({
+                   role: 'system',
+                   content: `Welcome to the debate arena! Today's topic: "${topic}".${opponentStyle ? ` Your opponent's style: ${opponentStyle}` : ''}`
+                 });
+              }
             }
+
+            messages.push({
+              role: "user",
+              content: userArgument,
+              ...(isAIAssisted && { aiAssisted: true }),
+            });
+            messages.push({
+              role: "ai",
+              content: accumulatedContent,
+              ...(citations.length > 0 && { citations }),
+            });
+
+            await d1.saveDebate({
+              userId,
+              opponent: currentOpponent,
+              topic: currentTopic,
+              messages: messages,
+              debateId,
+              opponentStyle,
+              promptVariant: assignedVariant,
+            });
           }
 
           // Send completion message
           if (!controllerClosed) {
-            console.log('📚 [CITATIONS] Stream complete. Final citations count:', citations.length);
+            log.info('citations.complete', { count: citations.length });
             controller.enqueue(
               encoder.encode(
                 `data: ${JSON.stringify({

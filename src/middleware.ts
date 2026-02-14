@@ -1,4 +1,5 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
+import { NextResponse } from 'next/server'
 
 const isPublicRoute = createRouteMatcher([
   '/',
@@ -28,8 +29,6 @@ const isPublicRoute = createRouteMatcher([
   '/api/leaderboard', // Public leaderboard API
   '/profile/(.*)',   // Public profile pages
   '/api/profile/public', // Public profile API
-  '/explore',        // Public explore/debate feed page
-  '/api/explore',    // Public explore API
   '/debate',  // Allow access to debate setup page (will handle auth client-side)
   '/debate/(.*)',  // Allow debate pages to load and handle auth client-side
   '/api/debate(.*)', // Allow debate creation and messaging for guest users
@@ -40,6 +39,14 @@ const isPublicRoute = createRouteMatcher([
 ])
 
 export default clerkMiddleware(async (auth, req) => {
+  // Domain Redirect: debateai.org -> www.debateai.org (Skip /api)
+  const host = req.headers.get('host')
+  if (host === 'debateai.org' && !req.nextUrl.pathname.startsWith('/api')) {
+    const url = new URL(req.url)
+    url.host = 'www.debateai.org'
+    return NextResponse.redirect(url, 308)
+  }
+
   // Skip auth in development mode when TEST_MODE is enabled
   if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_TEST_MODE === 'true') {
     return

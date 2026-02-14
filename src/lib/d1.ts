@@ -1,4 +1,9 @@
 // Cloudflare D1 REST API client for Next.js/Vercel
+import { GUEST_MESSAGE_LIMIT, FREE_USER_MESSAGE_LIMIT } from './limits';
+import { MIGRATION_003_SQL } from './migrations/003-arena-mode';
+import { MIGRATION_005_SQL } from './migrations/005-missing-users-cols';
+import { ArenaState } from './arena-schema';
+
 interface D1Response {
   success: boolean;
   result?: Record<string, unknown>[];
@@ -125,9 +130,83 @@ class D1Client {
         count INTEGER DEFAULT 1,
         expires_at INTEGER NOT NULL
       );
+
+      CREATE TABLE IF NOT EXISTS votes (
+        debate_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        vote_type TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (debate_id, user_id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_votes_debate ON votes(debate_id);
+
+      -- Arena Mode Tables
+      CREATE TABLE IF NOT EXISTS arena_matches (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        user_hp INTEGER NOT NULL DEFAULT 100,
+        ai_hp INTEGER NOT NULL DEFAULT 100,
+        max_hp INTEGER NOT NULL DEFAULT 100,
+        combo_count INTEGER NOT NULL DEFAULT 0,
+        status_effects TEXT DEFAULT '[]',
+        turn_history TEXT DEFAULT '[]',
+        winner TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS arena_stats (
+        user_id TEXT PRIMARY KEY,
+        elo_rating INTEGER DEFAULT 1200,
+        wins INTEGER DEFAULT 0,
+        losses INTEGER DEFAULT 0,
+        draws INTEGER DEFAULT 0,
+        total_matches INTEGER DEFAULT 0,
+        current_streak INTEGER DEFAULT 0,
+        best_streak INTEGER DEFAULT 0,
+        total_damage_dealt INTEGER DEFAULT 0,
+        total_damage_taken INTEGER DEFAULT 0,
+        average_turns_per_match REAL DEFAULT 0,
+        last_played_at DATETIME,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS arena_rounds (
+        id INTEGER PRIMARY KEY,
+        match_id TEXT NOT NULL,
+        round_number INTEGER NOT NULL,
+        user_action TEXT,
+        user_damage INTEGER,
+        ai_action TEXT,
+        ai_damage INTEGER,
+        user_hp_start INTEGER,
+        user_hp_end INTEGER,
+        ai_hp_start INTEGER,
+        ai_hp_end INTEGER,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS arena_seasons (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        start_date DATETIME NOT NULL,
+        end_date DATETIME,
+        is_active BOOLEAN DEFAULT FALSE,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_arena_user ON arena_matches(user_id);
+      CREATE INDEX IF NOT EXISTS idx_arena_created ON arena_matches(created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_arena_stats_elo ON arena_stats(elo_rating DESC);
+      CREATE INDEX IF NOT EXISTS idx_arena_rounds_match ON arena_rounds(match_id);
+      CREATE INDEX IF NOT EXISTS idx_arena_seasons_active ON arena_seasons(is_active);
     `;
 
-    const queries = schema.split(';').filter(q => q.trim());
+    // Combine base schema with migrations
+    const fullSchema = schema + '\n' + MIGRATION_003_SQL + '\n' + MIGRATION_005_SQL;
+
+    const queries = fullSchema.split(';').filter(q => q.trim());
     const results = [];
     for (const query of queries) {
       if (query.trim()) {
@@ -216,6 +295,13 @@ class D1Client {
               user_score, ai_score, score_data, created_at 
        FROM debates WHERE user_id = ? ORDER BY created_at DESC LIMIT ?`,
       [userId, limit]
+    );
+  }
+
+  async getAllRecentDebates(limit = 100) {
+    return this.query(
+      `SELECT id FROM debates ORDER BY created_at DESC LIMIT ?`,
+      [limit]
     );
   }
 
@@ -327,6 +413,53 @@ class D1Client {
     }
   }
 
+  // Vote functions
+  async vote(debateId: string, userId: string, type: 'up' | 'down' | null) {
+    if (type === null) {
+      // Remove vote
+      return this.query(
+        `DELETE FROM votes WHERE debate_id = ? AND user_id = ?`,
+        [debateId, userId]
+      );
+    } else {
+      // Upsert vote
+      return this.query(
+        `INSERT OR REPLACE INTO votes (debate_id, user_id, vote_type) VALUES (?, ?, ?)`,
+        [debateId, userId, type]
+      );
+    }
+  }
+
+  async getVoteCounts(debateId: string) {
+    const result = await this.query(
+      `SELECT vote_type, COUNT(*) as count FROM votes WHERE debate_id = ? GROUP BY vote_type`,
+      [debateId]
+    );
+
+    let upvotes = 0;
+    let downvotes = 0;
+
+    if (result.success && result.result) {
+      for (const row of result.result as any[]) {
+        if (row.vote_type === 'up') upvotes = row.count as number;
+        if (row.vote_type === 'down') downvotes = row.count as number;
+      }
+    }
+    return { upvotes, downvotes };
+  }
+
+  async getUserVote(debateId: string, userId: string) {
+    const result = await this.query(
+      `SELECT vote_type FROM votes WHERE debate_id = ? AND user_id = ?`,
+      [debateId, userId]
+    );
+
+    if (result.success && result.result && result.result.length > 0) {
+      return (result.result[0] as any).vote_type as 'up' | 'down';
+    }
+    return null;
+  }
+
   // Rate limiting functions
   async checkUserDebateLimit(userId: string) {
     // First check if user is premium
@@ -349,7 +482,9 @@ class D1Client {
     
     if (result.success && result.result && result.result.length > 0) {
       const count = (result.result[0] as Record<string, unknown>).debate_count as number;
-      const limit = 3; // Free tier limit
+      // GUEST MODE: Guests get 1 debate, Free users get 3
+      const isGuest = userId.startsWith('guest_');
+      const limit = isGuest ? 1 : 3;
       return {
         success: true,
         count,
@@ -393,7 +528,8 @@ class D1Client {
 
       // Quick check: if total messages < limit*2, user is definitely under limit
       // (each user message is paired with an AI response)
-      const limit = 10; // Free tier limit per debate
+      const isGuest = userId.startsWith('guest_');
+      const limit = isGuest ? GUEST_MESSAGE_LIMIT : FREE_USER_MESSAGE_LIMIT;
       if (totalMsgCount < limit) {
         // Under limit for sure — user msgs can't exceed total msgs
         const estimatedUserMsgs = Math.ceil(totalMsgCount / 2);
@@ -540,6 +676,97 @@ class D1Client {
         resetAt: currentExpiresAt
       };
     }
+  }
+
+  // --- Arena Mode ---
+
+  async createArenaMatch(data: {
+    debateId: string;
+    userId: string;
+    userHp?: number;
+    aiHp?: number;
+    maxHp?: number;
+  }) {
+    return this.query(
+      `INSERT INTO arena_matches (id, user_id, user_hp, ai_hp, max_hp, combo_count, status_effects, turn_history)
+       VALUES (?, ?, ?, ?, ?, 0, '[]', '[]')`,
+      [
+        data.debateId,
+        data.userId,
+        data.userHp ?? 100,
+        data.aiHp ?? 100,
+        data.maxHp ?? 100
+      ]
+    );
+  }
+
+  async getArenaMatch(debateId: string) {
+    const result = await this.query(
+      `SELECT * FROM arena_matches WHERE id = ?`,
+      [debateId]
+    );
+
+    if (result.success && result.result && result.result.length > 0) {
+      const match = result.result[0] as any;
+      // Parse JSON fields
+      try { match.status_effects = JSON.parse(match.status_effects || '[]'); } catch { match.status_effects = []; }
+      try { match.turn_history = JSON.parse(match.turn_history || '[]'); } catch { match.turn_history = []; }
+      
+      // Map to ArenaState interface
+      const state: ArenaState = {
+        userHp: match.user_hp,
+        aiHp: match.ai_hp,
+        maxHp: match.max_hp,
+        comboCount: match.combo_count,
+        userEffects: match.status_effects.filter((e: any) => e.target === 'user'),
+        aiEffects: match.status_effects.filter((e: any) => e.target === 'ai'),
+        turnCount: match.turn_history.length,
+        lastAction: match.turn_history.length > 0 ? match.turn_history[match.turn_history.length - 1].action : undefined,
+      };
+      
+      return { success: true, match, state };
+    }
+    return { success: false, error: 'Match not found' };
+  }
+
+  async saveArenaState(debateId: string, state: ArenaState) {
+    // Combine effects for storage
+    const allEffects = [
+      ...state.userEffects.map(e => ({ ...e, target: 'user' })),
+      ...state.aiEffects.map(e => ({ ...e, target: 'ai' }))
+    ];
+
+    return this.query(
+      `UPDATE arena_matches 
+       SET user_hp = ?, ai_hp = ?, max_hp = ?, combo_count = ?, status_effects = ?, updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+      [
+        state.userHp,
+        state.aiHp,
+        state.maxHp,
+        state.comboCount,
+        JSON.stringify(allEffects),
+        debateId
+      ]
+    );
+  }
+
+  async logArenaTurn(debateId: string, turn: any) {
+    // We need to fetch current history to append properly
+    // Ideally we'd use JSON functions but D1 support varies by SQLite version
+    const result = await this.query(`SELECT turn_history FROM arena_matches WHERE id = ?`, [debateId]);
+    
+    if (result.success && result.result && result.result.length > 0) {
+      let history = [];
+      try { history = JSON.parse((result.result[0] as any).turn_history || '[]'); } catch { history = []; }
+      history.push({ ...turn, timestamp: Date.now() });
+      
+      return this.query(
+        `UPDATE arena_matches SET turn_history = ? WHERE id = ?`,
+        [JSON.stringify(history), debateId]
+      );
+    }
+    return { success: false, error: 'Match not found' };
   }
 }
 

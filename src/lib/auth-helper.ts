@@ -25,7 +25,7 @@ export async function getUserId(): Promise<string | null> {
     if (guestId) {
       return `guest_${guestId}`;
     }
-  } catch (e) {
+  } catch {
     // Ignore error if cookies() fails
   }
 

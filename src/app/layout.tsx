@@ -24,7 +24,24 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
     // Build-time prerender (no env vars) — skip Clerk
     return <>{children}</>;
   }
-  return <ClerkProvider>{children}</ClerkProvider>;
+  return (
+    <ClerkProvider
+      appearance={{
+        elements: {
+          modalBackdrop: "flex items-center justify-center bg-black/60 backdrop-blur-sm",
+          modalContent: "max-w-[95vw] w-full mx-auto",
+          card: "max-w-[95vw] w-full mx-auto shadow-xl rounded-xl overflow-hidden",
+          headerTitle: "text-xl font-bold text-center break-words",
+          headerSubtitle: "text-center break-words text-muted-foreground",
+          socialButtonsBlockButton: "w-full h-auto py-3 whitespace-normal break-words",
+          footerActionLink: "text-primary hover:text-primary-600",
+          formButtonPrimary: "bg-primary-600 hover:bg-primary-700 text-white",
+        }
+      }}
+    >
+      {children}
+    </ClerkProvider>
+  );
 }
 
 const geistSans = Geist({
@@ -104,22 +121,6 @@ export default function RootLayout({
           <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover" />
           <meta name="theme-color" content="#0c0a09" media="(prefers-color-scheme: dark)" />
           <meta name="theme-color" content="#fafaf9" media="(prefers-color-scheme: light)" />
-          <script
-            dangerouslySetInnerHTML={{
-              __html: `
-                (function() {
-                  const stored = localStorage.getItem('theme');
-                  if (stored === 'light' || stored === 'dark') {
-                    document.documentElement.classList.add(stored);
-                  } else {
-                    // Check system preference
-                    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                    document.documentElement.classList.add(prefersDark ? 'dark' : 'light');
-                  }
-                })();
-              `,
-            }}
-          />
         </head>
         <body
           className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} antialiased`}
@@ -128,7 +129,12 @@ export default function RootLayout({
           <a href="#main-content" className="skip-link">
             Skip to main content
           </a>
-          <ThemeProvider>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
             <ToastProvider>
               <main id="main-content" tabIndex={-1}>
                 {children}

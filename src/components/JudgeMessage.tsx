@@ -7,10 +7,6 @@ interface JudgeMessageProps {
   score: DebateScore;
   opponentName?: string;
   onViewFullAnalysis?: () => void;
-  // Share Image feature props
-  messageCount?: number;
-  messages?: Array<{ role: string; content: string }>;
-  topic?: string;
 }
 
 const CATEGORY_ICONS: Record<string, string> = {
@@ -33,9 +29,6 @@ export default function JudgeMessage({
   score,
   opponentName = "AI",
   onViewFullAnalysis,
-  messageCount,
-  messages,
-  topic,
 }: JudgeMessageProps) {
   const [showDetails, setShowDetails] = useState(false);
 

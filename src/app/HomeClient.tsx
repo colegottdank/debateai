@@ -1,9 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useSafeUser, useSafeClerk } from '@/lib/useSafeClerk';
+import { useSafeUser } from '@/lib/useSafeClerk';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import Header from '@/components/Header';
 import UpgradeModal from '@/components/UpgradeModal';
 import OnboardingOverlay from '@/components/OnboardingOverlay';
@@ -27,13 +26,13 @@ export default function HomeClient({
 }) {
   const router = useRouter();
   const { isSignedIn } = useSafeUser();
-  const { openSignIn } = useSafeClerk();
   const { isPremium, debatesUsed, debatesLimit } = useSubscription();
   const [dailyDebate] = useState<DailyDebateData>(initialDebate);
   const [userInput, setUserInput] = useState('');
   const [isStarting, setIsStarting] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
+  const [shakeInput, setShakeInput] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Handle pending debate from sign-in redirect
@@ -95,7 +94,14 @@ export default function HomeClient({
 
   const startDebate = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!dailyDebate || !userInput.trim()) return;
+    if (!dailyDebate) return;
+
+    if (!userInput.trim()) {
+      setShakeInput(true);
+      inputRef.current?.focus();
+      setTimeout(() => setShakeInput(false), 500);
+      return;
+    }
 
     // Mark onboarding complete as soon as user initiates a debate
     markOnboarded();
@@ -151,7 +157,6 @@ export default function HomeClient({
 
   const charCount = userInput.length;
   const maxChars = 2000;
-  const canStart = userInput.trim().length > 0 && !isStarting;
 
   return (
     <div className="min-h-dvh flex flex-col relative overflow-hidden">
@@ -160,8 +165,8 @@ export default function HomeClient({
       <main className="flex-1 flex flex-col items-center justify-center px-5 py-8 relative z-10">
         <div className="w-full max-w-2xl">
           {/* Hero — minimal */}
-          <div className="text-center mb-10 animate-fade-up">
-            <div className="flex items-center justify-center gap-2 mb-3">
+          <div className="text-center mb-10">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-2 mb-3">
               <h1 className="text-4xl sm:text-5xl font-serif font-bold text-[var(--text)] leading-tight">
                 The AI that fights back.
               </h1>
@@ -184,12 +189,6 @@ export default function HomeClient({
                   Today&apos;s Debate
                 </span>
                 <span className="h-px flex-1 bg-[var(--border)]" />
-                <a
-                  href="/topics/history"
-                  className="text-[10px] font-medium text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors cursor-pointer"
-                >
-                  Past topics →
-                </a>
               </div>
 
               {/* Topic */}
@@ -217,17 +216,20 @@ export default function HomeClient({
               data-onboarding="input"
               className={`
                 rounded-2xl bg-[var(--bg-elevated)] transition-all duration-200
-                ${isFocused
-                  ? 'ring-1 ring-[var(--accent)]/30'
-                  : 'ring-1 ring-[var(--border)]'
+                ${shakeInput
+                  ? 'animate-shake ring-2 ring-[var(--error)]'
+                  : isFocused
+                    ? 'ring-1 ring-[var(--accent)]/30'
+                    : 'ring-1 ring-[var(--border)]/30'
                 }
               `}
             >
               <div className="p-5">
-                <label className="block text-xs font-medium text-[var(--text)] mb-2">
+                <label htmlFor="argument-input" className="block text-xs font-medium text-[var(--text)] mb-2">
                   What&apos;s your opening argument?
                 </label>
                 <textarea
+                  id="argument-input"
                   ref={inputRef}
                   value={userInput}
                   onChange={(e) => {
@@ -238,12 +240,12 @@ export default function HomeClient({
                   onFocus={() => setIsFocused(true)}
                   onBlur={() => setIsFocused(false)}
                   onKeyDown={(e) => {
-                    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && canStart) {
+                    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && !isStarting) {
                       startDebate();
                     }
                   }}
                   placeholder="Type your argument here..."
-                  className="w-full bg-transparent resize-none outline-none text-[var(--text)] placeholder-[var(--text-secondary)]/50 min-h-[100px] text-[15px] leading-relaxed"
+                  className="w-full bg-transparent resize-none outline-none text-[var(--text)] placeholder-[var(--text-secondary)]/50 min-h-[100px] text-base sm:text-[15px] leading-relaxed"
                   disabled={isStarting}
                   autoFocus
                 />
@@ -259,12 +261,12 @@ export default function HomeClient({
                     {charCount > 0 ? `${charCount} / ${maxChars}` : '\u00A0'}
                   </span>
 
-                  <span className="hidden sm:flex items-center gap-1 text-xs text-[var(--text-secondary)]">
-                    <kbd className="px-1.5 py-0.5 rounded bg-[var(--bg-sunken)] border border-[var(--border)] text-[10px] font-mono cursor-default">
+                  <span className="hidden sm:flex items-center gap-1 text-xs text-[var(--text-secondary)] cursor-default select-none">
+                    <kbd className="px-1.5 py-0.5 rounded bg-[var(--bg-sunken)] border border-[var(--border)] text-[10px] font-mono">
                       ⌘
                     </kbd>
                     <span>+</span>
-                    <kbd className="px-1.5 py-0.5 rounded bg-[var(--bg-sunken)] border border-[var(--border)] text-[10px] font-mono cursor-default">
+                    <kbd className="px-1.5 py-0.5 rounded bg-[var(--bg-sunken)] border border-[var(--border)] text-[10px] font-mono">
                       Enter
                     </kbd>
                   </span>
@@ -275,13 +277,13 @@ export default function HomeClient({
             {/* CTA */}
             <button
               type="submit"
-              disabled={!canStart}
+              disabled={isStarting}
               data-onboarding="cta"
               className={`
                 w-full mt-3 h-12 px-6 rounded-xl font-medium text-base transition-all duration-200
                 flex items-center justify-center gap-2
-                ${canStart
-                  ? 'bg-[var(--accent)] text-white shadow-lg shadow-[var(--accent)]/25 hover:shadow-xl hover:shadow-[var(--accent)]/35 hover:-translate-y-0.5 active:translate-y-0'
+                ${!isStarting
+                  ? 'bg-[var(--accent)] text-white shadow-lg shadow-[var(--accent)]/25 hover:shadow-xl hover:shadow-[var(--accent)]/35 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer'
                   : 'bg-[var(--bg-sunken)] text-[var(--text-secondary)] cursor-not-allowed'
                 }
               `}

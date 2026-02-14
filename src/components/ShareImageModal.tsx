@@ -47,11 +47,10 @@ export default function ShareImageModal({
   // Store previously focused element and handle body scroll
   useEffect(() => {
     setMounted(true);
+
     if (isOpen) {
       previousFocusRef.current = document.activeElement as HTMLElement;
       document.body.style.overflow = 'hidden';
-      // Generate image when modal opens
-      generateImage();
     } else {
       document.body.style.overflow = '';
     }
@@ -59,6 +58,29 @@ export default function ShareImageModal({
       document.body.style.overflow = '';
     };
   }, [isOpen]);
+
+  // Generate image when ready
+  useEffect(() => {
+    if (isOpen && mounted && cardRef.current && !imageUrl && !isGenerating) {
+      const generate = async () => {
+        setIsGenerating(true);
+        try {
+          const dataUrl = await toPng(cardRef.current!, {
+            quality: 0.95,
+            pixelRatio: 2,
+          });
+          setImageUrl(dataUrl);
+          track('share_image_generated', { debateId });
+        } catch (error) {
+          console.error('Failed to generate image:', error);
+          showToast('Failed to generate image', 'error');
+        } finally {
+          setIsGenerating(false);
+        }
+      };
+      generate();
+    }
+  }, [isOpen, mounted, imageUrl, isGenerating, debateId, showToast]);
 
   // Return focus to trigger when modal closes
   useEffect(() => {
@@ -109,25 +131,6 @@ export default function ShareImageModal({
     }
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, handleKeyDown]);
-
-  const generateImage = async () => {
-    if (!cardRef.current || isGenerating) return;
-
-    setIsGenerating(true);
-    try {
-      const dataUrl = await toPng(cardRef.current, {
-        quality: 0.95,
-        pixelRatio: 2,
-      });
-      setImageUrl(dataUrl);
-      track('share_image_generated', { debateId });
-    } catch (error) {
-      console.error('Failed to generate image:', error);
-      showToast('Failed to generate image', 'error');
-    } finally {
-      setIsGenerating(false);
-    }
-  };
 
   const handleDownload = () => {
     if (!imageUrl) return;

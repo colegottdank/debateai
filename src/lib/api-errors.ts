@@ -107,6 +107,13 @@ export const errors = {
       details: { current, limit, upgrade_required: true },
     }),
 
+  /** 429 Guest limit (sign up prompt) */
+  guestLimit: (current: number, limit: number) =>
+    apiError(429, `Guest limit reached (${current}/${limit}). Sign up to continue.`, {
+      code: ApiErrorCodes.MESSAGE_LIMIT,
+      details: { current, limit, signup_required: true },
+    }),
+
   /** 500 Internal Server Error */
   internal: (message = 'Internal server error') =>
     apiError(500, message, { code: ApiErrorCodes.INTERNAL_ERROR }),

@@ -7,14 +7,13 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test:unit": "node --test tests/unit/*.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "export:abandoned": "node scripts/export_abandoned_users.js"
   },
   "dependencies": {
-    "@anthropic-ai/claude-code": "^1.0.98",
+    "@anthropic-ai/claude-code": "^2.1.41",
     "@anthropic-ai/sdk": "^0.60.0",
     "@aws-sdk/client-s3": "^3.872.0",
     "@aws-sdk/s3-request-presigner": "^3.872.0",
@@ -30,6 +29,7 @@
     "html-to-image": "^1.11.13",
     "marked": "^17.0.1",
     "next": "15.5.10",
+    "next-themes": "^0.4.6",
     "node-fetch": "^3.3.2",
     "openai": "^6.2.0",
     "posthog-js": "^1.345.5",

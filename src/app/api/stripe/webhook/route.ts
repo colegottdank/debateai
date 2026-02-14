@@ -3,6 +3,9 @@ import { stripe } from '@/lib/stripe';
 import { d1 } from '@/lib/d1';
 import Stripe from 'stripe';
 import { errors } from '@/lib/api-errors';
+import { logger } from '@/lib/logger';
+
+const log = logger.scope('stripe');
 
 /**
  * Stripe webhook handler.
@@ -10,15 +13,15 @@ import { errors } from '@/lib/api-errors';
  * or Stripe will retry. We handle errors manually here.
  */
 export async function POST(request: NextRequest) {
-  console.log('🔔 Webhook endpoint called');
+  log.debug('webhook.called');
   
   const body = await request.text();
   const signature = request.headers.get('stripe-signature');
   
-  console.log('📝 Webhook received, signature present:', !!signature);
+  log.debug('webhook.received', { signaturePresent: !!signature });
 
   if (!signature) {
-    console.error('❌ No signature provided');
+    log.error('webhook.missing_signature');
     return errors.badRequest('No signature provided');
   }
 
@@ -27,18 +30,18 @@ export async function POST(request: NextRequest) {
   try {
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
     
-    console.log('🔑 Webhook secret configured:', !!webhookSecret);
+    log.debug('webhook.secret_configured', { configured: !!webhookSecret });
     
     if (!webhookSecret) {
-      console.error('❌ STRIPE_WEBHOOK_SECRET not configured');
+      log.error('webhook.secret_missing');
       return errors.internal('Webhook secret not configured');
     }
     
     event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
-    console.log('✅ Event constructed successfully:', event.type);
+    log.debug('webhook.event_constructed', { type: event.type });
   } catch (err) {
     const error = err as Error;
-    console.error('Webhook signature verification failed:', error.message);
+    log.error('webhook.signature_failed', { error: error.message });
     return errors.badRequest('Invalid signature');
   }
 
@@ -48,8 +51,7 @@ export async function POST(request: NextRequest) {
         const session = event.data.object as Stripe.Checkout.Session;
         const clerkUserId = session.metadata?.clerkUserId;
         
-        console.log('💳 Checkout completed for user:', clerkUserId);
-        console.log('📦 Subscription ID:', session.subscription);
+        log.info('checkout.completed', { clerkUserId, subscriptionId: session.subscription });
         
         if (clerkUserId && session.subscription) {
           // Get subscription details
@@ -58,13 +60,12 @@ export async function POST(request: NextRequest) {
           );
           
           // Save to database
-          console.log('💾 Saving user to D1:', {
+          log.debug('user.saving', {
             clerkUserId,
             customerId: session.customer,
             subscriptionId: subscription.id
           });
           
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const subAny = subscription as any;
           const updateResult = await d1.upsertUser({
             clerkUserId,
@@ -78,10 +79,10 @@ export async function POST(request: NextRequest) {
             cancelAtPeriodEnd: subAny.cancel_at_period_end || false,
           });
           
-          console.log('✅ D1 upsert result:', updateResult);
+          log.debug('user.saved', { result: updateResult });
           
           if (!updateResult || !updateResult.success) {
-            console.error('❌ Failed to save to D1:', updateResult);
+            log.error('user.save_failed', { result: updateResult });
           }
         } else if (clerkUserId) {
           // Even if no subscription in session, save the customer ID
@@ -98,7 +99,6 @@ export async function POST(request: NextRequest) {
         const clerkUserId = subscription.metadata?.clerkUserId;
         
         if (clerkUserId) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const subAny = subscription as any;
           const periodEnd = subAny.current_period_end 
             ? new Date(subAny.current_period_end * 1000).toISOString()
@@ -151,7 +151,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ received: true });
   } catch (error) {
-    console.error('Webhook handler error:', error);
+    log.error('webhook.handler_failed', { error });
     // Return 200 to prevent Stripe retries for unrecoverable errors
     // Log the error but acknowledge receipt
     return NextResponse.json({ received: true, error: 'Handler error logged' });

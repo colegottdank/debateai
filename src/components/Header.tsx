@@ -15,9 +15,11 @@ import { useSubscription } from '@/lib/useSubscription';
 function AuthSkeleton() {
   return (
     <div className="flex items-center gap-1">
+      {/* Bell placeholder */}
       <div className="w-9 h-9 flex items-center justify-center">
         <div className="w-6 h-6 rounded-full bg-[var(--bg-sunken)] animate-pulse" />
       </div>
+      {/* User placeholder */}
       <div className="w-8 h-8 rounded-lg bg-[var(--bg-sunken)] animate-pulse" />
     </div>
   );
@@ -26,7 +28,7 @@ function AuthSkeleton() {
 // Skeleton placeholder for upgrade button
 function UpgradeSkeleton() {
   return (
-    <div className="hidden sm:block w-[88px] h-[32px] rounded-lg bg-[var(--bg-sunken)] animate-pulse ml-1" />
+    <div className="hidden sm:block w-[100px] h-[32px] rounded-lg bg-[var(--bg-sunken)] animate-pulse ml-1" />
   );
 }
 
@@ -64,16 +66,6 @@ export default function Header() {
               </Link>
               
               <nav className="hidden sm:flex items-center gap-1">
-                <Link
-                  href="/explore"
-                  className="flex items-center gap-2 px-3 py-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text)] rounded-lg hover:bg-[var(--bg-sunken)] transition-all cursor-pointer"
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                  </svg>
-                  Explore
-                </Link>
-
                 <Link
                   href="/leaderboard"
                   className="flex items-center gap-2 px-3 py-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text)] rounded-lg hover:bg-[var(--bg-sunken)] transition-all cursor-pointer"
@@ -128,7 +120,7 @@ export default function Header() {
               )}
 
               {/* Auth section - stable width container */}
-              <div className="flex items-center gap-1 pl-2 ml-2 border-l border-[var(--border)] min-w-[80px]">
+              <div className="flex items-center justify-end gap-1 pl-2 ml-2 border-l border-[var(--border)] min-w-[120px]">
                 {showAuthLoading ? (
                   <AuthSkeleton />
                 ) : showSignedIn ? (
@@ -155,7 +147,9 @@ export default function Header() {
                   </SafeSignInButton>
                 ) : null}
                 
-                <ThemeToggle />
+                <div className="hidden sm:block">
+                  <ThemeToggle />
+                </div>
                 <MobileNav />
               </div>
             </div>

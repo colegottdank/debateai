@@ -3,8 +3,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useSafeUser } from '@/lib/useSafeClerk';
+import ThemeToggle from './ThemeToggle';
 
 const NAV_ITEMS = [
   {
@@ -41,15 +43,6 @@ const NAV_ITEMS = [
     icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-      </svg>
-    ),
-  },
-  {
-    label: 'Explore',
-    href: '/explore',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
       </svg>
     ),
   },
@@ -127,59 +120,73 @@ export default function MobileNav() {
 
   return (
     <>
-      {/* Hamburger button — visible only on mobile */}
+      {/* Hamburger button */}
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => setIsOpen(true)}
         className="sm:hidden relative w-9 h-9 rounded-lg flex items-center justify-center
           text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--bg-sunken)]
           transition-colors cursor-pointer"
-        aria-label={isOpen ? 'Close menu' : 'Open menu'}
-        aria-expanded={isOpen}
-        aria-controls="mobile-nav-panel"
+        aria-label="Open menu"
       >
-        {/* Animated hamburger → X */}
-        <div className="w-5 h-4 relative flex flex-col justify-between">
-          <span
-            className={`block h-[1.5px] w-full bg-current rounded-full transition-all duration-300 origin-center
-              ${isOpen ? 'translate-y-[7px] rotate-45' : ''}`}
-          />
-          <span
-            className={`block h-[1.5px] w-full bg-current rounded-full transition-all duration-200
-              ${isOpen ? 'opacity-0 scale-x-0' : ''}`}
-          />
-          <span
-            className={`block h-[1.5px] w-full bg-current rounded-full transition-all duration-300 origin-center
-              ${isOpen ? '-translate-y-[7px] -rotate-45' : ''}`}
-          />
-        </div>
+        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
       </button>
 
-      {/* Portal the menu to document.body to escape sticky/blur stacking contexts */}
+      {/* Portal to body for the drawer */}
       {mounted && createPortal(
         <>
-          {/* Overlay */}
+          {/* Backdrop */}
           <div
-            className={`fixed inset-0 bg-black/40 backdrop-blur-sm z-[99] transition-opacity duration-300 sm:hidden
+            className={`fixed inset-0 bg-black/50 backdrop-blur-sm z-[99] transition-opacity duration-300 sm:hidden
               ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
             onClick={() => setIsOpen(false)}
             aria-hidden="true"
           />
 
-          {/* Slide-down panel */}
+          {/* Side Drawer */}
           <nav
             id="mobile-nav-panel"
-            className={`fixed top-[57px] left-0 right-0 z-[100] sm:hidden
-              bg-[var(--bg)] border-b border-[var(--border)]
-              shadow-xl shadow-black/10
-              transition-all duration-300 ease-out
-              ${isOpen
-                ? 'translate-y-0 opacity-100'
-                : '-translate-y-4 opacity-0 pointer-events-none'
-              }`}
+            className={`fixed inset-y-0 right-0 z-[100] w-[280px] sm:hidden
+              bg-[var(--bg)] border-l border-[var(--border)]
+              shadow-2xl flex flex-col
+              transform transition-transform duration-300 cubic-bezier(0.16, 1, 0.3, 1)
+              ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
             role="navigation"
             aria-label="Mobile navigation"
           >
-            <div className="px-4 py-3 max-h-[calc(100dvh-57px)] overflow-y-auto">
+            {/* Drawer Header */}
+            <div className="flex items-center justify-between px-5 py-5 border-b border-[var(--border)]/50 shrink-0">
+              <Link href="/" className="flex items-center gap-2" onClick={() => setIsOpen(false)}>
+                <div className="relative w-7 h-7 rounded-lg overflow-hidden">
+                   <Image 
+                    src="/logo-icon.png" 
+                    alt="DebateAI" 
+                    width={28}
+                    height={28}
+                    className="object-cover"
+                  />
+                </div>
+                <span className="text-[15px] font-semibold text-[var(--text)]">
+                  DebateAI
+                </span>
+              </Link>
+              
+              <button
+                onClick={() => setIsOpen(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-lg
+                  text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--bg-sunken)]
+                  transition-colors"
+                aria-label="Close menu"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Links */}
+            <div className="px-3 py-4 overflow-y-auto flex-1">
               <ul className="space-y-1">
                 {filteredItems.map((item) => {
                   const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
@@ -203,6 +210,14 @@ export default function MobileNav() {
                   );
                 })}
               </ul>
+            </div>
+
+            {/* Drawer Footer */}
+            <div className="p-4 border-t border-[var(--border)]/50 shrink-0">
+               <div className="flex items-center justify-between bg-[var(--bg-sunken)]/30 rounded-xl p-3">
+                  <span className="text-sm font-medium text-[var(--text-secondary)]">Appearance</span>
+                  <ThemeToggle />
+               </div>
             </div>
           </nav>
         </>,
