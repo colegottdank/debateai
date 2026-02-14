@@ -97,7 +97,7 @@ export interface AnalyticsEvents {
   };
   share_button_clicked: {
     debateId: string;
-    location: 'topic_header' | 'score_screen' | 'embed';
+    location: 'topic_header' | 'score_screen' | 'embed' | 'sticky';
   };
   share_image_generated: {
     debateId: string;
