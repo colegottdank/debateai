@@ -59,6 +59,7 @@ export default function ReviewClient() {
       // Remove from list or update status
       setItems(prev => prev.filter(item => item.id !== id));
     } catch {
+
       alert('Failed to update status');
     }
   };

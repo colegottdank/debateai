@@ -75,17 +75,11 @@ describe('GET /api/stats', () => {
     // We expect it to pass after our fix.
     // If the code isn't fixed yet, this test will fail (or throw).
     
-    // We'll catch if it throws to verify behavior before fix
-    try {
-        const data = await response.json();
-        expect(response.status).toBe(200);
-        expect(data.totalDebates).toBe(100);
-        expect(data.debatesCompleted).toBe(0); // Fallback
-        expect(data.avgMessagesPerDebate).toBe(0); // Fallback
-        expect(data.uniqueUsers).toBe(20);
-    } catch (e) {
-        // Expected failure before fix
-        throw e; 
-    }
+    const data = await response.json();
+    expect(response.status).toBe(200);
+    expect(data.totalDebates).toBe(100);
+    expect(data.debatesCompleted).toBe(0); // Fallback
+    expect(data.avgMessagesPerDebate).toBe(0); // Fallback
+    expect(data.uniqueUsers).toBe(20);
   });
 });

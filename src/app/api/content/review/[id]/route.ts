@@ -23,6 +23,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
     
     return NextResponse.json({ success: true });
   } catch {
+
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
   }
 }

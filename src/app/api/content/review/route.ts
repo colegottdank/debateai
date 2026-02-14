@@ -58,6 +58,7 @@ export async function POST(req: NextRequest) {
     // I should check d1.ts implementation.
     
   } catch {
+
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
   }
 }
