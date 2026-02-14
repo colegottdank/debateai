@@ -200,6 +200,17 @@ export async function POST(request: Request) {
     // Gemini supports tools, but prompt engineering helps too
     const userMessage = `${userArgument}\n\n(Remember: Keep it short, under 120 words. If you state facts, verify them with Google Search.)`;
 
+    // Listen for client disconnects
+    request.signal.addEventListener("abort", () => {
+      log.warn("debate.abandoned", {
+        reason: "client_disconnect",
+        debateId: debateId || 'unknown',
+        userId,
+        lastMessages: previousMessages?.slice(-5) || [],
+        topic: topic?.slice(0, 50)
+      });
+    });
+
     const encoder = new TextEncoder();
     let controllerClosed = false;
 
@@ -371,6 +382,8 @@ export async function POST(request: Request) {
           log.error('stream.failed', {
             debateId: debateId || 'unknown',
             error: error instanceof Error ? error.message : String(error),
+            lastMessages: previousMessages?.slice(-5) || [],
+            userId,
           });
           captureError(error, {
             tags: { route: 'debate', phase: 'streaming' },
