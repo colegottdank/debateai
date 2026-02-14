@@ -79,6 +79,9 @@ export const POST = withErrorHandler(async (request: Request) => {
 
   // Generate score
   const topic = (debate.topic as string) || 'Unknown topic';
+  
+  log.info('scoring.started', { debateId, topic: topic.slice(0, 50), msgCount: messages.length });
+
   const scoringPrompt = getScoringPrompt(topic, messages);
 
   // Use Gemini Flash (3 or 2.0 Exp)
