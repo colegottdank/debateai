@@ -287,24 +287,29 @@ export async function POST(request: Request) {
             );
           }
 
+          // Save the complete debate turn
           if (debateId && accumulatedContent) {
-            let messagesToSave: any[] = [];
+            // OPTIMIZATION: Use request context instead of fetching from DB
+            // This reduces latency by avoiding a round-trip + large payload download
+            
+            let messages: any[] = [];
             
             if (previousMessages && previousMessages.length > 0) {
-              messagesToSave = [...previousMessages];
+              messages = [...previousMessages];
             } else {
-              messagesToSave.push({
+              // New debate: initialize with system message if starting fresh
+              messages.push({
                 role: 'system',
                 content: `Welcome to the debate arena! Today's topic: "${topic}".${opponentStyle ? ` Your opponent's style: ${opponentStyle}` : ''}`
               });
             }
 
-            messagesToSave.push({
+            messages.push({
               role: "user",
               content: userArgument,
               ...(isAIAssisted && { aiAssisted: true }),
             });
-            messagesToSave.push({
+            messages.push({
               role: "ai",
               content: accumulatedContent,
               ...(citations.length > 0 && { citations }),
@@ -314,7 +319,7 @@ export async function POST(request: Request) {
               userId,
               opponent: character,
               topic: topic,
-              messages: messagesToSave,
+              messages: messages,
               debateId,
               opponentStyle,
               promptVariant: assignedVariant,

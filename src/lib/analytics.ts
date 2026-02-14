@@ -34,10 +34,20 @@ export interface AnalyticsEvents {
     experiment_variant?: 'aggressive' | 'default';
     is_guest?: boolean;
   };
+  debate_started: {
+    debateId: string;
+    topic: string | undefined;
+    source: 'manual' | 'ai_takeover' | 'instant';
+  };
   debate_message_sent: {
     debateId: string;
     messageIndex: number;
     aiAssisted: boolean;
+  };
+  debate_ai_message_sent: {
+    debateId: string;
+    messageIndex: number;
+    turnCount: number;
   };
   debate_completed: {
     debateId: string;
@@ -54,6 +64,16 @@ export interface AnalyticsEvents {
     winner: 'user' | 'ai' | 'draw';
     userScore: number;
     aiScore: number;
+  };
+
+  debate_finished: {
+    debateId: string;
+    winner: 'user' | 'ai' | 'draw';
+    turnCount: number;
+  };
+  debate_ended_manual: {
+    debateId: string;
+    messageCount: number;
   };
 
   debate_ai_takeover: {

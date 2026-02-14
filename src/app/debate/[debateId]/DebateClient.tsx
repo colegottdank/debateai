@@ -456,6 +456,12 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
         aiScore: data.aiScore,
         winner: data.winner,
       });
+
+      track('debate_finished', {
+        debateId,
+        winner: data.winner,
+        turnCount: messages.length,
+      });
     } catch (error: any) {
       console.error('Failed to request judgment:', error);
       track('debate_error', {
@@ -790,6 +796,10 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
     const messageText = userInput.trim();
     hasUserInteracted.current = true;
 
+    if (messages.length === 0) {
+      track('debate_started', { debateId, topic: debate?.topic, source: 'manual' });
+    }
+
     // Add user message immediately
     const userMessage = {
       role: "user",
@@ -939,6 +949,11 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
                     messageIndex: messages.length + 1,
                     latencyMs,
                   });
+                  track('debate_ai_message_sent', {
+                    debateId,
+                    messageIndex: messages.length + 2,
+                    turnCount: messages.length + 2
+                  });
                   setMessages(prev => {
                     const newMessages = [...prev];
                     newMessages[newMessages.length - 1] = {
@@ -989,6 +1004,10 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
     hasUserInteracted.current = true;
     setIsAITakeoverLoading(true);
     setIsAutoScrollEnabled(true);
+
+    if (messages.length === 0) {
+      track('debate_started', { debateId, topic: debate?.topic, source: 'ai_takeover' });
+    }
 
     // Track AI takeover used
     track('debate_ai_takeover', {
@@ -1173,6 +1192,11 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
                   messageIndex: messages.length + 1,
                   latencyMs,
                 });
+                track('debate_ai_message_sent', {
+                  debateId,
+                  messageIndex: messages.length + 2,
+                  turnCount: messages.length + 2
+                });
                 setMessages(prev => {
                   const newMessages = [...prev];
                   newMessages[newMessages.length - 1] = {
@@ -1303,8 +1327,9 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
                 <ShareButtons debateId={debateId} topic={debate.topic} onOpenModal={() => setShowShareModal(true)} />
                 <Link
                   href="/"
+                  onClick={() => track('debate_ended_manual', { debateId, messageCount: messages.length })}
                   className="p-2 rounded-lg text-[var(--text-tertiary)] hover:bg-[var(--bg-sunken)] hover:text-[var(--text)] transition-colors"
-                  title="Close Debate"
+                  title="End Debate"
                 >
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
@@ -1393,18 +1418,17 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
           
           {/* Request Judgment Button - shown when enough messages but no score */}
           {!debateScore && messages.filter(m => m.role === 'user' || m.role === 'ai').length >= 2 && (
-            <div className="flex justify-center my-6">
+            <div className="flex justify-center my-4 animate-fade-in">
               <button
                 onClick={requestJudgment}
                 disabled={isAILoading || isUserLoading}
-                className="group flex items-center gap-2 px-5 py-2.5 rounded-full bg-[var(--bg-elevated)] border border-[var(--border)]
-                  text-[13px] font-medium text-[var(--text-secondary)] hover:text-[var(--text)]
-                  hover:border-[var(--accent)]/30 hover:bg-[var(--bg-sunken)] hover:shadow-sm
-                  transition-all active:scale-95 disabled:opacity-50"
+                className="group flex items-center gap-2 px-3 py-1.5 rounded-lg
+                  text-xs text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-sunken)]
+                  transition-all disabled:opacity-50"
               >
-                <span className="text-base group-hover:scale-110 transition-transform">⚖️</span>
+                <span className="opacity-70 group-hover:scale-110 transition-transform">⚖️</span>
                 <span>Ready for the verdict?</span>
-                <span className="text-[var(--accent)] group-hover:underline decoration-[var(--accent)]/30 underline-offset-4 ml-1">Ask Judge &rarr;</span>
+                <span className="text-[var(--accent)] font-medium group-hover:underline ml-0.5">Ask Judge</span>
               </button>
             </div>
           )}
