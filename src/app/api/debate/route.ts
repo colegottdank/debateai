@@ -113,6 +113,24 @@ export async function POST(request: Request) {
       }
     }
 
+    // SAFETY SAVE: Persist user message immediately to prevent data loss on AI failure
+    // This ensures "incomplete" debates are logged even if generation fails
+    const safetyMessages = [...previousMessages, {
+      role: "user",
+      content: userArgument,
+      ...(isAIAssisted && { aiAssisted: true }),
+    }];
+
+    await d1.saveDebate({
+      userId,
+      opponent: character,
+      topic: topic,
+      messages: safetyMessages,
+      debateId,
+      opponentStyle: (existingDebate as any).debate?.opponentStyle || opponentStyle,
+      promptVariant: assignedVariant,
+    });
+
     if (!body.debateId && previousMessages.length === 0) {
       track('debate_created', {
         debateId: debateId || 'pending',
