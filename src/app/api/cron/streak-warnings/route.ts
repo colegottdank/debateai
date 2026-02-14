@@ -15,7 +15,7 @@ export const POST = withErrorHandler(async (request: Request) => {
   const authHeader = request.headers.get('authorization');
   const cronSecret = process.env.CRON_SECRET;
 
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
     throw errors.unauthorized('Invalid cron secret');
   }
 
