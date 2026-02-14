@@ -1,0 +1,7 @@
+name = "debateai"
+compatibility_date = "2024-04-03"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "debate-ai"
+database_id = "28578b68-25d4-447b-aaf3-4fa3cc01a99b"
