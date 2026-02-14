@@ -130,11 +130,12 @@ export async function POST(
       isAiAssisted: aiTakeover
     });
 
-    // Try to save to D1 (don't fail if it doesn't work)
+    // Try to save to D1. Fail if persistence is unavailable to prevent data loss.
     try {
       await d1.addMessage(debateId, userMessage);
-    } catch {
-      console.log('D1 save failed, using memory only');
+    } catch (err) {
+      console.error('D1 save failed (user msg):', err);
+      throw errors.internal('Connection error: Failed to save message.');
     }
 
     // Generate AI response
@@ -168,8 +169,9 @@ export async function POST(
     // Try to save AI message to D1
     try {
       await d1.addMessage(debateId, aiMessage);
-    } catch {
-      console.log('D1 save failed for AI message, using memory only');
+    } catch (err) {
+      console.error('D1 save failed (AI msg):', err);
+      // We log error but return success so user sees the response.
     }
 
     return NextResponse.json({
@@ -207,6 +209,9 @@ async function generateAIResponse(
 
   if (AI_SERVICE_URL && AI_API_KEY) {
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 25000); // 25s timeout (Lambda limit is usually 10s or 60s, keep it under 30s)
+
       const response = await fetch(AI_SERVICE_URL, {
         method: 'POST',
         headers: {
@@ -219,7 +224,9 @@ async function generateAIResponse(
           messages: messages,
           userMessage: userMessage,
         }),
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
 
       if (response.ok) {
         const data = await response.json();

@@ -60,6 +60,12 @@ export async function POST(request: Request) {
 
     // The prompt instructs the model to return ONLY a valid JSON object.
     let jsonText = text.trim();
+    // Try to find JSON block if wrapped in markdown or mixed with text
+    const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      jsonText = jsonMatch[0];
+    }
+    // Handle markdown code blocks specifically if regex missed (redundant but safe)
     if (jsonText.startsWith('```')) {
       jsonText = jsonText.replace(/```json?\n?/g, '').replace(/```$/g, '').trim();
     }

@@ -76,31 +76,44 @@ export const POST = withErrorHandler(async (request: Request) => {
     });
   }
 
-  // Need at least 2 user messages + 2 AI messages to score
+  // Need at least 1 user message + 1 AI message to score (lowered from 2)
   const messages = (debate.messages as Array<{ role: string; content: string }>) || [];
   const userMsgs = messages.filter(m => m.role === 'user');
   const aiMsgs = messages.filter(m => m.role === 'ai');
 
-  if (userMsgs.length < 2 || aiMsgs.length < 2) {
-    throw errors.badRequest('Need at least 2 exchanges to score a debate');
+  if (userMsgs.length < 1 || aiMsgs.length < 1) {
+    throw errors.badRequest('Need at least 1 exchange to score a debate');
   }
 
   // Generate score
   const topic = (debate.topic as string) || 'Unknown topic';
   const scoringPrompt = getScoringPrompt(topic, messages);
 
-  const response = await anthropic.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 800,
-    messages: [{ role: 'user', content: scoringPrompt }],
-  }, {
-    headers: {
-      'Helicone-User-Id': userId,
-      'Helicone-RateLimit-Policy': '100;w=86400;s=user',
-    },
-  });
-
-  const text = response.content[0].type === 'text' ? response.content[0].text : '';
+  let text = '';
+  try {
+    const response = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 800,
+      messages: [{ role: 'user', content: scoringPrompt }],
+    }, {
+      headers: {
+        'Helicone-User-Id': userId,
+        'Helicone-RateLimit-Policy': '100;w=86400;s=user',
+      },
+    });
+    text = response.content[0].type === 'text' ? response.content[0].text : '';
+  } catch (err) {
+    console.error('Scoring model failed, trying fallback:', err);
+    // Fallback to Sonnet if Haiku fails (or model name is wrong)
+    const fallbackResponse = await anthropic.messages.create({
+      model: 'claude-3-5-sonnet-latest',
+      max_tokens: 800,
+      messages: [{ role: 'user', content: scoringPrompt }],
+    }, {
+       headers: { 'Helicone-User-Id': userId }
+    });
+    text = fallbackResponse.content[0].type === 'text' ? fallbackResponse.content[0].text : '';
+  }
 
   // Parse JSON response — handle potential markdown wrapping
   let jsonText = text.trim();
