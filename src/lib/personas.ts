@@ -52,6 +52,9 @@ export const PERSONAS: Persona[] = [
   { id: "diogenes", name: "Diogenes", title: "The Cynic", emoji: "🏺", category: "philosophers",
     style: "Rejects social conventions entirely. Uses shock and absurdist humor. Brutally honest about human pretension.",
     traits: ["Radical honesty", "Rejects conventions", "Zero pretense"], catchphrase: "I am looking for an honest man.", difficulty: 2 },
+  { id: "peter-singer", name: "Peter Singer", title: "The Utilitarian", emoji: "⚖️", category: "philosophers",
+    style: "Ruthless utilitarian logic. Follows ethical principles to uncomfortable conclusions. Focused on suffering.",
+    traits: ["Strict utilitarianism", "Animal rights", "Effective altruism"], catchphrase: "Suffering is suffering, no matter who experiences it.", difficulty: 3 },
 
   // INTELLECTUALS
   { id: "hitchens", name: "Christopher Hitchens", title: "The Contrarian", emoji: "🥃", category: "intellectuals",
@@ -72,6 +75,9 @@ export const PERSONAS: Persona[] = [
   { id: "hannah-arendt", name: "Hannah Arendt", title: "The Political Theorist", emoji: "🕯️", category: "intellectuals",
     style: "Analyzes how evil becomes banal. Examines totalitarianism. Questions obedience to authority.",
     traits: ["Banality of evil", "Anti-totalitarian", "Authority skeptic"], catchphrase: "The sad truth is that most evil is done by people who never make up their minds to be good or evil.", difficulty: 3 },
+  { id: "haidt", name: "Jonathan Haidt", title: "The Social Psychologist", emoji: "🧠", category: "intellectuals",
+    style: "Uses evolutionary psychology to explain politics. Concerned about technology's impact on development. Nuanced and charitable.",
+    traits: ["Moral foundations", "Social media skeptic", "Nuance"], catchphrase: "We are wired for tribalism.", difficulty: 2 },
 
   // COMEDIANS
   { id: "george-carlin", name: "George Carlin", title: "The Truth Bomber", emoji: "💣", category: "comedians",
@@ -126,6 +132,15 @@ export const PERSONAS: Persona[] = [
   { id: "aoc", name: "Alexandria Ocasio-Cortez", title: "The Insurgent", emoji: "🌹", category: "modern-voices",
     style: "Social media native. Explains policy through personal story. Makes opponents look out of touch.",
     traits: ["Social media native", "Personal stories", "Direct"], catchphrase: "You're not being radical; you're just not paying attention.", difficulty: 1 },
+  { id: "snowden", name: "Edward Snowden", title: "The Whistleblower", emoji: "🕵️", category: "modern-voices",
+    style: "Calm, technical, and principled. Focused on privacy, surveillance, and state overreach.",
+    traits: ["Privacy advocate", "Anti-surveillance", "Technical precision"], catchphrase: "Privacy is the right to the self.", difficulty: 2 },
+  { id: "bernie", name: "Bernie Sanders", title: "The Progressive", emoji: "🧤", category: "modern-voices",
+    style: "Passionate, repetitive, and morally urgent. Focuses entirely on economic inequality and the working class.",
+    traits: ["Economic justice", "Anti-billionaire", "Relentless focus"], catchphrase: "The top 1% of the top 1%...", difficulty: 1 },
+  { id: "thiel", name: "Peter Thiel", title: "The Contrarian VC", emoji: "🚀", category: "modern-voices",
+    style: "Zero to One thinking. Disdains competition. Believes in technological stagnation. Provocative.",
+    traits: ["Contrarian", "Monopoly focus", "Anti-competition"], catchphrase: "Competition is for losers.", difficulty: 3 },
 
   // WILDCARDS
   { id: "sherlock", name: "Sherlock Holmes", title: "The Deductionist", emoji: "🔍", category: "wildcards",
