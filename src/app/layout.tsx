@@ -29,13 +29,14 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
       appearance={{
         elements: {
           modalBackdrop: "flex items-center justify-center bg-black/60 backdrop-blur-sm",
-          modalContent: "max-w-[95vw] w-full mx-auto",
-          card: "max-w-[95vw] w-full mx-auto shadow-xl rounded-xl overflow-hidden",
-          headerTitle: "text-xl font-bold text-center break-words",
-          headerSubtitle: "text-center break-words text-muted-foreground",
-          socialButtonsBlockButton: "w-full h-auto py-3 whitespace-normal break-words",
+          modalContent: "max-w-[90vw] w-full mx-auto my-auto",
+          card: "max-w-[90vw] w-full mx-auto shadow-xl rounded-xl overflow-hidden box-border",
+          headerTitle: "text-lg sm:text-xl font-bold text-center break-words px-4",
+          headerSubtitle: "text-center break-words text-muted-foreground px-4 text-sm",
+          socialButtonsBlockButton: "w-full h-auto py-3 whitespace-normal break-words text-sm",
           footerActionLink: "text-primary hover:text-primary-600",
           formButtonPrimary: "bg-primary-600 hover:bg-primary-700 text-white",
+          rootBox: "w-full max-w-[90vw] mx-auto",
         }
       }}
     >
