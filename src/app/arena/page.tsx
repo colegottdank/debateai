@@ -1,93 +1,95 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 
-export default function ArenaPage() {
+const OPPONENTS = [
+  {
+    id: 'gemini',
+    name: 'Gemini Pro',
+    role: 'Speedster',
+    difficulty: 'Easy',
+    color: 'from-blue-400 to-cyan-500',
+    avatar: '⚡',
+    rewards: '100 XP'
+  },
+  {
+    id: 'claude',
+    name: 'Claude 3.5',
+    role: 'Tactician',
+    difficulty: 'Medium',
+    color: 'from-orange-400 to-red-500',
+    avatar: '🧠',
+    rewards: '250 XP'
+  },
+  {
+    id: 'gpt4',
+    name: 'GPT-4o',
+    role: 'Grandmaster',
+    difficulty: 'Hard',
+    color: 'from-purple-500 to-pink-600',
+    avatar: '👑',
+    rewards: '500 XP'
+  }
+];
+
+export default function ArenaSelectionPage() {
   return (
-    <div className="min-h-screen bg-slate-950 text-white p-4 pb-32">
-      <header className="flex justify-between items-center mb-8">
-        <h1 className="text-2xl font-bold">Arena Mode</h1>
-        <div className="bg-slate-800 px-3 py-1 rounded-full text-sm">Turn 1</div>
+    <div className="min-h-screen bg-slate-950 text-white p-6 pb-32">
+      <header className="mb-8">
+        <h1 className="text-3xl font-black bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent uppercase tracking-tighter">
+          Arena Selection
+        </h1>
+        <p className="text-slate-400 mt-2">Choose your opponent and prove your logic.</p>
       </header>
-      
-      {/* Battle Area */}
-      <div className="flex flex-col md:flex-row justify-between items-center max-w-4xl mx-auto gap-8 mb-8">
-        {/* Player */}
-        <div className="flex flex-col items-center w-full md:w-1/3">
-          <div className="relative">
-            <div className="w-32 h-32 bg-blue-500 rounded-full mb-4 flex items-center justify-center text-4xl shadow-lg shadow-blue-500/20">
-              👤
-            </div>
-            {/* Status Effects Container */}
-            <div className="absolute -top-2 -right-2 flex gap-1">
-               {/* Placeholders */}
-            </div>
-          </div>
-          
-          <div className="text-xl font-bold mb-1">You</div>
-          
-          {/* Health Bar */}
-          <div className="w-full bg-slate-800 h-6 rounded-full mt-2 overflow-hidden relative border border-slate-700">
-            <div className="bg-green-500 h-full w-full transition-all duration-500"></div>
-            <div className="absolute inset-0 flex items-center justify-center text-xs font-bold shadow-black drop-shadow-md">
-              100 / 100
-            </div>
-          </div>
-        </div>
 
-        {/* VS / Info */}
-        <div className="flex flex-col items-center">
-          <div className="text-4xl font-black text-slate-700 mb-2">VS</div>
-          <div className="text-yellow-500 font-mono font-bold text-xl">0 COMBO</div>
-        </div>
-
-        {/* AI */}
-        <div className="flex flex-col items-center w-full md:w-1/3">
-           <div className="relative">
-            <div className="w-32 h-32 bg-red-500 rounded-full mb-4 flex items-center justify-center text-4xl shadow-lg shadow-red-500/20">
-              🤖
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto">
+        {OPPONENTS.map((opp) => (
+          <Link 
+            href="/arena/battle" 
+            key={opp.id}
+            className="group relative bg-slate-900 rounded-2xl p-1 overflow-hidden transition-all hover:-translate-y-2 hover:shadow-2xl hover:shadow-purple-500/20"
+          >
+            <div className={`absolute inset-0 bg-gradient-to-br ${opp.color} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
+            
+            <div className="relative bg-slate-900 rounded-xl p-6 h-full border border-slate-800 group-hover:border-transparent flex flex-col items-center text-center z-10">
+              <div className={`w-24 h-24 rounded-full bg-gradient-to-br ${opp.color} flex items-center justify-center text-4xl mb-4 shadow-lg group-hover:scale-110 transition-transform`}>
+                {opp.avatar}
+              </div>
+              
+              <h2 className="text-2xl font-bold mb-1">{opp.name}</h2>
+              <div className="text-xs font-mono uppercase tracking-widest text-slate-500 mb-4">{opp.role}</div>
+              
+              <div className="w-full bg-slate-800/50 rounded-lg p-3 mb-6">
+                <div className="flex justify-between text-sm mb-1">
+                  <span className="text-slate-400">Difficulty</span>
+                  <span className={
+                    opp.difficulty === 'Hard' ? 'text-red-400' : 
+                    opp.difficulty === 'Medium' ? 'text-yellow-400' : 'text-green-400'
+                  }>{opp.difficulty}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-400">Reward</span>
+                  <span className="text-yellow-400 font-bold">{opp.rewards}</span>
+                </div>
+              </div>
+              
+              <div className="mt-auto w-full">
+                <button className="w-full py-3 rounded-lg bg-slate-800 group-hover:bg-white group-hover:text-black font-bold transition-colors">
+                  CHALLENGE
+                </button>
+              </div>
             </div>
-          </div>
-          <div className="text-xl font-bold mb-1">Claude 3.5</div>
-          <div className="w-full bg-slate-800 h-6 rounded-full mt-2 overflow-hidden relative border border-slate-700">
-            <div className="bg-red-500 h-full w-full transition-all duration-500"></div>
-            <div className="absolute inset-0 flex items-center justify-center text-xs font-bold shadow-black drop-shadow-md">
-              100 / 100
-            </div>
-          </div>
-        </div>
+          </Link>
+        ))}
       </div>
 
-      {/* Action Log */}
-      <div className="max-w-2xl mx-auto mb-8 bg-slate-900/50 p-4 rounded-lg border border-slate-800 h-32 overflow-y-auto font-mono text-sm">
-        <div className="text-slate-400">&gt; Match started!</div>
-        <div className="text-blue-400">&gt; You entered the arena.</div>
-        <div className="text-red-400">&gt; Claude 3.5 is preparing to argue...</div>
-      </div>
-
-      {/* Controls */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-slate-900/90 backdrop-blur border-t border-slate-800 safe-area-pb">
-        <div className="max-w-md mx-auto grid grid-cols-4 gap-3">
-          <button className="bg-gradient-to-b from-red-500 to-red-700 p-4 rounded-xl font-bold hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-red-900/20 flex flex-col items-center gap-1 border-t border-white/10">
-            <span className="text-2xl">⚔️</span>
-            <span className="text-xs uppercase tracking-wider">Attack</span>
-          </button>
-          
-          <button className="bg-gradient-to-b from-blue-500 to-blue-700 p-4 rounded-xl font-bold hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-blue-900/20 flex flex-col items-center gap-1 border-t border-white/10">
-            <span className="text-2xl">🛡️</span>
-            <span className="text-xs uppercase tracking-wider">Defend</span>
-          </button>
-          
-          <button className="bg-gradient-to-b from-green-500 to-green-700 p-4 rounded-xl font-bold hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-green-900/20 flex flex-col items-center gap-1 border-t border-white/10">
-            <span className="text-2xl">💚</span>
-            <span className="text-xs uppercase tracking-wider">Heal</span>
-          </button>
-          
-          <button className="bg-gradient-to-b from-purple-500 to-purple-700 p-4 rounded-xl font-bold hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-purple-900/20 flex flex-col items-center gap-1 border-t border-white/10 relative overflow-hidden">
-            <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
-            <span className="text-2xl relative z-10">✨</span>
-            <span className="text-xs uppercase tracking-wider relative z-10">Ult</span>
-          </button>
+      <div className="mt-12 p-6 bg-slate-900/50 border border-slate-800 rounded-xl max-w-2xl mx-auto text-center">
+        <h3 className="text-xl font-bold text-slate-300 mb-2">Weekly Leaderboard</h3>
+        <div className="flex items-center justify-center gap-4 text-slate-500 text-sm">
+          <span>🏆 1. Spud (2400 XP)</span>
+          <span>🥈 2. Atlas (2100 XP)</span>
+          <span>🥉 3. Pixel (1950 XP)</span>
         </div>
       </div>
     </div>

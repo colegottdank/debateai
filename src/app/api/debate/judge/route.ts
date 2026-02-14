@@ -5,16 +5,15 @@ import { createRateLimiter, getClientIp, rateLimitResponse } from '@/lib/rate-li
 import { errors, validateBody } from '@/lib/api-errors';
 import { judgeDebateSchema } from '@/lib/api-schemas';
 import { logger } from '@/lib/logger';
-import Anthropic from '@anthropic-ai/sdk';
+import { getGeminiModel } from '@/lib/vertex';
 
 const log = logger.scope('debate.judge');
 
-const anthropic = new Anthropic({
-  baseURL: 'https://anthropic.helicone.ai',
-  apiKey: process.env.ANTHROPIC_API_KEY,
-  defaultHeaders: {
-    'Helicone-Auth': `Bearer ${process.env.HELICONE_API_KEY}`,
-  },
+// Use Gemini Flash as requested (optimized for speed/cost)
+const model = getGeminiModel('gemini-2.0-flash-exp', {
+  generationConfig: {
+    responseMimeType: 'application/json'
+  }
 });
 
 // 5 judging requests per minute per user
@@ -45,27 +44,21 @@ export async function POST(request: Request) {
     // Generate the judging prompt
     const judgePrompt = getJudgePrompt(topic, messages);
 
-    // Use a more powerful model for the final judgment
-    const response = await anthropic.messages.create({
-      model: 'claude-3-opus-20240229',
-      max_tokens: 1024, // Allow more tokens for the JSON response
-      messages: [{ role: 'user', content: judgePrompt }],
-    }, {
-      headers: {
-        'Helicone-User-Id': userId,
-      },
+    // Call Gemini
+    const result = await model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: judgePrompt }] }]
     });
 
-    const text = response.content[0].type === 'text' ? response.content[0].text : '';
-
-    // The prompt instructs the model to return ONLY a valid JSON object.
-    let jsonText = text.trim();
-    if (jsonText.startsWith('```')) {
-      jsonText = jsonText.replace(/```json?\n?/g, '').replace(/```$/g, '').trim();
-    }
+    const response = await result.response;
+    const text = response.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
     let judgment: any;
     try {
+      // Gemini usually respects JSON mode, but we strip markdown just in case
+      let jsonText = text.trim();
+      if (jsonText.startsWith('```')) {
+        jsonText = jsonText.replace(/```json?\n?/g, '').replace(/```$/g, '').trim();
+      }
       judgment = JSON.parse(jsonText);
     } catch (e) {
       log.error('judging.failed.parse', { debateId, rawResponse: text, error: e instanceof Error ? e.message : String(e) });
