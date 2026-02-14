@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, Suspense } from 'react';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { track as vercelTrack } from '@vercel/analytics';
 import { registerProvider, track } from '@/lib/analytics';
 import { captureUtmParams, getAttributionContext } from '@/lib/utm';
@@ -10,10 +11,31 @@ const SESSION_KEY = 'debateai_session_tracked';
 const DEBUG = process.env.NEXT_PUBLIC_POSTHOG_DEBUG === 'true';
 
 /**
- * Wires our custom analytics abstraction to Vercel Analytics and PostHog.
- * Also captures UTM parameters on first page load.
+ * Inner component that uses search params and pathname.
+ * Must be wrapped in Suspense to avoid de-opting static pages.
  */
-export default function AnalyticsProvider() {
+function AnalyticsContent() {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // Track pageviews on route change
+  useEffect(() => {
+    if (pathname && posthog) {
+      let url = window.origin + pathname;
+      if (searchParams?.toString()) {
+        url = url + `?${searchParams.toString()}`;
+      }
+      
+      if (DEBUG) {
+        console.log('[PostHog] Capturing $pageview:', url);
+      }
+      
+      posthog.capture('$pageview', {
+        $current_url: url,
+      });
+    }
+  }, [pathname, searchParams]);
+
   useEffect(() => {
     // Capture UTM params from URL on mount
     const utm = captureUtmParams();
@@ -61,4 +83,16 @@ export default function AnalyticsProvider() {
   }, []);
 
   return null;
+}
+
+/**
+ * Wires our custom analytics abstraction to Vercel Analytics and PostHog.
+ * Also captures UTM parameters on first page load.
+ */
+export default function AnalyticsProvider() {
+  return (
+    <Suspense fallback={null}>
+      <AnalyticsContent />
+    </Suspense>
+  );
 }
