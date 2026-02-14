@@ -57,7 +57,8 @@ export async function POST(req: NextRequest) {
     // Wait, createContentReview in d1.ts generated ID but didn't return it?
     // I should check d1.ts implementation.
     
-  } catch (_error) {
+  } catch {
+
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
   }
 }

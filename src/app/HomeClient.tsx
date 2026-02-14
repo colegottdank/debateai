@@ -13,6 +13,12 @@ import { useSubscription } from '@/lib/useSubscription';
 import { markOnboarded } from '@/lib/onboarding';
 import { track } from '@/lib/analytics';
 
+const QUICK_STARTS = [
+  { topic: "Free will is an illusion", persona: "Sam Harris" },
+  { topic: "Social media does more harm than good", persona: "Jonathan Haidt" },
+  { topic: "Privacy is a human right", persona: "Edward Snowden" },
+];
+
 interface DailyDebateData {
   topic: string;
   persona: string;
@@ -28,7 +34,7 @@ export default function HomeClient({
   const router = useRouter();
   const { isSignedIn } = useSafeUser();
   const { isPremium, debatesUsed, debatesLimit } = useSubscription();
-  const [dailyDebate] = useState<DailyDebateData>(initialDebate);
+  const [dailyDebate, setDailyDebate] = useState<DailyDebateData>(initialDebate);
   const [userInput, setUserInput] = useState('');
   const [isStarting, setIsStarting] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
@@ -311,6 +317,40 @@ export default function HomeClient({
               </p>
             )}
           </form>
+
+          {/* Quick Start Options */}
+          <div className="mt-8 animate-fade-in" style={{ animationDelay: '300ms' }}>
+            <p className="text-xs text-center text-[var(--text-secondary)] mb-3 uppercase tracking-wider font-semibold">
+              Or try a different topic
+            </p>
+            <div className="grid gap-3">
+              {QUICK_STARTS.map((option, i) => (
+                <button
+                  key={i}
+                  onClick={() => {
+                    setDailyDebate({
+                      topic: option.topic,
+                      persona: option.persona,
+                    });
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className="group flex items-center justify-between p-3 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)] hover:border-[var(--accent)]/50 hover:bg-[var(--accent)]/5 transition-all text-left w-full cursor-pointer"
+                >
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium text-[var(--text)] group-hover:text-[var(--accent)] transition-colors">
+                      {option.topic}
+                    </span>
+                    <span className="text-xs text-[var(--text-secondary)]">
+                      vs. {option.persona}
+                    </span>
+                  </div>
+                  <svg className="w-4 h-4 text-[var(--text-secondary)] group-hover:text-[var(--accent)] opacity-0 group-hover:opacity-100 transition-all transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              ))}
+            </div>
+          </div>
 
           {/* Upgrade Nudge */}
           {!isPremium && debatesUsed !== undefined && debatesUsed >= 2 && (
