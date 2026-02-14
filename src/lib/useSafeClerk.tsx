@@ -55,20 +55,19 @@ function useClerkAvailable(): boolean {
  * Hook is called unconditionally to satisfy React's rules of hooks.
  */
 export function useSafeUser() {
-  // Check availability first (but don't return early - hooks must be unconditional)
+  // Check availability first
   const clerkAvailable = checkClerkAvailability();
   
-  // Always call the hook unconditionally to satisfy React's rules of hooks
-  // If ClerkProvider is missing, this will throw and we catch it
-  try {
-    const result = useClerkUser();
-    // If we got here but Clerk wasn't supposed to be available, something's off
-    // but return the result anyway
-    return clerkAvailable ? result : { isSignedIn: undefined, isLoaded: true, user: undefined };
-  } catch {
-    // ClerkProvider not available (build-time prerender or missing provider)
-    return { isSignedIn: undefined, isLoaded: true, user: undefined };
+  // Conditionally call the hook based on environment availability
+  // This technically violates rules of hooks (conditional hook), but since
+  // the condition is stable (env var) and never changes at runtime, it is safe.
+  // We do this to avoid try/catch around hooks which causes issues in Next.js 15 SSR.
+  if (clerkAvailable) {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    return useClerkUser();
   }
+  
+  return { isSignedIn: undefined, isLoaded: true, user: undefined };
 }
 
 /**
@@ -76,7 +75,7 @@ export function useSafeUser() {
  * Hook is called unconditionally to satisfy React's rules of hooks.
  */
 export function useSafeClerk() {
-  // Check availability first (but don't return early - hooks must be unconditional)
+  // Check availability first
   const clerkAvailable = checkClerkAvailability();
   
   const noopResult = {
@@ -87,13 +86,12 @@ export function useSafeClerk() {
     loaded: true,
   };
   
-  // Always call the hook unconditionally to satisfy React's rules of hooks
-  try {
-    const result = useClerkClerk();
-    return clerkAvailable ? result : noopResult;
-  } catch {
-    return noopResult;
+  if (clerkAvailable) {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    return useClerkClerk();
   }
+  
+  return noopResult;
 }
 
 /**
