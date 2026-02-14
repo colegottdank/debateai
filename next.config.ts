@@ -33,6 +33,16 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  webpack: (config, { isServer }) => {
+    // Suppress warnings about critical dependencies in Sentry/Prisma/OpenTelemetry
+    // We don't use Prisma, but Sentry tries to load its instrumentation
+    config.ignoreWarnings = [
+      ...(config.ignoreWarnings || []),
+      { module: /node_modules\/@prisma\/instrumentation/ },
+      { module: /node_modules\/@opentelemetry\/instrumentation/ },
+    ];
+    return config;
+  },
 };
 
 export default withBundleAnalyzer(nextConfig);
