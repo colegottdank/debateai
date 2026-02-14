@@ -11,6 +11,7 @@ import Spinner from "@/components/Spinner";
 import { track } from "@/lib/analytics";
 import { useToast } from "@/components/Toast";
 import ShareButtons from "@/components/ShareButtons";
+import StickyShareButton from "@/components/StickyShareButton";
 import JudgeMessage from "@/components/JudgeMessage";
 import DebateVoting from "@/components/DebateVoting";
 import PostDebateEngagement from "@/components/PostDebateEngagement";
@@ -1552,6 +1553,16 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
           </div>
         </div>
       </div>
+
+      {/* Sticky Share CTA - Show when there are messages but debate not finished */}
+      {!debateScore && messages.length >= 2 && (
+        <div className="absolute bottom-24 right-4 sm:bottom-8 sm:right-8 z-30 animate-fade-in">
+          <StickyShareButton onClick={() => {
+            track('share_button_clicked', { debateId, location: 'sticky' });
+            setShowShareModal(true);
+          }} />
+        </div>
+      )}
 
       {/* Lazy-loaded modals - only loaded when shown */}
       {showUpgradeModal && (
