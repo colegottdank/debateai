@@ -278,6 +278,11 @@ async function generateAIResponse(
       "While that sounds reasonable, there's another side to consider that you may have overlooked.",
       "Let me offer a different perspective on this issue...",
       "That's a compelling argument, but I think there are some flaws in the reasoning.",
+      "Can you provide more evidence to support that claim?",
+      "I'm not convinced. The premise seems slightly flawed.",
+      "That's one way to look at it, but what about the unintended consequences?",
+      "Interesting, but does that hold up under scrutiny?",
+      "Let's dig deeper into that assumption. Is it really true?",
     ],
   };
 
