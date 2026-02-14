@@ -343,7 +343,7 @@ export async function getLeaderboard(
        up.username
      FROM user_stats st
      JOIN user_streaks sk ON st.user_id = sk.user_id
-     LEFT JOIN user_profiles up ON st.user_id = up.user_id
+     LEFT JOIN users up ON st.user_id = up.user_id
      WHERE ${debatesCol} >= ?
      ORDER BY ${orderBy}
      LIMIT ?`,
