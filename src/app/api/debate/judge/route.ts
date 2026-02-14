@@ -5,14 +5,12 @@ import { createRateLimiter, getClientIp, rateLimitResponse } from '@/lib/rate-li
 import { errors, validateBody } from '@/lib/api-errors';
 import { judgeDebateSchema } from '@/lib/api-schemas';
 import { logger } from '@/lib/logger';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { getGeminiModel } from '@/lib/vertex';
 
 const log = logger.scope('debate.judge');
 
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || '');
 // Use Gemini Flash as requested (optimized for speed/cost)
-const model = genAI.getGenerativeModel({ 
-  model: 'gemini-2.0-flash-exp',
+const model = getGeminiModel('gemini-2.0-flash-exp', {
   generationConfig: {
     responseMimeType: 'application/json'
   }
@@ -52,7 +50,7 @@ export async function POST(request: Request) {
     });
 
     const response = await result.response;
-    const text = response.text();
+    const text = response.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
     let judgment: any;
     try {

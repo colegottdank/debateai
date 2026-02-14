@@ -2,41 +2,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { d1 } from '@/lib/d1';
 import { getUserId } from '@/lib/auth-helper';
 import { checkAppDisabled } from '@/lib/app-disabled';
+import { getGeminiModel } from '@/lib/vertex';
 
-// Hoist mocks to ensure they are available in the factory
-const mocks = vi.hoisted(() => {
-  const on = vi.fn();
-  const finalMessage = vi.fn().mockResolvedValue({ content: [] });
-  const stream = { 
-    on, 
-    finalMessage, 
-    // Add internal properties if accessed by the SDK or test
-  };
-  // The create function returns the stream object
-  const create = vi.fn().mockReturnValue(stream);
-  return {
-    on,
-    finalMessage,
-    stream,
-    create
-  };
-});
-
-vi.mock('@anthropic-ai/sdk', () => {
-  return {
-    default: class Anthropic {
-      messages = {
-        stream: mocks.create
-      }
-    }
-  }
-});
-
-vi.mock('openai', () => ({ default: class OpenAI {} })); // Remove OpenAI mock logic
-
+// Mock dependencies
 vi.mock('@/lib/auth-helper', () => ({
   getUserId: vi.fn(),
-  requireAuth: vi.fn()
 }));
 
 vi.mock('@/lib/d1', () => ({
@@ -47,6 +17,14 @@ vi.mock('@/lib/d1', () => ({
 
 vi.mock('@/lib/app-disabled', () => ({
   checkAppDisabled: vi.fn()
+}));
+
+// Mock Vertex AI (Gemini)
+const generateContentStreamMock = vi.fn();
+vi.mock('@/lib/vertex', () => ({
+  getGeminiModel: vi.fn(() => ({
+    generateContentStream: generateContentStreamMock
+  }))
 }));
 
 // Helper to create mock requests
@@ -73,19 +51,17 @@ describe('POST /api/debate/takeover', () => {
     vi.mocked(checkAppDisabled).mockReturnValue(null);
     vi.mocked(d1.checkDebateMessageLimit).mockResolvedValue({ allowed: true, count: 5, limit: 10, isPremium: false });
 
-    // Re-apply return value after resetAllMocks
-    mocks.create.mockReturnValue(mocks.stream);
-
-    // Mock stream response
-    mocks.on.mockImplementation((event: string, callback: (text: string) => void) => {
-      if (event === 'text') {
-        callback('AI response');
-      }
-      return mocks.stream;
+    // Mock successful stream response
+    generateContentStreamMock.mockResolvedValue({
+      stream: (async function* () {
+        yield { candidates: [{ content: { parts: [{ text: 'AI response' }] } }] };
+      })()
     });
     
-    // Ensure finalMessage returns a promise resolving to content
-    mocks.finalMessage.mockResolvedValue({ content: [] });
+    // Reset getGeminiModel mock return (since vi.fn defaults are used)
+    vi.mocked(getGeminiModel).mockReturnValue({
+      generateContentStream: generateContentStreamMock
+    } as any);
   });
 
   it('validates request body', async () => {
@@ -95,7 +71,7 @@ describe('POST /api/debate/takeover', () => {
     expect(res.status).toBe(400); // expect validation error
   });
 
-  it('calls Anthropic with correct prompt', async () => {
+  it('calls Gemini with correct prompt', async () => {
     const { POST } = await import('@/app/api/debate/takeover/route');
     const res = await POST(makeRequest('POST', {
       debateId: 'debate-123',
@@ -108,8 +84,16 @@ describe('POST /api/debate/takeover', () => {
     }));
 
     expect(res.status).toBe(200);
-    expect(mocks.create).toHaveBeenCalled();
-    const calls = mocks.create.mock.calls[0];
-    expect(calls[0].model).toBe('claude-sonnet-4-20250514'); // Following CLAUDE.md
+    
+    // Verify Gemini was initialized
+    expect(getGeminiModel).toHaveBeenCalledWith('gemini-2.0-flash-exp', expect.objectContaining({
+      systemInstruction: expect.stringContaining('Socratic')
+    }));
+
+    // Verify generateContentStream was called
+    expect(generateContentStreamMock).toHaveBeenCalledWith(expect.objectContaining({
+      contents: [{ role: 'user', parts: [{ text: expect.stringContaining('Generate my response') }] }],
+      tools: [{ googleSearchRetrieval: {} }]
+    }));
   });
 });

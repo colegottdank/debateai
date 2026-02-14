@@ -6,20 +6,12 @@ import { createRateLimiter, getClientIp, rateLimitResponse } from '@/lib/rate-li
 import { errors, withErrorHandler, validateBody } from '@/lib/api-errors';
 import { logger } from '@/lib/logger';
 import { z } from 'zod';
-import Anthropic from '@anthropic-ai/sdk';
 import { recordDebateCompletion } from '@/lib/streaks';
 import { notifyScoreResult, notifyStreakMilestone } from '@/lib/notifications';
 import { currentUser } from '@clerk/nextjs/server';
+import { getGeminiModel } from '@/lib/vertex';
 
 const log = logger.scope('debate.score');
-
-const anthropic = new Anthropic({
-  baseURL: 'https://anthropic.helicone.ai',
-  apiKey: process.env.ANTHROPIC_API_KEY,
-  defaultHeaders: {
-    'Helicone-Auth': `Bearer ${process.env.HELICONE_API_KEY}`,
-  },
-});
 
 // Simple schema for score endpoint
 const scoreRequestSchema = z.object({
@@ -89,18 +81,19 @@ export const POST = withErrorHandler(async (request: Request) => {
   const topic = (debate.topic as string) || 'Unknown topic';
   const scoringPrompt = getScoringPrompt(topic, messages);
 
-  const response = await anthropic.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 800,
-    messages: [{ role: 'user', content: scoringPrompt }],
-  }, {
-    headers: {
-      'Helicone-User-Id': userId,
-      'Helicone-RateLimit-Policy': '100;w=86400;s=user',
-    },
+  // Use Gemini Flash (3 or 2.0 Exp)
+  const model = getGeminiModel('gemini-2.0-flash-exp', {
+    generationConfig: {
+      responseMimeType: 'application/json'
+    }
   });
 
-  const text = response.content[0].type === 'text' ? response.content[0].text : '';
+  const result = await model.generateContent({
+    contents: [{ role: 'user', parts: [{ text: scoringPrompt }] }],
+  });
+
+  const response = await result.response;
+  const text = response.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
   // Parse JSON response — handle potential markdown wrapping
   let jsonText = text.trim();
