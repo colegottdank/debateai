@@ -44,6 +44,12 @@ export default function DebateVoting({
       opponentSide: opponentSideName,
     });
 
+    track("user_feedback_submitted", {
+      debateId,
+      rating: winner === "user" ? 5 : 1, // 5 for user win, 1 for opponent win (proxy for satisfaction?)
+      feedback: `Voted for ${winner}`
+    });
+
     try {
       // Call API
       const response = await fetch("/api/debate/vote", {

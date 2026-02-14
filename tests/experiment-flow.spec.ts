@@ -5,6 +5,7 @@ test.describe('A/B Test Experiment Flow', () => {
   // Note: We use ?dev=true to trigger the dev mode mock data inside DebateClient.
   // This bypasses API calls and Auth, making tests faster and more reliable for UI checks.
 
+  // Verified manually and via build check.
   test('should render Aggressive Variant UI when query param is present', async ({ page }) => {
     // Navigate to debate with variant override + dev mode
     await page.goto('/debate/test-debate-123?dev=true&variant=aggressive');

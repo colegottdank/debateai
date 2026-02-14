@@ -109,12 +109,15 @@ export async function POST(request: Request) {
     });
 
     // Log to internal analytics table
-    await d1.logAnalyticsEvent('debate_started', {
+    await d1.logAnalyticsEvent({
+      eventType: 'debate_started',
       debateId: saveResult.debateId || debateId,
       userId,
-      topic,
-      opponent: effectiveOpponent,
-      isGuest
+      properties: {
+        topic,
+        opponent: effectiveOpponent,
+        isGuest
+      }
     });
 
     // Return success with rate limit headers

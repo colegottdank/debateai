@@ -113,6 +113,24 @@ export async function POST(request: Request) {
       }
     }
 
+    // SAFETY SAVE: Persist user message immediately to prevent data loss on AI failure
+    // This ensures "incomplete" debates are logged even if generation fails
+    const safetyMessages = [...previousMessages, {
+      role: "user",
+      content: userArgument,
+      ...(isAIAssisted && { aiAssisted: true }),
+    }];
+
+    await d1.saveDebate({
+      userId,
+      opponent: character,
+      topic: topic,
+      messages: safetyMessages,
+      debateId,
+      opponentStyle: (existingDebate as any).debate?.opponentStyle || opponentStyle,
+      promptVariant: assignedVariant,
+    });
+
     if (!body.debateId && previousMessages.length === 0) {
       track('debate_created', {
         debateId: debateId || 'pending',
@@ -182,12 +200,26 @@ export async function POST(request: Request) {
     // Gemini supports tools, but prompt engineering helps too
     const userMessage = `${userArgument}\n\n(Remember: Keep it short, under 120 words. If you state facts, verify them with Google Search.)`;
 
+    // Listen for client disconnects
+    request.signal.addEventListener("abort", () => {
+      log.warn("debate.abandoned", {
+        reason: "client_disconnect",
+        debateId: debateId || 'unknown',
+        userId,
+        lastMessages: previousMessages?.slice(-5) || [],
+        topic: topic?.slice(0, 50)
+      });
+    });
+
     const encoder = new TextEncoder();
     let controllerClosed = false;
 
     const streamResponse = new ReadableStream({
       async start(controller) {
+        const streamStartTime = Date.now();
         try {
+          log.info('stream.start', { debateId, userId });
+
           controller.enqueue(
             encoder.encode(`data: ${JSON.stringify({ type: "start" })}\n\n`)
           );
@@ -326,11 +358,14 @@ export async function POST(request: Request) {
             });
 
             // Log analytics event
-            await d1.logAnalyticsEvent('message_sent', {
+            await d1.logAnalyticsEvent({
+              eventType: 'message_sent',
               debateId,
               userId,
-              turnCount: Math.ceil(messages.length / 2),
-              totalMessages: messages.length
+              properties: {
+                turnCount: Math.ceil(messages.length / 2),
+                totalMessages: messages.length
+              }
             });
           }
 
@@ -346,11 +381,20 @@ export async function POST(request: Request) {
               )
             );
             controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
+            
+            log.info('stream.complete', { 
+              debateId, 
+              durationMs: Date.now() - streamStartTime,
+              contentLength: accumulatedContent.length,
+              citationCount: citations.length
+            });
           }
         } catch (error) {
           log.error('stream.failed', {
             debateId: debateId || 'unknown',
             error: error instanceof Error ? error.message : String(error),
+            lastMessages: previousMessages?.slice(-5) || [],
+            userId,
           });
           captureError(error, {
             tags: { route: 'debate', phase: 'streaming' },

@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { d1 } from '@/lib/d1';
 import { getUserId } from '@/lib/auth-helper';
+import { logger } from '@/lib/logger';
+
+const log = logger.scope('vote');
 
 export async function POST(request: Request) {
   try {
@@ -31,15 +34,25 @@ export async function POST(request: Request) {
     await d1.vote(debateId, userId, vote);
 
     // Log feedback
-    await d1.logAnalyticsEvent('user_feedback_submitted', {
+    await d1.logAnalyticsEvent({
+      eventType: 'user_feedback_submitted',
       debateId,
       userId,
-      vote,
-      type: 'vote'
+      properties: {
+        vote,
+        type: 'vote'
+      }
     });
 
     // Get updated counts
     const counts = await d1.getVoteCounts(debateId);
+
+    log.info('cast', {
+      debateId,
+      userId,
+      vote,
+      newCounts: counts
+    });
 
     const response = NextResponse.json({ success: true, ...counts });
 
