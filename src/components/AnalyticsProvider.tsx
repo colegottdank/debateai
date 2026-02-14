@@ -45,7 +45,11 @@ export default function AnalyticsProvider() {
         if (DEBUG) {
           console.log('[PostHog] Capturing event:', event, cleanProps);
         }
-        posthog.capture(event, cleanProps);
+        if (event === 'page_viewed') {
+          posthog.capture('$pageview', cleanProps);
+        } else {
+          posthog.capture(event, cleanProps);
+        }
       } else if (DEBUG) {
         console.log('[PostHog] Skipped capture - no API key:', event, cleanProps);
       }
