@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
  * Returns a simple HTML page confirming unsubscribe status.
  */
 function unsubscribePage(emailOrError: string, success: boolean): string {
-  const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://debateai.org';
+  const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://www.debateai.org';
 
   return `<!DOCTYPE html>
 <html lang="en">

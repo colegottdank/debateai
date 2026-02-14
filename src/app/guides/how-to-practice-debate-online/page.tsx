@@ -7,7 +7,7 @@ import AnalyticsPageView from '@/components/AnalyticsPageView';
 
 const CATEGORY = 'guides';
 const SLUG = 'how-to-practice-debate-online';
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://debateai.org';
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://www.debateai.org';
 
 export const metadata: Metadata = {
   title: 'How to Practice Debate Online: The Complete 2026 Guide',

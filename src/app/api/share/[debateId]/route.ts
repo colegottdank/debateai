@@ -25,7 +25,7 @@ export async function GET(
   if (!rl.allowed) return rateLimitResponse(rl);
   try {
     const { debateId } = await params;
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://debateai.org';
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.debateai.org';
 
     if (!debateId) {
       return NextResponse.json({ error: 'Debate ID required' }, { status: 400 });

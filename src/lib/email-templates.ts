@@ -9,7 +9,7 @@
 
 import { getUnsubscribeUrl, getDebateUrl } from './email';
 
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://debateai.org';
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://www.debateai.org';
 
 /* ------------------------------------------------------------------ */
 /*  Shared layout                                                      */

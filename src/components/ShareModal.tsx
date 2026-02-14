@@ -83,7 +83,7 @@ export default function ShareModal({ isOpen, onClose, debateId, topic, opponentN
 
   if (!mounted || !isOpen) return null;
 
-  const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://debateai.org';
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://www.debateai.org';
   const debateUrl = `${baseUrl}/debate/${debateId}`;
   const shareText = `I just debated "${topic}" on DebateAI — can you do better?`;
   const shareTextWithOpponent = opponentName 

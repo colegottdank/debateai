@@ -3,7 +3,7 @@ import { getPublicProfile } from '@/lib/profiles';
 import Header from '@/components/Header';
 import ProfileClient from './ProfileClient';
 
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://debateai.org';
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://www.debateai.org';
 
 export async function generateMetadata({
   params,

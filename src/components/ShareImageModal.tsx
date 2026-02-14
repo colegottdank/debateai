@@ -144,14 +144,14 @@ export default function ShareImageModal({
     if (!imageUrl) return;
 
     const shareText = `I just debated "${topic}" on DebateAI — can you do better?`;
-    const debateUrl = `${typeof window !== 'undefined' ? window.location.origin : 'https://debateai.org'}/debate/${debateId}`;
+    const debateUrl = `${typeof window !== 'undefined' ? window.location.origin : 'https://www.debateai.org'}/debate/${debateId}`;
     const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(debateUrl)}`;
     window.open(twitterUrl, '_blank', 'width=550,height=420');
     track('share_image_shared', { debateId, method: 'twitter' });
   };
 
   const handleCopyLink = async () => {
-    const debateUrl = `${typeof window !== 'undefined' ? window.location.origin : 'https://debateai.org'}/debate/${debateId}`;
+    const debateUrl = `${typeof window !== 'undefined' ? window.location.origin : 'https://www.debateai.org'}/debate/${debateId}`;
     try {
       await navigator.clipboard.writeText(debateUrl);
       track('share_image_copied', { debateId });

@@ -6,7 +6,7 @@ import { getOpponentById } from '@/lib/opponents';
 import { debateJsonLd } from '@/lib/jsonld';
 import DebateClient from './DebateClient';
 
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://debateai.org';
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://www.debateai.org';
 
 // Generate dynamic metadata for SEO
 export async function generateMetadata({

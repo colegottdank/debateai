@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { d1 } from '@/lib/d1';
 import { getOpponentById } from '@/lib/opponents';
 
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://debateai.org';
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://www.debateai.org';
 
 // Generate dynamic metadata for ALL debates — not just scored ones
 export async function generateMetadata({ params }: { params: Promise<{ debateId: string }> }): Promise<Metadata> {

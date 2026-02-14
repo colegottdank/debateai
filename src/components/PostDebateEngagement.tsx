@@ -99,7 +99,7 @@ export default function PostDebateEngagement({
   };
 
   const handleShare = async () => {
-    const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://debateai.org';
+    const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://www.debateai.org';
     const shareUrl = `${baseUrl}/debate/${debateId}`;
     const shareText = `I just debated "${topic}" on DebateAI — think you can do better?`;
 

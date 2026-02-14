@@ -1,6 +1,6 @@
 // JSON-LD structured data generators for SEO
 
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://debateai.org';
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://www.debateai.org';
 
 /**
  * WebSite schema for the root layout.

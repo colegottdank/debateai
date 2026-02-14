@@ -7,7 +7,7 @@ import AnalyticsPageView from '@/components/AnalyticsPageView';
 
 const CATEGORY = 'tools';
 const SLUG = 'best-ai-debate-tools-2026';
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://debateai.org';
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://www.debateai.org';
 
 export const metadata: Metadata = {
   title: '7 Best AI Debate Tools in 2026 (Tested and Compared)',

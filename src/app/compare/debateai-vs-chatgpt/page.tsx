@@ -7,7 +7,7 @@ import AnalyticsPageView from '@/components/AnalyticsPageView';
 
 const CATEGORY = 'compare';
 const SLUG = 'debateai-vs-chatgpt';
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://debateai.org';
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://www.debateai.org';
 
 export const metadata: Metadata = {
   title: 'DebateAI vs ChatGPT for Debate Practice: Purpose-Built Tool vs General AI',

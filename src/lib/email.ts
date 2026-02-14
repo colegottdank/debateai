@@ -24,7 +24,7 @@ function getResend(): Resend | null {
 }
 
 const DEFAULT_FROM = process.env.EMAIL_FROM || 'DebateAI <noreply@debateai.org>';
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://debateai.org';
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://www.debateai.org';
 
 export interface SendEmailOptions {
   to: string;

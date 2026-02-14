@@ -41,7 +41,7 @@ export async function GET(
       50
     );
     const theme = searchParams.get('theme') === 'light' ? 'light' : 'dark';
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://debateai.org';
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.debateai.org';
 
     if (!debateId) {
       return new NextResponse('Debate ID required', { status: 400 });

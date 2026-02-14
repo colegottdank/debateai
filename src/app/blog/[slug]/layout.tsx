@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { getPostBySlug, getAllSlugs } from '@/lib/blog';
 
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://debateai.org';
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://www.debateai.org';
 
 // Generate static params for all blog posts at build time
 export async function generateStaticParams() {

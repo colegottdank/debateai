@@ -5,7 +5,7 @@ import TopicHistoryClient from './TopicHistoryClient';
 export const runtime = 'nodejs';
 export const revalidate = 300; // 5-minute ISR
 
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://debateai.org';
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://www.debateai.org';
 
 export const metadata: Metadata = {
   title: 'Daily Topic History',

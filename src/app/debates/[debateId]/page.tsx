@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { debateJsonLd } from '@/lib/jsonld';
 import { getOpponentById } from '@/lib/opponents';
 
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://debateai.org';
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://www.debateai.org';
 
 // Fetch debate data from the public API
 async function getPublicDebate(debateId: string): Promise<Record<string, unknown> | null> {
