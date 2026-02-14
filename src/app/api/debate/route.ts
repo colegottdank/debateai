@@ -205,7 +205,10 @@ export async function POST(request: Request) {
 
     const streamResponse = new ReadableStream({
       async start(controller) {
+        const streamStartTime = Date.now();
         try {
+          log.info('stream.start', { debateId, userId });
+
           controller.enqueue(
             encoder.encode(`data: ${JSON.stringify({ type: "start" })}\n\n`)
           );
@@ -356,6 +359,13 @@ export async function POST(request: Request) {
               )
             );
             controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
+            
+            log.info('stream.complete', { 
+              debateId, 
+              durationMs: Date.now() - streamStartTime,
+              contentLength: accumulatedContent.length,
+              citationCount: citations.length
+            });
           }
         } catch (error) {
           log.error('stream.failed', {
