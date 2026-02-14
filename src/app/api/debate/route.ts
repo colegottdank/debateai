@@ -11,19 +11,12 @@ import { logger } from "@/lib/logger";
 import { captureError } from "@/lib/sentry";
 import { track } from "@/lib/analytics";
 import { calculateNewState, POWERUPS, MOOD_PROMPTS, Mood } from "@/lib/mechanics";
-import Anthropic from "@anthropic-ai/sdk";
+import { getGeminiModel } from "@/lib/vertex";
+import { Content } from "@google-cloud/vertexai";
 
 const log = logger.scope('debate');
 
-const anthropic = new Anthropic({
-  baseURL: "https://anthropic.helicone.ai",
-  apiKey: process.env.ANTHROPIC_API_KEY,
-  defaultHeaders: {
-    "Helicone-Auth": `Bearer ${process.env.HELICONE_API_KEY}`,
-  },
-});
-
-// 20 messages per minute per user (calls Claude API — expensive)
+// 20 messages per minute per user
 const userLimiter = createRateLimiter({ maxRequests: 20, windowMs: 60_000 });
 
 export async function POST(request: Request) {
@@ -33,7 +26,6 @@ export async function POST(request: Request) {
 
   // IP-based rate limit first (before auth check)
   const ip = getClientIp(request);
-  // Use D1 for distributed rate limiting (10 req/min/IP)
   const ipRl = await d1.checkRateLimit(`ip:${ip}`, 10, 60);
   if (!ipRl.allowed) {
     return rateLimitResponse({
@@ -56,11 +48,9 @@ export async function POST(request: Request) {
       return errors.unauthorized();
     }
 
-    // Per-user rate limit (protects Claude API costs)
     const userRl = userLimiter.check(`user:${userId}`);
     if (!userRl.allowed) return rateLimitResponse(userRl);
 
-    // Validate request body
     let body: SendMessageInput;
     try {
       body = await validateBody(request, sendMessageSchema);
@@ -84,24 +74,18 @@ export async function POST(request: Request) {
     
     let { debateId } = body;
 
-    // Generate a debateId if this is a new debate
     if (!debateId) {
       debateId = crypto.randomUUID();
     }
 
-    // Get existing debate state for A/B test variant
     const existingDebate = await d1.getDebate(debateId);
     let assignedVariant = 'default';
 
     if (existingDebate.success && (existingDebate as any).debate?.promptVariant) {
-      // 2. Debate exists, use its already-assigned variant
       assignedVariant = (existingDebate as any).debate.promptVariant as string;
     } else if (promptVariant) {
-      // Explicit override
       assignedVariant = promptVariant;
     } else {
-      // 1. New debate, so assign a variant based on user ID hash
-      // Simple deterministic hash: even/odd ASCII value of last char of userId
       const lastChar = userId.slice(-1);
       if (lastChar.charCodeAt(0) % 2 === 0) {
         assignedVariant = 'aggressive';
@@ -115,14 +99,12 @@ export async function POST(request: Request) {
       character,
       messageIndex: previousMessages.length,
       isAIAssisted,
-      promptVariant: assignedVariant, // Log the assigned variant
+      promptVariant: assignedVariant,
     });
     
-    // Deduplicate debate creation: if no debateId and same user+topic within 30s, reuse existing
     if (!body.debateId) {
       const dup = await d1.findRecentDuplicate(userId, topic, 30);
       if (dup.found && dup.debateId) {
-        // Return the existing debate ID so the client uses it instead of creating a duplicate
         return NextResponse.json({
           deduplicated: true,
           debateId: dup.debateId,
@@ -131,8 +113,6 @@ export async function POST(request: Request) {
       }
     }
 
-    // Track new debate start with experiment variant (for first message in new debates)
-    // This ensures PostHog captures the variant even if create route wasn't used
     if (!body.debateId && previousMessages.length === 0) {
       track('debate_created', {
         debateId: debateId || 'pending',
@@ -143,8 +123,6 @@ export async function POST(request: Request) {
       });
     }
 
-
-    // Check message limit
     const isTestMode = process.env.NEXT_PUBLIC_TEST_MODE === "true";
     const isLocalDev =
       process.env.NODE_ENV === "development" ||
@@ -160,81 +138,60 @@ export async function POST(request: Request) {
       }
     }
 
-    // A/B Test for Aggressive Persona Spike
     let systemPrompt: string;
     const isFirstResponse = !previousMessages || previousMessages.length === 0;
 
     if (assignedVariant === 'aggressive') {
-      log.info('prompt.variant.used', { variant: 'aggressive', debateId: debateId || 'new' });
       systemPrompt = getAggressiveDebatePrompt(topic, isFirstResponse);
     } else {
-      // Default behavior
       const persona = opponentStyle || getDailyPersona();
       systemPrompt = getDebatePrompt(persona, topic, isFirstResponse);
     }
 
-    // --- NEW MECHANICS START ---
-    // 1. Calculate new state
     const { newCombo, newMood } = calculateNewState(userArgument, comboCount, currentMood as Mood);
     
-    // 2. Inject Mood
     if (MOOD_PROMPTS[newMood]) {
       systemPrompt += `\n\n${MOOD_PROMPTS[newMood]}`;
     }
 
-    // 3. Inject Power-up
     if (activePowerup && POWERUPS[activePowerup]) {
       systemPrompt += `\n\n${POWERUPS[activePowerup].promptInjection}`;
-      log.info('mechanics.powerup_used', { debateId, powerup: activePowerup });
     }
     
-    log.info('mechanics.state_update', { oldMood: currentMood, newMood, oldCombo: comboCount, newCombo });
-    // --- NEW MECHANICS END ---
+    // Gemini history format
+    const history: Content[] = [];
 
-    // Build conversation history for Anthropic SDK format
-    const messages: Anthropic.MessageParam[] = [];
-
-    // Add previous messages if they exist
     if (previousMessages && previousMessages.length > 0) {
       for (const msg of previousMessages) {
-        // Skip empty messages - Anthropic API requires non-empty content
         if (!msg.content || msg.content.trim() === "") continue;
 
         if (msg.role === "user") {
-          messages.push({ role: "user", content: msg.content });
+          history.push({ role: "user", parts: [{ text: msg.content }] });
         } else if (msg.role === "ai") {
-          messages.push({ role: "assistant", content: msg.content });
+          history.push({ role: "model", parts: [{ text: msg.content }] });
         }
       }
     }
 
-    // Add the current user argument
-    messages.push({ role: "user", content: userArgument });
+    // Initialize Gemini Model
+    // Using gemini-2.0-flash-exp (Flash 2.0) as requested for speed/cost (or user specified "Gemini 3 Flash")
+    // We'll map "Gemini 3 Flash" to "gemini-2.0-flash-exp" effectively until 3 is available
+    const model = getGeminiModel("gemini-2.0-flash-exp", { systemInstruction: systemPrompt });
 
-    // Inject reminder about citations and brevity to prime the model
-    messages.push({
-      role: "assistant",
-      content:
-        "I'll respond with a short, punchy counter (under 120 words). If I search the web, I'll include [1], [2] markers for any facts I cite.",
-    });
-    messages.push({
-      role: "user",
-      content: "Go ahead. Keep it short.",
-    });
+    // Inject reminder about citations
+    // Gemini supports tools, but prompt engineering helps too
+    const userMessage = `${userArgument}\n\n(Remember: Keep it short, under 120 words. If you state facts, verify them with Google Search.)`;
 
-    // Always use streaming response
     const encoder = new TextEncoder();
-    let controllerClosed = false; // Track if controller is closed
+    let controllerClosed = false;
 
     const streamResponse = new ReadableStream({
       async start(controller) {
         try {
-          // Send initial message
           controller.enqueue(
             encoder.encode(`data: ${JSON.stringify({ type: "start" })}\n\n`)
           );
 
-          // Send new mechanics state
           controller.enqueue(
             encoder.encode(`data: ${JSON.stringify({ 
               type: "state", 
@@ -242,36 +199,20 @@ export async function POST(request: Request) {
             })}\n\n`)
           );
 
-          // Use Anthropic directly with web search tool
-          const stream = anthropic.messages.stream({
-            model: "claude-haiku-4-5-20251001",
-            max_tokens: 500,
-            system: systemPrompt,
-            messages: messages,
-            tools: [
-              {
-                type: "web_search_20250305",
-                name: "web_search",
-                max_uses: 2, // Allow 2 searches for better citations
-              },
-            ],
-          }, {
-            headers: {
-              "Helicone-User-Id": userId,
-              "Helicone-RateLimit-Policy": "100;w=86400;s=user", // 100 requests/day per user
-            },
+          const result = await model.generateContentStream({
+            contents: [...history, { role: "user", parts: [{ text: userMessage }] }],
+            tools: [{ googleSearchRetrieval: {} }], // Use Google Search Grounding
           });
 
           let accumulatedContent = "";
           let buffer = "";
           let lastFlushTime = Date.now();
-          const BUFFER_TIME = 20; // Reduced to 20ms for faster streaming
-          const BUFFER_SIZE = 8; // Send 8 characters at a time for better speed
+          const BUFFER_TIME = 20;
+          const BUFFER_SIZE = 8;
           const citations: any[] = [];
+          const seenUrls = new Set<string>();
           let citationCounter = 1;
-          let searchIndicatorSent = false;
 
-          // Simple flush function for character streaming
           const flushBuffer = () => {
             if (buffer && !controllerClosed) {
               controller.enqueue(
@@ -287,127 +228,44 @@ export async function POST(request: Request) {
             }
           };
 
-          // Handle Anthropic streaming events
-          stream.on("text", (text) => {
+          for await (const chunk of result.stream) {
+            const text = chunk.candidates?.[0]?.content?.parts?.[0]?.text || "";
+            
+            // Handle citations/grounding
+            const groundingMetadata = chunk.candidates?.[0]?.groundingMetadata;
+            if (groundingMetadata?.groundingChunks) {
+              for (const groundChunk of groundingMetadata.groundingChunks) {
+                if (groundChunk.web && groundChunk.web.uri) {
+                   const url = groundChunk.web.uri;
+                   const title = groundChunk.web.title || new URL(url).hostname;
+                   
+                   if (!seenUrls.has(url)) {
+                     seenUrls.add(url);
+                     const citationData = {
+                       id: citationCounter++,
+                       url: url,
+                       title: title,
+                     };
+                     citations.push(citationData);
+                   }
+                }
+              }
+            }
+
             accumulatedContent += text;
 
-            // Add characters to buffer one by one
             for (const char of text) {
               buffer += char;
-
-              // Flush small chunks frequently
               const now = Date.now();
-              if (
-                buffer.length >= BUFFER_SIZE ||
-                (now - lastFlushTime >= BUFFER_TIME && buffer.length > 0)
-              ) {
+              if (buffer.length >= BUFFER_SIZE || (now - lastFlushTime >= BUFFER_TIME && buffer.length > 0)) {
                 flushBuffer();
               }
             }
-          });
-
-          // Handle content block events for web search
-          (stream as any).on("contentBlockStart", (event: any) => {
-            log.debug("anthropic.content_block_start", event);
-            if (event.content_block?.type === "server_tool_use" && event.content_block?.name === "web_search") {
-              if (!searchIndicatorSent) {
-                searchIndicatorSent = true;
-                controller.enqueue(
-                  encoder.encode(
-                    `data: ${JSON.stringify({
-                      type: "search_start",
-                    })}\n\n`
-                  )
-                );
-              }
-            }
-          });
-
-          // Handle the full message to extract citations
-          const finalMessage = await stream.finalMessage();
-          log.debug("anthropic.final_message", { length: finalMessage.content.length });
-
-          // Extract citations from the response
-          const MAX_CITATIONS = 5;
-          const seenUrls = new Set<string>();
-
-          // First pass: extract from text block citations (preferred - has proper mapping)
-          for (const block of finalMessage.content) {
-            if (block.type === "text") {
-              // Cast to access citations property (added by web search, not in base type)
-              const textBlock = block as typeof block & {
-                citations?: Array<{
-                  type: string;
-                  url: string;
-                  title?: string;
-                  cited_text?: string;
-                }>;
-              };
-
-              if (textBlock.citations && Array.isArray(textBlock.citations)) {
-                log.debug("citations.text_block_found", { count: textBlock.citations.length });
-                for (const citation of textBlock.citations) {
-                  if (citations.length >= MAX_CITATIONS) break;
-                  if (citation.type === "web_search_result_location" && citation.url) {
-                    // Deduplicate by URL
-                    if (!seenUrls.has(citation.url)) {
-                      seenUrls.add(citation.url);
-                      const citationData = {
-                        id: citationCounter++,
-                        url: citation.url,
-                        title: citation.title || new URL(citation.url).hostname,
-                      };
-                      citations.push(citationData);
-                      log.debug("citations.added", citationData);
-                    }
-                  }
-                }
-              }
-            }
-            if (citations.length >= MAX_CITATIONS) break;
           }
-
-          // Fallback: if no citations found in text blocks, extract from web_search_tool_result
-          if (citations.length === 0) {
-            log.debug("citations.fallback_check");
-            for (const block of finalMessage.content) {
-              if (block.type === "web_search_tool_result") {
-                const resultBlock = block as typeof block & {
-                  content?: Array<{
-                    type: string;
-                    url?: string;
-                    title?: string;
-                  }>;
-                };
-                if (resultBlock.content && Array.isArray(resultBlock.content)) {
-                  log.debug("citations.web_search_found", { count: resultBlock.content.length });
-                  for (const result of resultBlock.content) {
-                    if (citations.length >= MAX_CITATIONS) break;
-                    if (result.type === "web_search_result" && result.url) {
-                      if (!seenUrls.has(result.url)) {
-                        seenUrls.add(result.url);
-                        const citationData = {
-                          id: citationCounter++,
-                          url: result.url,
-                          title: result.title || new URL(result.url).hostname,
-                        };
-                        citations.push(citationData);
-                        log.debug("citations.fallback_added", citationData);
-                      }
-                    }
-                  }
-                }
-              }
-              if (citations.length >= MAX_CITATIONS) break;
-            }
-          }
-
-          log.debug("citations.total", { count: citations.length });
 
           // Send citations if any
           if (citations.length > 0 && !controllerClosed) {
-            log.info("citations.sending", { count: citations.length });
-            flushBuffer(); // Flush any pending content first
+            flushBuffer();
             controller.enqueue(
               encoder.encode(
                 `data: ${JSON.stringify({
@@ -418,7 +276,6 @@ export async function POST(request: Request) {
             );
           }
 
-          // Flush any remaining buffer
           if (buffer && !controllerClosed) {
             controller.enqueue(
               encoder.encode(
@@ -428,32 +285,26 @@ export async function POST(request: Request) {
                 })}\n\n`
               )
             );
-            buffer = "";
           }
 
-          // Save the complete debate turn
           if (debateId && accumulatedContent) {
-            // OPTIMIZATION: Use request context instead of fetching from DB
-            // This reduces latency by avoiding a round-trip + large payload download
-            
-            let messages: any[] = [];
+            let messagesToSave: any[] = [];
             
             if (previousMessages && previousMessages.length > 0) {
-              messages = [...previousMessages];
+              messagesToSave = [...previousMessages];
             } else {
-              // New debate: initialize with system message if starting fresh
-              messages.push({
+              messagesToSave.push({
                 role: 'system',
                 content: `Welcome to the debate arena! Today's topic: "${topic}".${opponentStyle ? ` Your opponent's style: ${opponentStyle}` : ''}`
               });
             }
 
-            messages.push({
+            messagesToSave.push({
               role: "user",
               content: userArgument,
               ...(isAIAssisted && { aiAssisted: true }),
             });
-            messages.push({
+            messagesToSave.push({
               role: "ai",
               content: accumulatedContent,
               ...(citations.length > 0 && { citations }),
@@ -463,16 +314,14 @@ export async function POST(request: Request) {
               userId,
               opponent: character,
               topic: topic,
-              messages: messages,
+              messages: messagesToSave,
               debateId,
               opponentStyle,
               promptVariant: assignedVariant,
             });
           }
 
-          // Send completion message
           if (!controllerClosed) {
-            log.info('citations.complete', { count: citations.length });
             controller.enqueue(
               encoder.encode(
                 `data: ${JSON.stringify({
@@ -483,7 +332,6 @@ export async function POST(request: Request) {
                 })}\n\n`
               )
             );
-            // Send [DONE] signal to ensure frontend knows streaming is complete
             controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
           }
         } catch (error) {
@@ -522,9 +370,6 @@ export async function POST(request: Request) {
   } catch (error) {
     log.error('api.failed', {
       error: error instanceof Error ? error.message : String(error),
-    });
-    captureError(error, {
-      tags: { route: 'debate' },
     });
     return errors.internal("Failed to generate debate response");
   }

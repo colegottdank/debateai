@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import Anthropic from '@anthropic-ai/sdk';
 import { createRateLimiter, getClientIp, rateLimitResponse } from '@/lib/rate-limit';
 import { withErrorHandler } from '@/lib/api-errors';
+import { getGeminiModel } from '@/lib/vertex';
 
-// 10 requests per minute per IP (calls Claude API when cache is cold)
+// 10 requests per minute per IP (calls Gemini API when cache is cold)
 const limiter = createRateLimiter({ maxRequests: 10, windowMs: 60_000 });
 
 // Cache trending topics for 1 hour
@@ -71,21 +71,18 @@ async function fetchTrendingNews(): Promise<NewsItem[]> {
 async function convertToDebateTopics(news: NewsItem[]): Promise<TrendingTopic[]> {
   if (news.length === 0) return [];
   
-  const anthropic = new Anthropic({
-    apiKey: process.env.ANTHROPIC_API_KEY,
-  });
-  
   const newsText = news.slice(0, 10).map((n, i) => 
     `${i + 1}. "${n.title}" - ${n.description || ''} (${n.source})`
   ).join('\n');
   
   try {
-    const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1024,
-      messages: [{
-        role: 'user',
-        content: `Convert these news headlines into 5-6 provocative debate questions. Each should be a yes/no or "which side" question that people would actually argue about.
+    const model = getGeminiModel('gemini-2.0-flash-exp', {
+      generationConfig: {
+        responseMimeType: 'application/json'
+      }
+    });
+
+    const prompt = `Convert these news headlines into 5-6 provocative debate questions. Each should be a yes/no or "which side" question that people would actually argue about.
 
 NEWS:
 ${newsText}
@@ -102,11 +99,14 @@ Return JSON array with this format (no markdown, just raw JSON):
   }
 ]
 
-Make questions punchy and debatable. Avoid boring policy questions. Go for takes people actually argue about.`
-      }],
+Make questions punchy and debatable. Avoid boring policy questions. Go for takes people actually argue about.`;
+
+    const result = await model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
     });
     
-    const text = response.content[0].type === 'text' ? response.content[0].text : '';
+    const response = await result.response;
+    const text = response.candidates?.[0]?.content?.parts?.[0]?.text || '';
     
     let jsonText = text.trim();
     if (jsonText.startsWith('```')) {
