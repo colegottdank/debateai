@@ -3,6 +3,7 @@ import { GUEST_MESSAGE_LIMIT, FREE_USER_MESSAGE_LIMIT } from './limits';
 import { MIGRATION_003_SQL } from './migrations/003-arena-mode';
 import { MIGRATION_005_SQL } from './migrations/005-missing-users-cols';
 import { MIGRATION_006_SQL } from './migrations/006-content-review';
+import { MIGRATION_007_SQL } from './migrations/007-analytics';
 import { ArenaState } from './arena-schema';
 
 interface D1Response {
@@ -205,7 +206,7 @@ class D1Client {
     `;
 
     // Combine base schema with migrations
-    const fullSchema = schema + '\n' + MIGRATION_003_SQL + '\n' + MIGRATION_005_SQL + '\n' + MIGRATION_006_SQL;
+    const fullSchema = schema + '\n' + MIGRATION_003_SQL + '\n' + MIGRATION_005_SQL + '\n' + MIGRATION_006_SQL + '\n' + MIGRATION_007_SQL;
 
     const queries = fullSchema.split(';').filter(q => q.trim());
     const results = [];
@@ -814,6 +815,36 @@ class D1Client {
     return this.query(
       `UPDATE content_reviews SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
       [status, id]
+    );
+  }
+
+  // --- Analytics ---
+
+  async logAnalyticsEvent(data: {
+    eventType: string;
+    debateId?: string;
+    userId?: string;
+    sessionId?: string;
+    properties?: any;
+    url?: string;
+    userAgent?: string;
+    ipAddress?: string;
+  }) {
+    const id = crypto.randomUUID();
+    return this.query(
+      `INSERT INTO analytics_events (id, event_type, debate_id, user_id, session_id, properties, url, user_agent, ip_address)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        id,
+        data.eventType,
+        data.debateId || null,
+        data.userId || null,
+        data.sessionId || null,
+        data.properties ? JSON.stringify(data.properties) : '{}',
+        data.url || null,
+        data.userAgent || null,
+        data.ipAddress || null
+      ]
     );
   }
 }

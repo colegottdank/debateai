@@ -261,7 +261,6 @@ const Message = memo(
                   )
                 ) : (
                   <div className="whitespace-pre-wrap">
-                    {/* eslint-disable-next-line */}
                     {renderContentWithCitations(msg.content, msg.citations, handleCitationClick)}
                     {isStreaming && (
                       <span className="inline-block w-2 h-4 ml-0.5 bg-[var(--accent)] animate-pulse rounded-sm" />
@@ -460,6 +459,12 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
       track('debate_finished', {
         debateId,
         winner: data.winner,
+        turnCount: messages.length,
+      });
+
+      track('debate_ended', {
+        debateId,
+        reason: 'completed',
         turnCount: messages.length,
       });
     } catch (error: any) {
@@ -816,6 +821,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
     track('debate_message_sent', {
       debateId,
       messageIndex: messages.length,
+      turnCount: messages.length + 1,
       aiAssisted: false,
     });
 
@@ -1327,7 +1333,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
                 <ShareButtons debateId={debateId} topic={debate.topic} onOpenModal={() => setShowShareModal(true)} />
                 <Link
                   href="/"
-                  onClick={() => track('debate_ended_manual', { debateId, messageCount: messages.length })}
+                  onClick={() => track('debate_ended', { debateId, reason: 'abandoned', turnCount: messages.length })}
                   className="p-2 rounded-lg text-[var(--text-tertiary)] hover:bg-[var(--bg-sunken)] hover:text-[var(--text)] transition-colors"
                   title="End Debate"
                 >

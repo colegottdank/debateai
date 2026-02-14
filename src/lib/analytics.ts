@@ -42,6 +42,7 @@ export interface AnalyticsEvents {
   debate_message_sent: {
     debateId: string;
     messageIndex: number;
+    turnCount?: number;
     aiAssisted: boolean;
   };
   debate_ai_message_sent: {
@@ -57,6 +58,19 @@ export interface AnalyticsEvents {
     aiScore: number;
     roastLevel: string;
     messageCount: number;
+  };
+
+  debate_ended: {
+    debateId: string;
+    reason: 'completed' | 'abandoned' | 'error';
+    turnCount?: number;
+    message?: string;
+  };
+
+  user_feedback_submitted: {
+    debateId: string;
+    rating?: number;
+    feedback?: string;
   };
 
   debate_scored: {

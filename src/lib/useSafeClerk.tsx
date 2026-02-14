@@ -63,6 +63,7 @@ export function useSafeUser() {
   // the condition is stable (env var) and never changes at runtime, it is safe.
   // We do this to avoid try/catch around hooks which causes issues in Next.js 15 SSR.
   if (clerkAvailable) {
+     
     // eslint-disable-next-line react-hooks/rules-of-hooks
     return useClerkUser();
   }
@@ -87,6 +88,7 @@ export function useSafeClerk() {
   };
   
   if (clerkAvailable) {
+     
     // eslint-disable-next-line react-hooks/rules-of-hooks
     return useClerkClerk();
   }
