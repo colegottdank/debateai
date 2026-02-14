@@ -324,6 +324,14 @@ export async function POST(request: Request) {
               opponentStyle,
               promptVariant: assignedVariant,
             });
+
+            // Log analytics event
+            await d1.logAnalyticsEvent('message_sent', {
+              debateId,
+              userId,
+              turnCount: Math.ceil(messages.length / 2),
+              totalMessages: messages.length
+            });
           }
 
           if (!controllerClosed) {

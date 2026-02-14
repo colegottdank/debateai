@@ -30,6 +30,14 @@ export async function POST(request: Request) {
     // Call d1.vote
     await d1.vote(debateId, userId, vote);
 
+    // Log feedback
+    await d1.logAnalyticsEvent('user_feedback_submitted', {
+      debateId,
+      userId,
+      vote,
+      type: 'vote'
+    });
+
     // Get updated counts
     const counts = await d1.getVoteCounts(debateId);
 

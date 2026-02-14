@@ -2,6 +2,7 @@
 import { GUEST_MESSAGE_LIMIT, FREE_USER_MESSAGE_LIMIT } from './limits';
 import { MIGRATION_003_SQL } from './migrations/003-arena-mode';
 import { MIGRATION_005_SQL } from './migrations/005-missing-users-cols';
+import { MIGRATION_006_SQL } from './migrations/006-analytics';
 import { ArenaState } from './arena-schema';
 
 interface D1Response {
@@ -204,7 +205,7 @@ class D1Client {
     `;
 
     // Combine base schema with migrations
-    const fullSchema = schema + '\n' + MIGRATION_003_SQL + '\n' + MIGRATION_005_SQL;
+    const fullSchema = schema + '\n' + MIGRATION_003_SQL + '\n' + MIGRATION_005_SQL + '\n' + MIGRATION_006_SQL;
 
     const queries = fullSchema.split(';').filter(q => q.trim());
     const results = [];
@@ -767,6 +768,14 @@ class D1Client {
       );
     }
     return { success: false, error: 'Match not found' };
+  }
+
+  async logAnalyticsEvent(eventName: string, data: { debateId?: string; userId?: string; turnCount?: number; [key: string]: any }) {
+    const { debateId, userId, turnCount, ...payload } = data;
+    return this.query(
+      `INSERT INTO analytics_events (event_name, debate_id, user_id, turn_count, payload) VALUES (?, ?, ?, ?, ?)`,
+      [eventName, debateId, userId, turnCount || 0, JSON.stringify(payload)]
+    );
   }
 }
 
