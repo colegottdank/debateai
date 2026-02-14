@@ -2,6 +2,7 @@
 import { GUEST_MESSAGE_LIMIT, FREE_USER_MESSAGE_LIMIT } from './limits';
 import { MIGRATION_003_SQL } from './migrations/003-arena-mode';
 import { MIGRATION_005_SQL } from './migrations/005-missing-users-cols';
+import { MIGRATION_006_SQL } from './migrations/006-content-review';
 import { ArenaState } from './arena-schema';
 
 interface D1Response {
@@ -204,7 +205,7 @@ class D1Client {
     `;
 
     // Combine base schema with migrations
-    const fullSchema = schema + '\n' + MIGRATION_003_SQL + '\n' + MIGRATION_005_SQL;
+    const fullSchema = schema + '\n' + MIGRATION_003_SQL + '\n' + MIGRATION_005_SQL + '\n' + MIGRATION_006_SQL;
 
     const queries = fullSchema.split(';').filter(q => q.trim());
     const results = [];
@@ -767,6 +768,53 @@ class D1Client {
       );
     }
     return { success: false, error: 'Match not found' };
+  }
+
+  // --- Content Review ---
+
+  async createContentReview(data: {
+    type: string;
+    title?: string;
+    content?: any;
+    author?: string;
+    metadata?: any;
+    status?: 'pending' | 'approved' | 'rejected' | 'fast_tracked';
+  }) {
+    const id = crypto.randomUUID();
+    const result = await this.query(
+      `INSERT INTO content_reviews (id, type, title, content, status, author, metadata)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        id,
+        data.type,
+        data.title || null,
+        data.content ? JSON.stringify(data.content) : null,
+        data.status || 'pending',
+        data.author || null,
+        data.metadata ? JSON.stringify(data.metadata) : '{}'
+      ]
+    );
+    return { ...result, id };
+  }
+
+  async getContentReviews(status?: string, limit = 50) {
+    if (status) {
+      return this.query(
+        `SELECT * FROM content_reviews WHERE status = ? ORDER BY created_at DESC LIMIT ?`,
+        [status, limit]
+      );
+    }
+    return this.query(
+      `SELECT * FROM content_reviews ORDER BY created_at DESC LIMIT ?`,
+      [limit]
+    );
+  }
+
+  async updateContentReviewStatus(id: string, status: string) {
+    return this.query(
+      `UPDATE content_reviews SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+      [status, id]
+    );
   }
 }
 
