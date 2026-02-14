@@ -2,7 +2,7 @@
 
 import React from 'react';
 
-export default function ArenaPage() {
+export default function ArenaBattlePage() {
   return (
     <div className="min-h-screen bg-slate-950 text-white p-4 pb-32">
       <header className="flex justify-between items-center mb-8">
