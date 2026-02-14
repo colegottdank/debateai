@@ -1,15 +1,30 @@
 import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { d1 } from '@/lib/d1';
-import { getUserId } from '@/lib/auth-helper';
 import { getOpponentById } from '@/lib/opponents';
 import { debateJsonLd } from '@/lib/jsonld';
 import DebateClient from './DebateClient';
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://debateai.org';
 
-// Force dynamic rendering because we access headers/cookies for auth (getUserId)
-export const dynamic = 'force-dynamic';
+// Allow ISR with 60s revalidation
+export const revalidate = 60;
+export const dynamicParams = true;
+
+// Pre-render the most recent 50 debates
+export async function generateStaticParams() {
+  try {
+    const result = await d1.getAllRecentDebates(50);
+    if (result.success && result.result) {
+      return result.result.map((debate: any) => ({
+        debateId: debate.id,
+      }));
+    }
+  } catch (error) {
+    console.error('generateStaticParams error:', error);
+  }
+  return [];
+}
 
 // Generate dynamic metadata for SEO
 export async function generateMetadata({
@@ -112,7 +127,7 @@ export default async function DebatePage({
 
   let debate: Record<string, unknown> | null = null;
   let messages: Array<{ role: string; content: string }> = [];
-  let isOwner = false;
+  const isOwner = false; // Static pages cannot check auth cookies
 
   try {
     const result = await d1.getDebate(debateId);
@@ -121,9 +136,7 @@ export default async function DebatePage({
       messages = Array.isArray(debate.messages)
         ? (debate.messages as Array<{ role: string; content: string }>)
         : [];
-      // Check ownership using helper (supports guests)
-      const userId = await getUserId();
-      isOwner = userId ? debate.user_id === userId : false;
+      // Ownership check moved to client-side (DebateClient) for ISR compatibility
     }
   } catch (error) {
     console.error('SSR: Failed to fetch debate:', error);
