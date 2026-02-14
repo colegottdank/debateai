@@ -60,7 +60,16 @@ function AnalyticsContent() {
       }
 
       // Dispatch to Vercel
-      vercelTrack(event, cleanProps);
+      if (process.env.NODE_ENV === 'production') {
+        vercelTrack(event, cleanProps);
+      }
+
+      // Dispatch to Internal API
+      fetch('/api/analytics', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ event, properties: cleanProps }),
+      }).catch(() => {});
 
       // Dispatch to PostHog
       if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_POSTHOG_KEY) {

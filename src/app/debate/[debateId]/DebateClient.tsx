@@ -462,6 +462,12 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
         winner: data.winner,
         turnCount: messages.length,
       });
+
+      track('debate_ended', {
+        debateId,
+        reason: 'completed',
+        turnCount: messages.length,
+      });
     } catch (error: any) {
       console.error('Failed to request judgment:', error);
       track('debate_error', {
@@ -816,6 +822,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
     track('debate_message_sent', {
       debateId,
       messageIndex: messages.length,
+      turnCount: messages.length + 1,
       aiAssisted: false,
     });
 
@@ -1327,7 +1334,7 @@ export default function DebateClient({ initialDebate = null, initialMessages = [
                 <ShareButtons debateId={debateId} topic={debate.topic} onOpenModal={() => setShowShareModal(true)} />
                 <Link
                   href="/"
-                  onClick={() => track('debate_ended_manual', { debateId, messageCount: messages.length })}
+                  onClick={() => track('debate_ended', { debateId, reason: 'abandoned', turnCount: messages.length })}
                   className="p-2 rounded-lg text-[var(--text-tertiary)] hover:bg-[var(--bg-sunken)] hover:text-[var(--text)] transition-colors"
                   title="End Debate"
                 >
